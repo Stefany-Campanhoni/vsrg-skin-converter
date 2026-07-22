@@ -20,7 +20,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
+    "@types/luaparse": "^0.2.13",
     "@types/node": "^26.1.1",
     "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "luaparse": "^0.3.1"
   }
 }

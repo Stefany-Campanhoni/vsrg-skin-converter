@@ -1,3 +1,4 @@
 node_modules/
+output_folder
 *.log
 .DS_Store
