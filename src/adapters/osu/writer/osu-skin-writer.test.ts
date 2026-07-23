@@ -17,7 +17,7 @@ test("writes a complete osu skin workspace", async () => {
     await mkdir(templates, { recursive: true })
     await writeFile(
       path.join(templates, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await sharp({
       create: {
@@ -60,6 +60,7 @@ test("writes a complete osu skin workspace", async () => {
         hitPosition: 432,
         judgementPosition: 0,
         comboPosition: 0,
+        columnWidth: 62,
       },
       assets: { receptors, tapNotes },
       diagnostics: [],
@@ -69,7 +70,7 @@ test("writes a complete osu skin workspace", async () => {
 
     assert.equal(
       await readFile(path.join(workspace, "skin.ini"), "utf8"),
-      "Name: Fixture\nHitPosition: 432\n",
+      "Name: Fixture\nHitPosition: 432\nColumnWidth: 62,62,62,62\n",
     )
     await assert.doesNotReject(() =>
       readFile(path.join(workspace, "mania", "receptors", "left@2x.png")),
@@ -90,6 +91,7 @@ test("rejects incomplete or non-osu models", async () => {
       hitPosition: 438,
       judgementPosition: 0,
       comboPosition: 0,
+      columnWidth: 62,
     },
     assets: {},
     diagnostics: [],

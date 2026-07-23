@@ -10,6 +10,7 @@ const etternaSkin = {
     hitPosition: -6.6,
     judgementPosition: 4,
     comboPosition: -20,
+    columnWidth: 100,
   },
   assets: {},
   diagnostics: [
@@ -29,6 +30,7 @@ test("converts Etterna playfield coordinates into an osu skin model", async () =
 
   assert.equal(result.game, "osu")
   assert.equal(result.playfield.hitPosition, 431)
+  assert.equal(result.playfield.columnWidth, 62)
   assert.equal(result.assets, etternaSkin.assets)
   assert.equal(result.diagnostics, etternaSkin.diagnostics)
 })

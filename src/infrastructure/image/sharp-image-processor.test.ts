@@ -66,6 +66,7 @@ test("extracts the selected spritesheet frame before rendering", async () => {
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        verticalScale: 1,
         baseImagePath: base,
       },
     )
@@ -101,6 +102,7 @@ test("rotates before centering and keeps the receptor anchored at the top", asyn
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        verticalScale: 1,
         baseImagePath: base,
       },
     )
@@ -139,6 +141,7 @@ test("extracts a non-square frame before applying rotation", async () => {
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        verticalScale: 1,
         baseImagePath: base,
       },
     )
@@ -171,6 +174,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       hitPosition: 438,
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
+      verticalScale: 1,
       baseImagePath: base,
     })
     const smallRaw = await sharp(small).raw().toBuffer({ resolveWithObject: true })
@@ -195,6 +199,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       hitPosition: 438,
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
+      verticalScale: 1,
       baseImagePath: base,
     })
     const largeRaw = await sharp(large).raw().toBuffer({ resolveWithObject: true })
@@ -203,6 +208,52 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       top: 0,
       right: 149,
       bottom: 49,
+    })
+  })
+})
+
+test("stretches only the receptor layer vertically and keeps it anchored at the top", async () => {
+  await withImages(async ({ base, source }) => {
+    const visibleLayer = await sharp({
+      create: {
+        width: 146,
+        height: 146,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer()
+    await sharp({
+      create: {
+        width: 150,
+        height: 150,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([{ input: visibleLayer, left: 2, top: 0 }])
+      .png()
+      .toFile(source)
+
+    const output = await renderReceptorImage(
+      { filePath: source, rotation: 0 },
+      {
+        hitPosition: 432,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 3,
+        verticalScale: 211 / 146,
+        baseImagePath: base,
+      },
+    )
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
+
+    assert.deepEqual({ width: info.width, height: info.height }, { width: 150, height: 374 })
+    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+      left: 2,
+      top: 0,
+      right: 147,
+      bottom: 210,
     })
   })
 })

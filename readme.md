@@ -80,9 +80,18 @@ the osu! value by one point. The osu! integer value is rounded because `skin.ini
 support fractional hit positions.
 
 The receptor canvas changes linearly with the converted hit position: each one osu! hit
-position point removed adds two pixels of height, and the inverse change reduces the canvas.
+position point removed adds three pixels of height, and the inverse change reduces the canvas.
 The receptor remains anchored to the top, and the canvas is never shorter than the rendered
 source receptor.
+
+Etterna `ReceptorSize` is read from the active profile's `playerConfig.lua`. It maps to osu!
+with `ColumnWidth = round(ReceptorSize - 38)`, so the Etterna default `100` becomes osu!
+`62`.
+
+The visible receptor layer is stretched vertically according to column width while its width
+and top anchor remain unchanged. The empirical calibration maps osu! column width `46` to no
+stretch and `62` to a vertical scale of `211 / 146`. Its trial-and-error values are isolated
+in `src/adapters/osu/writer/osu-receptor-calibration.ts`.
 
 Generated receptors use osu!'s `@2x` suffix, including pressed variants such as
 `left_tap@2x.png`; the `skin.ini` template references the same names.

@@ -16,11 +16,14 @@ export async function readEtternaProfile(gameRoot: string): Promise<PlayfieldCon
     recursive: true,
     withFileTypes: true,
   })
-  const profile = entries.find((entry) => entry.isFile())
-  if (!profile) {
-    throw new Error(`Etterna profile file was not found in ${profileDirectory}`)
+  const profilePath = entries
+    .filter((entry) => entry.isFile() && entry.name.toLowerCase() === "playerconfig.lua")
+    .map((entry) => path.join(entry.parentPath, entry.name))
+    .sort((left, right) => left.localeCompare(right))
+    .at(0)
+  if (!profilePath) {
+    throw new Error(`Etterna playerConfig.lua was not found in ${profileDirectory}`)
   }
-  const profilePath = path.join(profile.parentPath, profile.name)
   const source = await readFile(profilePath, "utf8")
   return getGameplay4kCoordinates(luaparse.parse(source))
 }
@@ -51,6 +54,7 @@ export function getGameplay4kCoordinates(ast: Chunk): PlayfieldConfiguration {
     hitPosition: readNumber(coordinates4k, "NoteFieldY"),
     judgementPosition: readNumber(coordinates4k, "JudgmentY"),
     comboPosition: readNumber(coordinates4k, "ComboY"),
+    columnWidth: readNumber(rootTable, "ReceptorSize"),
   }
 }
 

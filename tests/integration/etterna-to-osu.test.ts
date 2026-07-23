@@ -34,7 +34,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     await mkdir(outputDirectory, { recursive: true })
     await writeFile(path.join(outputDirectory, "stale.txt"), "stale")
     await writeFile(
-      path.join(profileDirectory, "profile.lua"),
+      path.join(profileDirectory, "playerConfig.lua"),
       `
         return {
           GameplayXYCoordinates = {
@@ -44,6 +44,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
               ComboY = 0,
             },
           },
+          ReceptorSize = 100,
         }
       `,
     )
@@ -94,7 +95,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     }
     await writeFile(
       path.join(templatesDirectory, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await sharp({
       create: {
@@ -128,16 +129,21 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     assert.equal(
       await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-      "Name: Fixture Skin\nHitPosition: 432\n",
+      "Name: Fixture Skin\nHitPosition: 432\nColumnWidth: 62,62,62,62\n",
     )
     assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
-    const receptor = await sharp(
-      path.join(outputDirectory, "mania", "receptors", "left@2x.png"),
-    ).metadata()
+    const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
+    const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(
-      { width: receptor.width, height: receptor.height },
-      { width: 150, height: 368 },
+      { width: receptor.info.width, height: receptor.info.height },
+      { width: 150, height: 374 },
     )
+    assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
+      left: 65,
+      top: 0,
+      right: 84,
+      bottom: 13,
+    })
     await assert.rejects(
       () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
       { code: "ENOENT" },
@@ -149,3 +155,23 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+function alphaBounds(data: Buffer, width: number, height: number) {
+  let left = width
+  let top = height
+  let right = -1
+  let bottom = -1
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (data[(y * width + x) * 4 + 3] !== 0) {
+        left = Math.min(left, x)
+        top = Math.min(top, y)
+        right = Math.max(right, x)
+        bottom = Math.max(bottom, y)
+      }
+    }
+  }
+
+  return { left, top, right, bottom }
+}

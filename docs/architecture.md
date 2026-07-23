@@ -39,10 +39,11 @@ catalogs, readers, writers, and output publication. It depends only on the domai
 
 Translates external game formats to and from the neutral model.
 
-- `adapters/etterna` discovers skins, reads profiles, performs static NoteSkin analysis, and
-  resolves Etterna assets.
+- `adapters/etterna` discovers skins, statically reads gameplay positions and `ReceptorSize`
+  from `playerConfig.lua`, performs static NoteSkin analysis, and resolves Etterna assets.
 - `adapters/osu` renders `skin.ini` and writes image assets using osu! naming and layout
-  conventions.
+  conventions. Its receptor calibration converts the target column width into a
+  vertical-only image scale before composition.
 
 An Etterna read creates one `NoteSkinContext`. Receptor and tap-note analysis share this
 context so the Lua source and skin directory are indexed only once.
@@ -100,13 +101,19 @@ Dependencies within the same layer are allowed. Production dependency cycles are
 
 `SkinModel` is the only data exchanged between a reader, conversion, and writer. It contains:
 
-- neutral metadata and playfield configuration;
+- neutral metadata and playfield configuration, including column width in the current
+  model game's units;
 - direction-keyed normal and pressed receptors;
 - direction-keyed tap notes;
 - typed diagnostics accumulated during static analysis.
 
 `ImageAsset` represents a file, optional spritesheet frame, and rotation. Pixel processing
 is deferred until the target writer requests it.
+
+The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
+adapter owns empirical pixel calibration, while the image infrastructure receives only a
+generic vertical scale. This keeps source properties and target rendering details out of the
+neutral domain.
 
 ## Transactional Publication
 

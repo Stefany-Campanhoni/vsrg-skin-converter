@@ -34,6 +34,7 @@ test("loads one NoteSkin context and shares it across asset analyzers", async ()
       hitPosition: -6,
       judgementPosition: 4,
       comboPosition: 8,
+      columnWidth: 100,
     }),
     loadNoteSkinContext: async () => {
       contextLoads += 1
@@ -56,6 +57,7 @@ test("loads one NoteSkin context and shares it across asset analyzers", async ()
   assert.equal(skin.game, "etterna")
   assert.equal(skin.metadata.name, "Fixture")
   assert.equal(skin.playfield.hitPosition, -6)
+  assert.equal(skin.playfield.columnWidth, 100)
   assert.equal(skin.assets.receptors, receptors)
   assert.equal(skin.assets.tapNotes, tapNotes)
 })

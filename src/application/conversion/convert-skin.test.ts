@@ -20,6 +20,7 @@ const sourceSkin: SkinModel = {
     hitPosition: -6,
     judgementPosition: 0,
     comboPosition: 0,
+    columnWidth: 100,
   },
   assets: {},
   diagnostics: [],

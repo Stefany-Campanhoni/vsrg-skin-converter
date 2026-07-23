@@ -10,6 +10,7 @@ const sourceSkin = {
     hitPosition: 0,
     judgementPosition: 0,
     comboPosition: 0,
+    columnWidth: 100,
   },
   assets: {
     receptors: undefined,

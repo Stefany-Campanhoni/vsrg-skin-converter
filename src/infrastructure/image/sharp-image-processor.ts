@@ -5,6 +5,7 @@ export interface RenderReceptorOptions {
   hitPosition: number
   referenceHitPosition: number
   pixelsPerHitPositionPoint: number
+  verticalScale: number
   baseImagePath: string
 }
 
@@ -33,7 +34,7 @@ export async function renderReceptorImage(
 
   const receptorInput = await extractImageFrame(definition)
 
-  const renderedReceptor = await sharp(receptorInput)
+  const normalizedReceptor = await sharp(receptorInput)
     .rotate(normalizeRotation(definition.rotation))
     .resize({
       width: maximumReceptorSize,
@@ -44,7 +45,20 @@ export async function renderReceptorImage(
     .ensureAlpha()
     .png()
     .toBuffer()
-  const receptorMetadata = await sharp(renderedReceptor).metadata()
+  const normalizedMetadata = await sharp(normalizedReceptor).metadata()
+  if (!normalizedMetadata.width || !normalizedMetadata.height) {
+    throw new Error(`Could not render receptor ${definition.filePath}`)
+  }
+
+  const stretchedReceptor = await sharp(normalizedReceptor)
+    .affine([1, 0, 0, options.verticalScale], {
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      interpolator: sharp.interpolators.bicubic,
+    })
+    .ensureAlpha()
+    .png()
+    .toBuffer()
+  const receptorMetadata = await sharp(stretchedReceptor).metadata()
   if (!receptorMetadata.width || !receptorMetadata.height) {
     throw new Error(`Could not render receptor ${definition.filePath}`)
   }
@@ -66,7 +80,7 @@ export async function renderReceptorImage(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([{ input: renderedReceptor, left, top: 0 }])
+    .composite([{ input: stretchedReceptor, left, top: 0 }])
     .png()
     .toBuffer()
 }

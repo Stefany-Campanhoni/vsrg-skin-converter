@@ -33,12 +33,14 @@ export class OsuSkinWriter implements SkinWriter {
     await renderTemplateFile(skinIniPath, {
       skin_name: skin.metadata.name,
       hit_position: skin.playfield.hitPosition,
+      column_width: skin.playfield.columnWidth,
     })
     await Promise.all([
       writeOsuReceptors({
         receptors,
         outputDirectory: workspace,
         hitPosition: skin.playfield.hitPosition,
+        columnWidth: skin.playfield.columnWidth,
         baseImagePath,
       }),
       writeOsuNotes({

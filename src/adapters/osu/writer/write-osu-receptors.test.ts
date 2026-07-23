@@ -23,6 +23,7 @@ test("writes every receptor using the names referenced by the osu template", asy
       receptors,
       outputDirectory,
       hitPosition: 438,
+      columnWidth: 62,
       baseImagePath: "base.png",
       render: async (_definition, options) => {
         receivedOptions.push(options)
@@ -42,7 +43,8 @@ test("writes every receptor using the names referenced by the osu template", asy
       "up_tap@2x.png",
     ])
     assert.equal(receivedOptions.length, 8)
-    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
+    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 3))
+    assert.ok(receivedOptions.every((options) => options.verticalScale === 211 / 146))
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -58,6 +60,7 @@ test("does not create receptor output when any render fails", async () => {
           receptors,
           outputDirectory,
           hitPosition: 438,
+          columnWidth: 62,
           baseImagePath: "base.png",
           render: async () => {
             calls += 1
