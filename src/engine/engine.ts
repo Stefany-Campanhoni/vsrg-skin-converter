@@ -1,5 +1,5 @@
 import type { SkinFolder, SupportedGame } from "../constants/game.ts"
-import { EtternaEngine } from "./etterna.ts"
+import { EtternaEngine } from "./etterna/etterna.ts"
 import { OsuEngine } from "./osu.ts"
 
 export interface Engine {

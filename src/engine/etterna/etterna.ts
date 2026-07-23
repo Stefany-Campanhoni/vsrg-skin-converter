@@ -1,11 +1,14 @@
 import fs from "node:fs"
 import path from "node:path"
-import { outputPath, templatesPath } from "../constants/convertion.ts"
-import type { SkinFolder, SkinPositions } from "../constants/game.ts"
-import { gamesDefault } from "../templates/basis.ts"
-import { copyFilesToDirectory, getAllFilesInDirectory } from "../utils/io.ts"
-import { getGameplay4kCoordinates, getLuaAST } from "../utils/lua.ts"
-import type { Engine } from "./engine.ts"
+import { outputPath, templatesPath } from "../../constants/convertion.ts"
+import type { SkinFolder, SkinPositions } from "../../constants/game.ts"
+import { gamesDefault } from "../../templates/basis.ts"
+import { getHitPosition } from "../../transform/hitposition.ts"
+import { copyFilesToDirectory, getAllFilesInDirectory } from "../../utils/io.ts"
+import { parseLuaFile } from "../../utils/lua.ts"
+import { renderTemplateFile } from "../../utils/template.ts"
+import type { Engine } from "../engine.ts"
+import { getGameplay4kCoordinates } from "./etterna-profile.ts"
 
 export class EtternaEngine implements Engine {
   etternaDefault = gamesDefault.etterna
@@ -50,6 +53,13 @@ export class EtternaEngine implements Engine {
     }
 
     const skinPositions = this.getSkinPositions(profileFile)
+    const hitPosition = getHitPosition(skinPositions.hitPosition)
+    const outputSkinIni = path.join(outputPath, "skin.ini")
+
+    renderTemplateFile(outputSkinIni, {
+      skin_name: skin.name,
+      hit_position: hitPosition,
+    })
 
     console.log("Files in skin directory:", skinFiles)
     console.log("Files in output directory:", files)
@@ -58,12 +68,8 @@ export class EtternaEngine implements Engine {
   }
 
   getSkinPositions(profileFile: string): SkinPositions {
-    const ast = getLuaAST(profileFile)
-    if (!ast?.body) {
-      console.error("Invalid AST or missing body in profile file.")
-      process.exit(1)
-    }
+    const ast = parseLuaFile(profileFile)
 
-    return getGameplay4kCoordinates(ast.body)
+    return getGameplay4kCoordinates(ast)
   }
 }
