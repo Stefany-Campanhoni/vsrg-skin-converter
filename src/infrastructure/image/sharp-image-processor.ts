@@ -4,17 +4,18 @@ import type { ImageAsset } from "../../domain/image.ts"
 export interface RenderReceptorOptions {
   hitPosition: number
   referenceHitPosition: number
+  pixelsPerHitPositionPoint: number
   baseImagePath: string
 }
 
 const maximumReceptorSize = 150
-const pixelsPerHitPositionPoint = 3
 
 export function getReceptorCanvasHeight(
   hitPosition: number,
   baseHeight: number,
   receptorHeight: number,
   referenceHitPosition: number,
+  pixelsPerHitPositionPoint: number,
 ): number {
   const adjustedHeight =
     baseHeight + (referenceHitPosition - hitPosition) * pixelsPerHitPositionPoint
@@ -53,6 +54,7 @@ export async function renderReceptorImage(
     baseMetadata.height,
     receptorMetadata.height,
     options.referenceHitPosition,
+    options.pixelsPerHitPositionPoint,
   )
   const left = Math.floor((baseMetadata.width - receptorMetadata.width) / 2)
 

@@ -79,7 +79,10 @@ Etterna hit position `0` maps to osu!mania hit position `438`. Each Etterna poin
 the osu! value by one point. The osu! integer value is rounded because `skin.ini` does not
 support fractional hit positions.
 
-The receptor canvas changes linearly with the converted hit position: each two osu! hit
-position points removed add six pixels of height, and the inverse change reduces the canvas.
+The receptor canvas changes linearly with the converted hit position: each one osu! hit
+position point removed adds two pixels of height, and the inverse change reduces the canvas.
 The receptor remains anchored to the top, and the canvas is never shorter than the rendered
 source receptor.
+
+Generated receptors use osu!'s `@2x` suffix, including pressed variants such as
+`left_tap@2x.png`; the `skin.ini` template references the same names.

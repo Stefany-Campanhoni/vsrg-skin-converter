@@ -35,9 +35,9 @@ async function withImages(
 }
 
 test("calculates linear canvas growth and shrink with a receptor-height floor", () => {
-  assert.equal(getReceptorCanvasHeight(432, 356, 20, 438), 374)
-  assert.equal(getReceptorCanvasHeight(440, 356, 20, 438), 350)
-  assert.equal(getReceptorCanvasHeight(600, 356, 80, 438), 80)
+  assert.equal(getReceptorCanvasHeight(432, 356, 20, 438, 2), 368)
+  assert.equal(getReceptorCanvasHeight(440, 356, 20, 438, 2), 352)
+  assert.equal(getReceptorCanvasHeight(600, 356, 80, 438, 2), 80)
 })
 
 test("extracts the selected spritesheet frame before rendering", async () => {
@@ -62,7 +62,12 @@ test("extracts the selected spritesheet frame before rendering", async () => {
         rotation: 0,
         frame: { index: 1, columns: 2, rows: 1 },
       },
-      { hitPosition: 438, referenceHitPosition: 438, baseImagePath: base },
+      {
+        hitPosition: 438,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        baseImagePath: base,
+      },
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
     const centerTop = pixel(data, info.width, 74, 0)
@@ -92,7 +97,12 @@ test("rotates before centering and keeps the receptor anchored at the top", asyn
 
     const output = await renderReceptorImage(
       { filePath: source, rotation: 90 },
-      { hitPosition: 438, referenceHitPosition: 438, baseImagePath: base },
+      {
+        hitPosition: 438,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        baseImagePath: base,
+      },
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
@@ -125,7 +135,12 @@ test("extracts a non-square frame before applying rotation", async () => {
         rotation: 90,
         frame: { index: 1, columns: 2, rows: 1 },
       },
-      { hitPosition: 438, referenceHitPosition: 438, baseImagePath: base },
+      {
+        hitPosition: 438,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        baseImagePath: base,
+      },
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
@@ -155,6 +170,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
     const small = await renderReceptorImage(definition, {
       hitPosition: 438,
       referenceHitPosition: 438,
+      pixelsPerHitPositionPoint: 2,
       baseImagePath: base,
     })
     const smallRaw = await sharp(small).raw().toBuffer({ resolveWithObject: true })
@@ -178,6 +194,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
     const large = await renderReceptorImage(definition, {
       hitPosition: 438,
       referenceHitPosition: 438,
+      pixelsPerHitPositionPoint: 2,
       baseImagePath: base,
     })
     const largeRaw = await sharp(large).raw().toBuffer({ resolveWithObject: true })

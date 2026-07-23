@@ -14,6 +14,8 @@ import {
 
 type ReceptorRenderer = (definition: ImageAsset, options: RenderReceptorOptions) => Promise<Buffer>
 
+const osuReceptorCanvasPixelsPerHitPositionPoint = 3
+
 export interface WriteOsuReceptorsOptions {
   receptors: ReceptorSet
   outputDirectory: string
@@ -27,12 +29,13 @@ export async function writeOsuReceptors(options: WriteOsuReceptorsOptions): Prom
   const renderOptions: RenderReceptorOptions = {
     hitPosition: options.hitPosition,
     referenceHitPosition: gameDefaults.osu.hitPosition,
+    pixelsPerHitPositionPoint: osuReceptorCanvasPixelsPerHitPositionPoint,
     baseImagePath: options.baseImagePath,
   }
   const prepared = await Promise.all(
     columnDirections.flatMap((direction) =>
       receptorStates.map(async (state) => ({
-        filename: `${direction}${state === "pressed" ? "_tap" : ""}.png`,
+        filename: `${direction}${state === "pressed" ? "_tap" : ""}@2x.png`,
         buffer: await render(options.receptors[direction][state], renderOptions),
       })),
     ),

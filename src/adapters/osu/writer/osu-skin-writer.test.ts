@@ -72,7 +72,7 @@ test("writes a complete osu skin workspace", async () => {
       "Name: Fixture\nHitPosition: 432\n",
     )
     await assert.doesNotReject(() =>
-      readFile(path.join(workspace, "mania", "receptors", "left.png")),
+      readFile(path.join(workspace, "mania", "receptors", "left@2x.png")),
     )
     const note = await sharp(path.join(workspace, "mania", "notes", "left.png")).metadata()
     assert.deepEqual({ width: note.width, height: note.height }, { width: 24, height: 16 })

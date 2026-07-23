@@ -3,7 +3,8 @@
 ## Goal
 
 Reduce the Etterna-to-osu! receptor canvas dilation from three pixels to two pixels per osu!
-hit-position point while preserving the existing image sizing, alignment, and safety rules.
+hit-position point and emit every receptor with osu!'s `@2x` filename suffix while
+preserving the existing image sizing, alignment, and safety rules.
 
 ## Formula
 
@@ -40,6 +41,24 @@ This keeps the infrastructure reusable for future target formats and conversion 
 - The canvas is never shorter than the rendered receptor.
 - Tap-note rendering is unchanged.
 
+## Receptor Output Names
+
+The osu! writer emits only the eight receptor files referenced by the template:
+
+```text
+mania/receptors/left@2x.png
+mania/receptors/left_tap@2x.png
+mania/receptors/down@2x.png
+mania/receptors/down_tap@2x.png
+mania/receptors/up@2x.png
+mania/receptors/up_tap@2x.png
+mania/receptors/right@2x.png
+mania/receptors/right_tap@2x.png
+```
+
+The `skin.ini` `KeyImage0` through `KeyImage3D` properties use the same extensionless paths.
+Files without `@2x` are not duplicated. Tap-note filenames remain unchanged.
+
 ## Testing
 
 The change follows test-driven development:
@@ -49,7 +68,10 @@ The change follows test-driven development:
 2. update the Etterna-to-osu! integration test to expect a `150 x 368 px` receptor;
 3. run the focused tests and confirm they fail under the current three-pixel scale;
 4. pass the osu!-owned two-pixel scale into the image processor;
-5. run the complete tests, typecheck, lint, architecture checks, and real-skin rendering
+5. update the writer and template tests to require all eight `@2x` receptor paths;
+6. update integration to verify an `@2x` receptor exists and the unsuffixed equivalent does
+   not;
+7. run the complete tests, typecheck, lint, architecture checks, and real-skin rendering
    audit.
 
 The README coordinate documentation is updated to describe two pixels per one osu!

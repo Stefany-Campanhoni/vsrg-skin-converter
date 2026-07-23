@@ -4,6 +4,7 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import type { ImageAsset, ReceptorSet } from "../../../domain/image.ts"
+import type { RenderReceptorOptions } from "../../../infrastructure/image/sharp-image-processor.ts"
 import { writeOsuReceptors } from "./write-osu-receptors.ts"
 
 const image: ImageAsset = { filePath: "source.png", rotation: 0 }
@@ -16,26 +17,32 @@ const receptors: ReceptorSet = {
 
 test("writes every receptor using the names referenced by the osu template", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-writer-"))
+  const receivedOptions: RenderReceptorOptions[] = []
   try {
     await writeOsuReceptors({
       receptors,
       outputDirectory,
       hitPosition: 438,
       baseImagePath: "base.png",
-      render: async () => Buffer.from("png"),
+      render: async (_definition, options) => {
+        receivedOptions.push(options)
+        return Buffer.from("png")
+      },
     })
 
     const names = await readdir(path.join(outputDirectory, "mania", "receptors"))
     assert.deepEqual(names.sort(), [
-      "down.png",
-      "down_tap.png",
-      "left.png",
-      "left_tap.png",
-      "right.png",
-      "right_tap.png",
-      "up.png",
-      "up_tap.png",
+      "down@2x.png",
+      "down_tap@2x.png",
+      "left@2x.png",
+      "left_tap@2x.png",
+      "right@2x.png",
+      "right_tap@2x.png",
+      "up@2x.png",
+      "up_tap@2x.png",
     ])
+    assert.equal(receivedOptions.length, 8)
+    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }

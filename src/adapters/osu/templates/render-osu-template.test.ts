@@ -30,6 +30,25 @@ test("preserves wildcards without a supplied value", () => {
   )
 })
 
+test("references the exact @2x receptor filenames", async () => {
+  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const receptorLines = template
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^KeyImage[0-3]D?:/.test(line))
+
+  assert.deepEqual(receptorLines, [
+    "KeyImage0: mania\\receptors\\left@2x",
+    "KeyImage0D: mania\\receptors\\left_tap@2x",
+    "KeyImage1: mania\\receptors\\down@2x",
+    "KeyImage1D: mania\\receptors\\down_tap@2x",
+    "KeyImage2: mania\\receptors\\up@2x",
+    "KeyImage2D: mania\\receptors\\up_tap@2x",
+    "KeyImage3: mania\\receptors\\right@2x",
+    "KeyImage3D: mania\\receptors\\right_tap@2x",
+  ])
+})
+
 test("renders only the copied output file", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-template-"))
   const sourceFile = path.join(temporaryDirectory, "source-skin.ini")

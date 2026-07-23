@@ -132,11 +132,15 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     )
     assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
     const receptor = await sharp(
-      path.join(outputDirectory, "mania", "receptors", "left.png"),
+      path.join(outputDirectory, "mania", "receptors", "left@2x.png"),
     ).metadata()
     assert.deepEqual(
       { width: receptor.width, height: receptor.height },
-      { width: 150, height: 374 },
+      { width: 150, height: 368 },
+    )
+    await assert.rejects(
+      () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
+      { code: "ENOENT" },
     )
     const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
     assert.deepEqual({ width: note.width, height: note.height }, { width: 32, height: 24 })
