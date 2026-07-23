@@ -6,7 +6,7 @@ import test from "node:test"
 import sharp from "sharp"
 import { convertEtternaToOsu } from "./etterna-to-osu.ts"
 
-test("converts Etterna hit position and receptors into the copied osu template", async () => {
+test("converts Etterna hit position, receptors, and notes into the copied osu template", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-conversion-"))
   const skinDirectory = path.join(directory, "source")
   const templatesDirectory = path.join(directory, "templates")
@@ -27,9 +27,15 @@ test("converts Etterna hit position and receptors into the copied osu template",
             },
           }
         end
+        local function createNote(direction)
+          return Def.Sprite {
+            Texture=NOTESKIN:GetPath("Notes/_" .. direction, "Tap Note"),
+          }
+        end
         return {}
       `,
     )
+    await mkdir(path.join(skinDirectory, "Notes"), { recursive: true })
     for (const direction of ["Left", "Down", "Up", "Right"]) {
       for (const state of ["Go", "Press"]) {
         await sharp({
@@ -43,6 +49,16 @@ test("converts Etterna hit position and receptors into the copied osu template",
           .png()
           .toFile(path.join(skinDirectory, "Receptors", `_${direction} ${state} Receptor.png`))
       }
+      await sharp({
+        create: {
+          width: 32,
+          height: 24,
+          channels: 4,
+          background: { r: 255, g: 0, b: 0, alpha: 1 },
+        },
+      })
+        .png()
+        .toFile(path.join(skinDirectory, "Notes", `_${direction} Tap Note.png`))
     }
     await writeFile(
       path.join(templatesDirectory, "skin.ini"),
@@ -79,6 +95,9 @@ test("converts Etterna hit position and receptors into the copied osu template",
     ).metadata()
     assert.equal(receptor.width, 150)
     assert.equal(receptor.height, 374)
+    const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
+    assert.equal(note.width, 32)
+    assert.equal(note.height, 24)
     assert.deepEqual(result.warnings, [])
   } finally {
     await rm(directory, { recursive: true, force: true })

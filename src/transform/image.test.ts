@@ -4,8 +4,9 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import sharp from "sharp"
+import type { NoteImage } from "../engine/note.ts"
 import type { ReceptorImage } from "../engine/receptor.ts"
-import { getReceptorCanvasHeight, renderReceptorImage } from "./image.ts"
+import { getReceptorCanvasHeight, renderNoteImage, renderReceptorImage } from "./image.ts"
 
 async function withImages(
   run: (paths: { directory: string; base: string; source: string }) => Promise<void>,
@@ -181,6 +182,56 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       right: 149,
       bottom: 49,
     })
+  })
+})
+
+test("extracts a note frame without resizing or adding canvas", async () => {
+  await withImages(async ({ source }) => {
+    const red = Buffer.from([255, 0, 0, 255])
+    const blue = Buffer.from([0, 0, 255, 255])
+    const pixels = Buffer.concat(
+      Array.from({ length: 12 }, (_, y) =>
+        Buffer.concat(Array.from({ length: 18 }, () => (y < 6 ? red : blue))),
+      ),
+    )
+    await sharp(pixels, { raw: { width: 18, height: 12, channels: 4 } })
+      .png()
+      .toFile(source)
+
+    const definition: NoteImage = {
+      filePath: source,
+      rotation: 0,
+      frame: { index: 1, columns: 1, rows: 2 },
+    }
+    const output = await renderNoteImage(definition)
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
+
+    assert.deepEqual({ width: info.width, height: info.height }, { width: 18, height: 6 })
+    assert.deepEqual([...pixel(data, info.width, 0, 0)], [0, 0, 255, 255])
+  })
+})
+
+test("rotates a selected non-square note frame while preserving its dimensions", async () => {
+  await withImages(async ({ source }) => {
+    await sharp({
+      create: {
+        width: 24,
+        height: 10,
+        channels: 4,
+        background: { r: 255, g: 0, b: 0, alpha: 1 },
+      },
+    })
+      .png()
+      .toFile(source)
+
+    const output = await renderNoteImage({
+      filePath: source,
+      rotation: 90,
+      frame: { index: 1, columns: 2, rows: 1 },
+    })
+    const metadata = await sharp(output).metadata()
+
+    assert.deepEqual({ width: metadata.width, height: metadata.height }, { width: 10, height: 12 })
   })
 })
 

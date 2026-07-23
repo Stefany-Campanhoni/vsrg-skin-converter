@@ -93,6 +93,38 @@ test("follows receptor redirections", async () => {
   })
 })
 
+test("resolves external Lua files for arbitrary elements", async () => {
+  await withSkin(async (directory) => {
+    const expected = path.join(directory, "Down Tap Note.lua")
+    await writeFile(expected, "return Def.Sprite {}")
+    await writeFile(path.join(directory, "Up Tap Note.redir"), "Down Tap Note")
+
+    const resolver = await createSkinFileResolver(directory)
+
+    assert.equal(await resolver.resolveElementLua("down", "Tap Note"), expected)
+    assert.equal(await resolver.resolveElementLua("up", "Tap Note"), expected)
+  })
+})
+
+test("applies cycle and skin-boundary checks to arbitrary elements", async () => {
+  await withSkin(async (directory) => {
+    await writeFile(path.join(directory, "Up Tap Note.redir"), "Down Tap Note")
+    await writeFile(path.join(directory, "Down Tap Note.redir"), "Up Tap Note")
+
+    const resolver = await createSkinFileResolver(directory)
+
+    await assert.rejects(() => resolver.resolveElementLua("up", "Tap Note"), /cycle/i)
+  })
+
+  await withSkin(async (directory) => {
+    await writeFile(path.join(directory, "Down Tap Note.redir"), "../outside")
+
+    const resolver = await createSkinFileResolver(directory)
+
+    await assert.rejects(() => resolver.resolveElementLua("down", "Tap Note"), /outside the skin/i)
+  })
+})
+
 test("rejects redirection cycles", async () => {
   await withSkin(async (directory) => {
     await writeFile(path.join(directory, "Up Receptor.redir"), "Down Receptor")

@@ -10,6 +10,7 @@ export interface ResolvedSkinAsset {
 
 export interface SkinFileResolver {
   resolveAssets(...logicalParts: string[]): ResolvedSkinAsset[]
+  resolveElementLua(direction: Direction, element: string): Promise<string | undefined>
   resolveReceptorLua(direction: Direction): Promise<string | undefined>
 }
 
@@ -49,6 +50,10 @@ export async function createSkinFileResolver(skinDirectory: string): Promise<Ski
         .map(({ absolutePath: filePath, columns, rows }) => ({ filePath, columns, rows }))
     },
 
+    async resolveElementLua(direction: Direction, element: string): Promise<string | undefined> {
+      return resolveLuaTarget(`${capitalize(direction)} ${element}`, new Set())
+    },
+
     async resolveReceptorLua(direction: Direction): Promise<string | undefined> {
       return resolveLuaTarget(`${capitalize(direction)} Receptor`, new Set())
     },
@@ -59,12 +64,12 @@ export async function createSkinFileResolver(skinDirectory: string): Promise<Ski
     visited: Set<string>,
   ): Promise<string | undefined> {
     if (isUnsafeLogicalPath(target)) {
-      throw new Error(`Receptor redirect points outside the skin: ${target}`)
+      throw new Error(`Element redirect points outside the skin: ${target}`)
     }
 
     const normalizedTarget = normalizePathStem(target)
     if (visited.has(normalizedTarget)) {
-      throw new Error(`Receptor redirect cycle detected at ${target}`)
+      throw new Error(`Element redirect cycle detected at ${target}`)
     }
     visited.add(normalizedTarget)
 
