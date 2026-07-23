@@ -43,8 +43,11 @@ test("writes every receptor using the names referenced by the osu template", asy
       "up_tap@2x.png",
     ])
     assert.equal(receivedOptions.length, 8)
-    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 3))
-    assert.ok(receivedOptions.every((options) => options.verticalScale === 211 / 146))
+    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
+    assert.ok(receivedOptions.every((options) => options.verticalScale === 196 / 146))
+    assert.ok(receivedOptions.every((options) => options.logicalCanvasHeight === 480))
+    assert.ok(receivedOptions.every((options) => options.renderedWidth === 62))
+    assert.ok(receivedOptions.every((options) => options.logicalBottomOffset === 13))
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }

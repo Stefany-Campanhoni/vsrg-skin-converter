@@ -112,8 +112,12 @@ is deferred until the target writer requests it.
 
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
-generic vertical scale. This keeps source properties and target rendering details out of the
-neutral domain.
+generic vertical scale and geometry. The osu! adapter supplies logical playfield height and
+rendered column width, plus a named logical bottom offset from its calibration module. Image
+infrastructure converts that geometry into source-pixel padding, removes input-specific
+trailing transparency, and composes the receptor above the calculated footer without
+embedding osu!-specific constants. Target calibration values remain outside infrastructure,
+keeping source properties and target rendering details out of the neutral domain.
 
 ## Transactional Publication
 

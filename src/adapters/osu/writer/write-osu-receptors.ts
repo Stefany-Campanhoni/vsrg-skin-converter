@@ -11,11 +11,15 @@ import {
   type RenderReceptorOptions,
   renderReceptorImage,
 } from "../../../infrastructure/image/sharp-image-processor.ts"
-import { getOsuReceptorVerticalScale } from "./osu-receptor-calibration.ts"
+import {
+  getOsuReceptorLogicalVerticalOffset,
+  getOsuReceptorVerticalScale,
+} from "./osu-receptor-calibration.ts"
 
 type ReceptorRenderer = (definition: ImageAsset, options: RenderReceptorOptions) => Promise<Buffer>
 
 const osuReceptorCanvasPixelsPerHitPositionPoint = 2
+const osuLogicalCanvasHeight = 480
 
 export interface WriteOsuReceptorsOptions {
   receptors: ReceptorSet
@@ -33,6 +37,9 @@ export async function writeOsuReceptors(options: WriteOsuReceptorsOptions): Prom
     referenceHitPosition: gameDefaults.osu.hitPosition,
     pixelsPerHitPositionPoint: osuReceptorCanvasPixelsPerHitPositionPoint,
     verticalScale: getOsuReceptorVerticalScale(options.columnWidth),
+    logicalCanvasHeight: osuLogicalCanvasHeight,
+    renderedWidth: options.columnWidth,
+    logicalBottomOffset: getOsuReceptorLogicalVerticalOffset(),
     baseImagePath: options.baseImagePath,
   }
   const prepared = await Promise.all(

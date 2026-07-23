@@ -1,20 +1,23 @@
-const receptorStretchCalibration = {
+const receptorCalibration = {
   unstretchedColumnWidth: 46,
   calibratedColumnWidth: 62,
-  calibratedVerticalScale: 200 / 146,
+  calibratedVerticalScale: 196 / 146,
+  logicalVerticalOffset: 23,
 } as const
 
 export function getOsuReceptorVerticalScale(columnWidth: number): number {
   const slope =
-    (receptorStretchCalibration.calibratedVerticalScale - 1) /
-    (receptorStretchCalibration.calibratedColumnWidth -
-      receptorStretchCalibration.unstretchedColumnWidth)
-  const verticalScale =
-    1 + (columnWidth - receptorStretchCalibration.unstretchedColumnWidth) * slope
+    (receptorCalibration.calibratedVerticalScale - 1) /
+    (receptorCalibration.calibratedColumnWidth - receptorCalibration.unstretchedColumnWidth)
+  const verticalScale = 1 + (columnWidth - receptorCalibration.unstretchedColumnWidth) * slope
 
   if (!Number.isFinite(verticalScale) || verticalScale <= 0) {
     throw new Error(`osu receptor vertical scale must be positive for column width ${columnWidth}`)
   }
 
   return verticalScale
+}
+
+export function getOsuReceptorLogicalVerticalOffset(): number {
+  return receptorCalibration.logicalVerticalOffset
 }

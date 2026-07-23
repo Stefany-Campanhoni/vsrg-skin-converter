@@ -136,13 +136,13 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(
       { width: receptor.info.width, height: receptor.info.height },
-      { width: 150, height: 374 },
+      { width: 150, height: 368 },
     )
     assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
       left: 65,
-      top: 0,
+      top: 207,
       right: 84,
-      bottom: 13,
+      bottom: 219,
     })
     await assert.rejects(
       () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),

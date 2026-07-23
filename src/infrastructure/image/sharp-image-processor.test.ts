@@ -6,6 +6,7 @@ import test from "node:test"
 import sharp from "sharp"
 import type { ImageAsset } from "../../domain/image.ts"
 import {
+  getReceptorBottomPadding,
   getReceptorCanvasHeight,
   renderNoteImage,
   renderReceptorImage,
@@ -34,10 +35,20 @@ async function withImages(
   }
 }
 
-test("calculates linear canvas growth and shrink with a receptor-height floor", () => {
-  assert.equal(getReceptorCanvasHeight(432, 356, 20, 438, 2), 368)
-  assert.equal(getReceptorCanvasHeight(440, 356, 20, 438, 2), 352)
-  assert.equal(getReceptorCanvasHeight(600, 356, 80, 438, 2), 80)
+test("calculates dynamic receptor footer and canvas height", () => {
+  assert.equal(getReceptorBottomPadding(432, 480, 150, 62, 13), 148)
+  assert.equal(getReceptorBottomPadding(438, 480, 150, 62, 13), 133)
+  assert.equal(getReceptorBottomPadding(432, 480, 150, 68, 13), 135)
+
+  assert.equal(getReceptorCanvasHeight(432, 356, 196, 438, 2, 148), 368)
+  assert.equal(getReceptorCanvasHeight(438, 356, 196, 438, 2, 133), 356)
+  assert.equal(getReceptorCanvasHeight(438, 100, 300, 438, 2, 148), 448)
+})
+
+test("rejects invalid dynamic-footer geometry", () => {
+  assert.throws(() => getReceptorBottomPadding(432, 480, 150, 0, 13), /positive/)
+  assert.throws(() => getReceptorBottomPadding(481, 480, 150, 62, 13), /between/)
+  assert.throws(() => getReceptorBottomPadding(432, 480, 150, 62, Number.NaN), /finite/)
 })
 
 test("extracts the selected spritesheet frame before rendering", async () => {
@@ -67,23 +78,26 @@ test("extracts the selected spritesheet frame before rendering", async () => {
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
         verticalScale: 1,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
         baseImagePath: base,
       },
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
-    const centerTop = pixel(data, info.width, 74, 0)
+    const centerBottom = pixel(data, info.width, 74, 222)
 
-    assert.deepEqual([...centerTop], [0, 0, 255, 255])
+    assert.deepEqual([...centerBottom], [0, 0, 255, 255])
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
       left: 70,
-      top: 0,
+      top: 213,
       right: 79,
-      bottom: 9,
+      bottom: 222,
     })
   })
 })
 
-test("rotates before centering and keeps the receptor anchored at the top", async () => {
+test("rotates before centering and keeps the receptor anchored at the hit position", async () => {
   await withImages(async ({ base, source }) => {
     await sharp({
       create: {
@@ -103,6 +117,9 @@ test("rotates before centering and keeps the receptor anchored at the top", asyn
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
         verticalScale: 1,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
         baseImagePath: base,
       },
     )
@@ -110,11 +127,11 @@ test("rotates before centering and keeps the receptor anchored at the top", asyn
 
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
       left: 70,
-      top: 0,
+      top: 203,
       right: 79,
-      bottom: 19,
+      bottom: 222,
     })
-    assert.equal(pixel(data, info.width, 74, 20)[3], 0)
+    assert.equal(pixel(data, info.width, 74, 202)[3], 0)
   })
 })
 
@@ -142,6 +159,9 @@ test("extracts a non-square frame before applying rotation", async () => {
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
         verticalScale: 1,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
         baseImagePath: base,
       },
     )
@@ -149,9 +169,9 @@ test("extracts a non-square frame before applying rotation", async () => {
 
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
       left: 70,
-      top: 0,
+      top: 203,
       right: 79,
-      bottom: 19,
+      bottom: 222,
     })
   })
 })
@@ -175,14 +195,17 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
       verticalScale: 1,
+      logicalCanvasHeight: 480,
+      renderedWidth: 62,
+      logicalBottomOffset: 13,
       baseImagePath: base,
     })
     const smallRaw = await sharp(small).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(alphaBounds(smallRaw.data, smallRaw.info.width, smallRaw.info.height), {
       left: 50,
-      top: 0,
+      top: 183,
       right: 99,
-      bottom: 39,
+      bottom: 222,
     })
 
     await sharp({
@@ -200,19 +223,22 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
       verticalScale: 1,
+      logicalCanvasHeight: 480,
+      renderedWidth: 62,
+      logicalBottomOffset: 13,
       baseImagePath: base,
     })
     const largeRaw = await sharp(large).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(alphaBounds(largeRaw.data, largeRaw.info.width, largeRaw.info.height), {
       left: 0,
-      top: 0,
+      top: 173,
       right: 149,
-      bottom: 49,
+      bottom: 222,
     })
   })
 })
 
-test("stretches only the receptor layer vertically and keeps it anchored at the top", async () => {
+test("stretches the visible receptor and aligns its bottom edge with the canvas", async () => {
   await withImages(async ({ base, source }) => {
     const visibleLayer = await sharp({
       create: {
@@ -241,20 +267,107 @@ test("stretches only the receptor layer vertically and keeps it anchored at the 
       {
         hitPosition: 432,
         referenceHitPosition: 438,
-        pixelsPerHitPositionPoint: 3,
-        verticalScale: 211 / 146,
+        pixelsPerHitPositionPoint: 2,
+        verticalScale: 196 / 146,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
         baseImagePath: base,
       },
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual({ width: info.width, height: info.height }, { width: 150, height: 374 })
+    assert.deepEqual({ width: info.width, height: info.height }, { width: 150, height: 368 })
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
       left: 2,
-      top: 0,
+      top: 24,
       right: 147,
-      bottom: 210,
+      bottom: 219,
     })
+  })
+})
+
+test("keeps the visible receptor bottom at the logical hit position across widths", async () => {
+  await withImages(async ({ base, source }) => {
+    const visibleLayer = await sharp({
+      create: {
+        width: 146,
+        height: 146,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer()
+    await sharp({
+      create: {
+        width: 150,
+        height: 150,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([{ input: visibleLayer, left: 2, top: 0 }])
+      .png()
+      .toFile(source)
+
+    const definition: ImageAsset = { filePath: source, rotation: 0 }
+    const cases = [
+      { renderedWidth: 46, verticalScale: 1 },
+      { renderedWidth: 62, verticalScale: 196 / 146 },
+    ]
+
+    for (const { renderedWidth, verticalScale } of cases) {
+      const output = await renderReceptorImage(definition, {
+        hitPosition: 432,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        verticalScale,
+        logicalCanvasHeight: 480,
+        renderedWidth,
+        logicalBottomOffset: 13,
+        baseImagePath: base,
+      })
+      const raw = await sharp(output).raw().toBuffer({ resolveWithObject: true })
+      const bounds = alphaBounds(raw.data, raw.info.width, raw.info.height)
+      const footer = raw.info.height - bounds.bottom - 1
+      const logicalVisibleBottom = 480 - (footer * renderedWidth) / raw.info.width
+
+      assert.ok(Math.abs(logicalVisibleBottom - (432 - 13)) < 0.2)
+    }
+  })
+})
+
+test("rejects a receptor without visible pixels", async () => {
+  await withImages(async ({ base, source }) => {
+    await sharp({
+      create: {
+        width: 20,
+        height: 10,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .png()
+      .toFile(source)
+
+    await assert.rejects(
+      () =>
+        renderReceptorImage(
+          { filePath: source, rotation: 0 },
+          {
+            hitPosition: 438,
+            referenceHitPosition: 438,
+            pixelsPerHitPositionPoint: 2,
+            verticalScale: 1,
+            logicalCanvasHeight: 480,
+            renderedWidth: 62,
+            logicalBottomOffset: 13,
+            baseImagePath: base,
+          },
+        ),
+      /contains no visible pixels/,
+    )
   })
 })
 
