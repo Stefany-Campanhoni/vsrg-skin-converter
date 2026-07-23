@@ -36,7 +36,7 @@ async function main() {
     process.exit(1)
   }
 
-  engine.convertSkin(skin)
+  await engine.convertSkin(skin)
 
   process.exit(0)
 }

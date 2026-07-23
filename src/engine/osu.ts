@@ -5,13 +5,13 @@ export class OsuEngine implements Engine {
   getLocation(): string {
     throw new Error("Method not implemented.")
   }
-  setLocation(location: string): void {
+  setLocation(_location: string): void {
     throw new Error("Method not implemented.")
   }
   getSkins(): SkinFolder[] {
     throw new Error("Method not implemented.")
   }
-  convertSkin(skin: SkinFolder): void {
+  async convertSkin(_skin: SkinFolder): Promise<void> {
     throw new Error("Method not implemented.")
   }
 }

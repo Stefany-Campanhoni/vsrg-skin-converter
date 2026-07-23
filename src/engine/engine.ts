@@ -6,7 +6,7 @@ export interface Engine {
   getLocation(): string
   setLocation(location: string): void
   getSkins(): SkinFolder[]
-  convertSkin(skin: SkinFolder): void
+  convertSkin(skin: SkinFolder): Promise<void>
 }
 
 export function createEngine(game: SupportedGame): Engine {
