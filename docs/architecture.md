@@ -45,6 +45,10 @@ Translates external game formats to and from the neutral model.
   conventions. Its receptor calibration converts the target column width into a
   vertical-only image scale before composition.
 
+Fixed osu! long-note assets are published by a target writer without entering the image
+pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
+internal template artifacts from the staged workspace.
+
 An Etterna read creates one `NoteSkinContext`. Receptor and tap-note analysis share this
 context so the Lua source and skin directory are indexed only once.
 
@@ -62,6 +66,9 @@ Contains technical implementations shared by adapters:
 - Sharp-based frame extraction, rotation, and rendering;
 - filesystem copying and transactional publication.
 
+Concurrent infrastructure batches use one typed quiescent waiter: every sibling settles
+before the batch returns or rethrows the original first input-order failure.
+
 Etterna Lua is parsed and inspected but never executed.
 
 ### `config`
@@ -77,8 +84,8 @@ diagnostics or fatal errors.
 ### `templates`
 
 Contains the complete static osu! output skeleton copied into the staging workspace before
-target-specific rendering. The bundle currently includes `skin.ini` and
-`receptor-base.png`.
+target-specific rendering. The bundle currently includes `skin.ini`, `receptor-base.png`,
+`LNB.png`, and `LNT.png`.
 
 ## Dependency Rules
 

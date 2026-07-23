@@ -62,6 +62,22 @@ test("uses one column-width wildcard for every lane", async () => {
   )
 })
 
+test("references the produced shared long-note body and tail paths for every lane", async () => {
+  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const longNoteLines = template
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^NoteImage[0-3][LT]:/.test(line))
+
+  assert.deepEqual(
+    longNoteLines,
+    [0, 1, 2, 3].flatMap((column) => [
+      `NoteImage${column}L: mania\\lns\\body`,
+      `NoteImage${column}T: mania\\lns\\tail`,
+    ]),
+  )
+})
+
 test("renders only the copied output file", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-template-"))
   const sourceFile = path.join(temporaryDirectory, "source-skin.ini")

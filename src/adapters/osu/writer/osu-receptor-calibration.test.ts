@@ -16,5 +16,5 @@ test("rejects a non-positive extrapolated scale", () => {
 })
 
 test("provides the calibrated logical receptor offset", () => {
-  assert.equal(getOsuReceptorLogicalVerticalOffset(), 13)
+  assert.equal(getOsuReceptorLogicalVerticalOffset(), 23)
 })

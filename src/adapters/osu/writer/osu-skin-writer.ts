@@ -1,8 +1,11 @@
 import path from "node:path"
 import type { SkinWriter } from "../../../application/ports/skin-writer.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
+import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { copyDirectory } from "../../../infrastructure/filesystem/copy-directory.ts"
 import { renderTemplateFile } from "../templates/render-osu-template.ts"
+import { removeOsuTemplateArtifacts } from "./remove-osu-template-artifacts.ts"
+import { writeOsuLongNotes } from "./write-osu-long-notes.ts"
 import { writeOsuNotes } from "./write-osu-notes.ts"
 import { writeOsuReceptors } from "./write-osu-receptors.ts"
 
@@ -35,7 +38,7 @@ export class OsuSkinWriter implements SkinWriter {
       hit_position: skin.playfield.hitPosition,
       column_width: skin.playfield.columnWidth,
     })
-    await Promise.all([
+    await settleAll([
       writeOsuReceptors({
         receptors,
         outputDirectory: workspace,
@@ -47,6 +50,8 @@ export class OsuSkinWriter implements SkinWriter {
         notes: tapNotes,
         outputDirectory: workspace,
       }),
+      writeOsuLongNotes({ outputDirectory: workspace }),
     ])
+    await removeOsuTemplateArtifacts(workspace)
   }
 }

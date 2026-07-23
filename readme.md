@@ -36,6 +36,10 @@ The CLI discovers Etterna skins under `NoteSkins/dance`, asks which skin to conv
 writes the complete osu! skin to `output_folder`. A successful run fully replaces the
 previous output. A failed run preserves it.
 
+The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-byte to
+`mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
+Internal build assets are removed from the generated skin after all output tasks succeed.
+
 The default installation and output paths are defined in `src/config`.
 
 ## Verification
@@ -93,7 +97,7 @@ with `ColumnWidth = round(ReceptorSize - 38)`, so the Etterna default `100` beco
 The visible receptor layer is stretched vertically according to column width while its width
 remains unchanged. The empirical calibration maps osu! column width `46` to no stretch and
 `62` to a vertical scale of `196 / 146`. Input-specific trailing transparency is removed
-before the exact target footer is applied. The current visual alignment offset is `13`
+before the exact target footer is applied. The current visual alignment offset is `23`
 logical pixels. Trial-and-error values remain isolated in
 `src/adapters/osu/writer/osu-receptor-calibration.ts`, so calibration changes do not leak
 into generic image processing.

@@ -38,6 +38,7 @@
 ### Task 1: Expose the Named osu! Alignment Calibration
 
 **Files:**
+
 - Modify: `src/adapters/osu/writer/osu-receptor-calibration.test.ts`
 - Modify: `src/adapters/osu/writer/osu-receptor-calibration.ts`
 
@@ -73,10 +74,12 @@ Run the focused test again and expect all calibration tests to pass.
 ### Task 2: Add Generic Offset-Aware Footer Geometry
 
 **Files:**
+
 - Modify: `src/infrastructure/image/sharp-image-processor.test.ts`
 - Modify: `src/infrastructure/image/sharp-image-processor.ts`
 
 **Interfaces:**
+
 - Produces: `getReceptorBottomPadding(hitPosition: number, logicalCanvasHeight: number, canvasWidth: number, renderedWidth: number, logicalBottomOffset: number): number`.
 - Changes: `getReceptorCanvasHeight(..., bottomPadding: number): number`.
 - Adds to `RenderReceptorOptions`: `logicalBottomOffset: number`.
@@ -207,10 +210,12 @@ until Task 3 changes composition.
 ### Task 3: Compose the Receptor Above the Calibrated Footer
 
 **Files:**
+
 - Modify: `src/infrastructure/image/sharp-image-processor.test.ts`
 - Modify: `src/infrastructure/image/sharp-image-processor.ts`
 
 **Interfaces:**
+
 - Consumes: `getReceptorBottomPadding(...)`.
 - Produces: visible receptor pixels immediately above a footer that becomes
   `logicalCanvasHeight - hitPosition` after target scaling.
@@ -322,6 +327,7 @@ Expected: all image processor tests PASS.
 ### Task 4: Supply osu! Geometry and Verify Integration
 
 **Files:**
+
 - Modify: `src/adapters/osu/writer/write-osu-receptors.test.ts`
 - Modify: `src/adapters/osu/writer/write-osu-receptors.ts`
 - Modify: `tests/integration/etterna-to-osu.test.ts`
@@ -329,6 +335,7 @@ Expected: all image processor tests PASS.
 - Modify: `docs/architecture.md`
 
 **Interfaces:**
+
 - Supplies: `logicalCanvasHeight: 480`, `renderedWidth: columnWidth`, and the
   named logical alignment calibration.
 - Preserves: `pixelsPerHitPositionPoint: 2` and the existing calibrated vertical scale.

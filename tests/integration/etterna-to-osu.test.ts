@@ -24,6 +24,8 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
   )
   const templatesDirectory = path.join(directory, "templates")
   const outputDirectory = path.join(directory, "output")
+  const longNoteBody = Buffer.from([10, 20, 30, 40])
+  const longNoteTail = Buffer.from([50, 60, 70])
   try {
     await mkdir(path.join(skinDirectory, "Receptors"), {
       recursive: true,
@@ -97,6 +99,8 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
       path.join(templatesDirectory, "skin.ini"),
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
+    await writeFile(path.join(templatesDirectory, "LNB.png"), longNoteBody)
+    await writeFile(path.join(templatesDirectory, "LNT.png"), longNoteTail)
     await sharp({
       create: {
         width: 150,
@@ -140,9 +144,9 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     )
     assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
       left: 65,
-      top: 207,
+      top: 183,
       right: 84,
-      bottom: 219,
+      bottom: 195,
     })
     await assert.rejects(
       () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
@@ -150,6 +154,19 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     )
     const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
     assert.deepEqual({ width: note.width, height: note.height }, { width: 32, height: 24 })
+    assert.deepEqual(
+      await readFile(path.join(outputDirectory, "mania", "lns", "body.png")),
+      longNoteBody,
+    )
+    assert.deepEqual(
+      await readFile(path.join(outputDirectory, "mania", "lns", "tail.png")),
+      longNoteTail,
+    )
+    for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
+      await assert.rejects(() => readFile(path.join(outputDirectory, filename)), {
+        code: "ENOENT",
+      })
+    }
     assert.deepEqual(result.diagnostics, [])
   } finally {
     await rm(directory, { recursive: true, force: true })
