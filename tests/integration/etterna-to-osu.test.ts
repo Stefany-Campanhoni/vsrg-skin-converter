@@ -42,8 +42,8 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
           GameplayXYCoordinates = {
             ["4k"] = {
               NoteFieldY = -6,
-              JudgmentY = 0,
-              ComboY = 0,
+              JudgmentY = 4,
+              ComboY = -20,
             },
           },
           ReceptorSize = 100,
@@ -97,7 +97,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     }
     await writeFile(
       path.join(templatesDirectory, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templatesDirectory, "LNB.png"), longNoteBody)
     await writeFile(path.join(templatesDirectory, "LNT.png"), longNoteTail)
@@ -133,7 +133,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     assert.equal(
       await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-      "Name: Fixture Skin\nHitPosition: 432\nColumnWidth: 62,62,62,62\n",
+      "Name: Fixture Skin\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\n",
     )
     assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
     const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")

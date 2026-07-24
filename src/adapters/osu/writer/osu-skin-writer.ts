@@ -36,6 +36,8 @@ export class OsuSkinWriter implements SkinWriter {
     await renderTemplateFile(skinIniPath, {
       skin_name: skin.metadata.name,
       hit_position: skin.playfield.hitPosition,
+      combo_position: skin.playfield.comboPosition,
+      score_position: skin.playfield.judgementPosition,
       column_width: skin.playfield.columnWidth,
     })
     await settleAll([

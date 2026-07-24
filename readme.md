@@ -83,6 +83,12 @@ Etterna hit position `0` maps to osu!mania hit position `438`. Each Etterna poin
 the osu! value by one point. The osu! integer value is rounded because `skin.ini` does not
 support fractional hit positions.
 
+Etterna `ComboY` and `JudgmentY` are read from
+`GameplayXYCoordinates["4K"]`. The Etterna neutral value `0` maps to osu!
+`ComboPosition 230` and `ScorePosition 240`, with one-to-one offsets:
+`ComboPosition = round(230 + ComboY)` and
+`ScorePosition = round(240 + JudgmentY)`.
+
 The receptor canvas changes linearly with the converted hit position: each one osu! hit
 position point removed adds two pixels of height, and the inverse change reduces the canvas.
 The renderer preserves a transparent footer calculated from the logical `480`-pixel

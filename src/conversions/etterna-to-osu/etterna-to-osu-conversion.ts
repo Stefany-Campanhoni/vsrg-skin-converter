@@ -1,7 +1,9 @@
 import type { SkinConversion } from "../../application/conversion/conversion-registry.ts"
 import type { SkinModel } from "../../domain/skin.ts"
 import { getColumnWidth } from "./convert-column-width.ts"
+import { getComboPosition } from "./convert-combo-position.ts"
 import { getHitPosition } from "./convert-hit-position.ts"
+import { getJudgementPosition } from "./convert-judgement-position.ts"
 
 export class EtternaToOsuConversion implements SkinConversion {
   readonly source = "etterna"
@@ -18,6 +20,8 @@ export class EtternaToOsuConversion implements SkinConversion {
       playfield: {
         ...source.playfield,
         hitPosition: getHitPosition(source.playfield.hitPosition),
+        judgementPosition: getJudgementPosition(source.playfield.judgementPosition),
+        comboPosition: getComboPosition(source.playfield.comboPosition),
         columnWidth: getColumnWidth(source.playfield.columnWidth),
       },
     }

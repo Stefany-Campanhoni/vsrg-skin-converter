@@ -62,6 +62,19 @@ test("uses one column-width wildcard for every lane", async () => {
   )
 })
 
+test("uses combo and score position wildcards", async () => {
+  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const positionLines = template
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /^(ComboPosition|ScorePosition):/.test(line))
+
+  assert.deepEqual(positionLines, [
+    `ComboPosition: \${combo_position}`,
+    `ScorePosition: \${score_position}`,
+  ])
+})
+
 test("references the produced shared long-note body and tail paths for every lane", async () => {
   const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
   const longNoteLines = template

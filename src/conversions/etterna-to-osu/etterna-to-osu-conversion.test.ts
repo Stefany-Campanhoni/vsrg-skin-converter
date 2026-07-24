@@ -30,6 +30,8 @@ test("converts Etterna playfield coordinates into an osu skin model", async () =
 
   assert.equal(result.game, "osu")
   assert.equal(result.playfield.hitPosition, 431)
+  assert.equal(result.playfield.judgementPosition, 244)
+  assert.equal(result.playfield.comboPosition, 210)
   assert.equal(result.playfield.columnWidth, 62)
   assert.equal(result.assets, etternaSkin.assets)
   assert.equal(result.diagnostics, etternaSkin.diagnostics)

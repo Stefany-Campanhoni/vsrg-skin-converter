@@ -55,8 +55,10 @@ context so the Lua source and skin directory are indexed only once.
 ### `conversions`
 
 Owns equivalences between a specific source and target format. The Etterna-to-osu!
-conversion currently maps hit position and validates the route. It does not parse Lua,
-process pixels, write files, or interact with the user.
+conversion maps hit position, combo position, judgement/score position, and column width
+using named game defaults. For these coordinates, the osu! writer only serializes
+already-converted target values. The conversion does not parse Lua, process pixels, write
+files, or interact with the user.
 
 ### `infrastructure`
 

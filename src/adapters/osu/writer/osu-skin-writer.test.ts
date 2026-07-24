@@ -20,7 +20,7 @@ test("writes a complete osu skin workspace", async () => {
     await mkdir(templates, { recursive: true })
     await writeFile(
       path.join(templates, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templates, "LNB.png"), longNoteBody)
     await writeFile(path.join(templates, "LNT.png"), longNoteTail)
@@ -51,7 +51,7 @@ test("writes a complete osu skin workspace", async () => {
 
     assert.equal(
       await readFile(path.join(workspace, "skin.ini"), "utf8"),
-      "Name: Fixture\nHitPosition: 432\nColumnWidth: 62,62,62,62\n",
+      "Name: Fixture\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\n",
     )
     await assert.doesNotReject(() =>
       readFile(path.join(workspace, "mania", "receptors", "left@2x.png")),
@@ -79,7 +79,7 @@ test("preserves template artifacts when long-note publication fails", async () =
     await mkdir(templates, { recursive: true })
     await writeFile(
       path.join(templates, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
     await sharp({
@@ -129,7 +129,7 @@ test("publisher preserves the previous target and removes staging after a writer
     await writeFile(path.join(output, "current.txt"), "current")
     await writeFile(
       path.join(templates, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
     await sharp({
@@ -211,8 +211,8 @@ function completeOsuSkin(source: string): SkinModel {
     metadata: { name: "Fixture" },
     playfield: {
       hitPosition: 432,
-      judgementPosition: 0,
-      comboPosition: 0,
+      judgementPosition: 244,
+      comboPosition: 210,
       columnWidth: 62,
     },
     assets: { receptors, tapNotes },
