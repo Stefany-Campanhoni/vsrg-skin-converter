@@ -1,18 +1,19 @@
-import type { Expression } from "luaparse"
+import luaparse, { type Expression } from "luaparse"
 
 export type LuaStringVariables = Readonly<Record<string, string>>
+
+interface LuaStringLiteralLike {
+  type?: unknown
+  value?: unknown
+  raw?: unknown
+}
 
 export function evaluateLuaString(
   expression: Expression,
   variables: LuaStringVariables,
 ): string | undefined {
   if (expression.type === "StringLiteral") {
-    const value: unknown = expression.value
-    if (typeof value === "string") {
-      return value
-    }
-
-    return decodeRawString(expression.raw)
+    return readLuaStringLiteral(expression)
   }
 
   if (expression.type === "Identifier") {
@@ -29,25 +30,33 @@ export function evaluateLuaString(
   return left === undefined || right === undefined ? undefined : left + right
 }
 
-function decodeRawString(raw: string): string | undefined {
-  if (raw.startsWith("[[") && raw.endsWith("]]")) {
-    return raw.slice(2, -2)
+export function readLuaStringLiteral(value: LuaStringLiteralLike): string | undefined {
+  if (value.type !== "StringLiteral") {
+    return undefined
   }
-
-  const quote = raw[0]
-  if ((quote !== '"' && quote !== "'") || raw.at(-1) !== quote) {
+  if (typeof value.value === "string") {
+    return value.value
+  }
+  if (typeof value.raw !== "string") {
     return undefined
   }
 
-  return raw.slice(1, -1).replace(/\\([\\'"nrt])/g, (_, escaped: string) => {
-    const replacements: Record<string, string> = {
-      "\\": "\\",
-      "'": "'",
-      '"': '"',
-      n: "\n",
-      r: "\r",
-      t: "\t",
-    }
-    return replacements[escaped] ?? escaped
-  })
+  try {
+    const ast = luaparse.parse(`return ${value.raw}`, {
+      encodingMode: "pseudo-latin1",
+      luaVersion: "5.3",
+    })
+    const statement = ast.body[0]
+    const expression =
+      ast.body.length === 1 &&
+      statement?.type === "ReturnStatement" &&
+      statement.arguments.length === 1
+        ? statement.arguments[0]
+        : undefined
+    return expression?.type === "StringLiteral" && typeof expression.value === "string"
+      ? expression.value
+      : undefined
+  } catch {
+    return undefined
+  }
 }

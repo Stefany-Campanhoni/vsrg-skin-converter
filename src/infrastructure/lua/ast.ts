@@ -1,3 +1,5 @@
+import { readLuaStringLiteral } from "./evaluate-expression.ts"
+
 export type AstObject = Record<string, unknown> & {
   type?: string
   range?: [number, number]
@@ -23,16 +25,29 @@ export function getCallableName(value: unknown): string | undefined {
 }
 
 export function getTableField(
-  tableCall: AstObject | undefined,
+  tableLike: AstObject | undefined,
   expectedName: string,
 ): AstObject | undefined {
-  const table = asAstObject(tableCall?.arguments)
-  const fields = Array.isArray(table?.fields) ? table.fields : []
-  for (const rawField of fields) {
+  const argumentTable = asAstObject(tableLike?.arguments)
+  const rawFields = Array.isArray(tableLike?.fields)
+    ? tableLike.fields
+    : Array.isArray(argumentTable?.fields)
+      ? argumentTable.fields
+      : []
+
+  for (let index = rawFields.length - 1; index >= 0; index -= 1) {
+    const rawField = rawFields[index]
     const field = asAstObject(rawField)
     const key = asAstObject(field?.key)
-    if (field?.type === "TableKeyString" && key?.name === expectedName) {
-      return asAstObject(field.value)
+    const identifierKey =
+      field?.type === "TableKeyString" && typeof key?.name === "string" ? key.name : undefined
+    const stringKey =
+      field?.type === "TableKey" && key?.type === "StringLiteral"
+        ? readLuaStringLiteral(key)
+        : undefined
+
+    if (identifierKey === expectedName || stringKey === expectedName) {
+      return asAstObject(field?.value)
     }
   }
   return undefined

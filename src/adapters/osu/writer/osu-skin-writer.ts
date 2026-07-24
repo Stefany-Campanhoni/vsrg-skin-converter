@@ -5,6 +5,7 @@ import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { copyDirectory } from "../../../infrastructure/filesystem/copy-directory.ts"
 import { renderTemplateFile } from "../templates/render-osu-template.ts"
 import { removeOsuTemplateArtifacts } from "./remove-osu-template-artifacts.ts"
+import { writeOsuJudgements } from "./write-osu-judgements.ts"
 import { writeOsuLongNotes } from "./write-osu-long-notes.ts"
 import { writeOsuNotes } from "./write-osu-notes.ts"
 import { writeOsuReceptors } from "./write-osu-receptors.ts"
@@ -29,6 +30,10 @@ export class OsuSkinWriter implements SkinWriter {
     if (!tapNotes) {
       throw new Error("osu skin model does not contain tap notes")
     }
+    const judgements = skin.assets.judgements
+    if (!judgements) {
+      throw new Error("osu skin model does not contain judgements")
+    }
 
     await copyDirectory(this.#templatesDirectory, workspace)
     const skinIniPath = path.join(workspace, "skin.ini")
@@ -50,6 +55,10 @@ export class OsuSkinWriter implements SkinWriter {
       }),
       writeOsuNotes({
         notes: tapNotes,
+        outputDirectory: workspace,
+      }),
+      writeOsuJudgements({
+        judgements,
         outputDirectory: workspace,
       }),
       writeOsuLongNotes({ outputDirectory: workspace }),

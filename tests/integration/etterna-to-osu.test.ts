@@ -9,19 +9,19 @@ import { OsuSkinWriter } from "../../src/adapters/osu/writer/osu-skin-writer.ts"
 import { ConversionRegistry } from "../../src/application/conversion/conversion-registry.ts"
 import { convertSkin } from "../../src/application/conversion/convert-skin.ts"
 import { EtternaToOsuConversion } from "../../src/conversions/etterna-to-osu/etterna-to-osu-conversion.ts"
+import { type JudgementGrade, judgementGrades } from "../../src/domain/judgement.ts"
 import { TransactionalOutputPublisher } from "../../src/infrastructure/filesystem/transactional-output-publisher.ts"
 
 test("converts an Etterna skin into a fully replaced osu workspace", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-conversion-"))
   const gameRoot = path.join(directory, "Etterna")
   const skinDirectory = path.join(gameRoot, "NoteSkins", "dance", "Fixture Skin")
-  const profileDirectory = path.join(
-    gameRoot,
-    "Save",
-    "LocalProfiles",
-    "00000000",
-    "Rebirth_settings",
-  )
+  const profileRoot = path.join(gameRoot, "Save", "LocalProfiles", "00000000")
+  const profileDirectory = path.join(profileRoot, "Rebirth_settings")
+  const assetsSettingsDirectory = path.join(gameRoot, "Save", "Rebirth_settings")
+  const judgementDirectory = path.join(gameRoot, "Assets", "Judgments")
+  const judgementPath = path.join(judgementDirectory, "Fixture Judgment 2x6 (Doubleres).png")
+  const defaultJudgementPath = path.join(judgementDirectory, "default 1x6 (Doubleres).png")
   const templatesDirectory = path.join(directory, "templates")
   const outputDirectory = path.join(directory, "output")
   const longNoteBody = Buffer.from([10, 20, 30, 40])
@@ -32,9 +32,39 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     })
     await mkdir(path.join(skinDirectory, "Notes"), { recursive: true })
     await mkdir(profileDirectory, { recursive: true })
+    await mkdir(assetsSettingsDirectory, { recursive: true })
+    await mkdir(judgementDirectory, { recursive: true })
     await mkdir(templatesDirectory, { recursive: true })
     await mkdir(outputDirectory, { recursive: true })
     await writeFile(path.join(outputDirectory, "stale.txt"), "stale")
+    await writeFile(
+      path.join(profileRoot, "Etterna.xml"),
+      `<Stats>
+        <Guid>fixtureguid</Guid>
+      </Stats>`,
+    )
+    await writeFile(
+      path.join(assetsSettingsDirectory, "assetsConfig.lua"),
+      `
+        return {
+          judgment = {
+            fixtureguid = "Assets/Judgments/Fixture Judgment 2x6 (Doubleres).png",
+            default = "Assets/Judgments/default 1x6 (Doubleres).png",
+          },
+        }
+      `,
+    )
+    await writeTwoBySixJudgementSheet(judgementPath)
+    await sharp({
+      create: {
+        width: 8,
+        height: 36,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toFile(defaultJudgementPath)
     await writeFile(
       path.join(profileDirectory, "playerConfig.lua"),
       `
@@ -97,7 +127,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     }
     await writeFile(
       path.join(templatesDirectory, "skin.ini"),
-      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
+      `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n`,
     )
     await writeFile(path.join(templatesDirectory, "LNB.png"), longNoteBody)
     await writeFile(path.join(templatesDirectory, "LNT.png"), longNoteTail)
@@ -133,7 +163,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     assert.equal(
       await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-      "Name: Fixture Skin\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\n",
+      "Name: Fixture Skin\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
     )
     assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
     const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
@@ -167,11 +197,85 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
         code: "ENOENT",
       })
     }
+    const judgementOutputDirectory = path.join(outputDirectory, "mania", "judgements")
+    assert.deepEqual((await readdir(judgementOutputDirectory)).sort(), [
+      "bad.png",
+      "bad@2x.png",
+      "good.png",
+      "good@2x.png",
+      "great.png",
+      "great@2x.png",
+      "marvelous.png",
+      "marvelous@2x.png",
+      "miss.png",
+      "miss@2x.png",
+      "perfect.png",
+      "perfect@2x.png",
+    ])
+    const expectedLeftColors = Object.fromEntries(
+      judgementGrades.map((grade, index) => [grade, leftColors[index]]),
+    ) as Record<JudgementGrade, (typeof leftColors)[number]>
+
+    for (const [grade, color] of Object.entries(expectedLeftColors)) {
+      for (const [suffix, expectedDimensions] of [
+        [".png", { width: 4, height: 3 }],
+        ["@2x.png", { width: 8, height: 6 }],
+      ] as const) {
+        const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+        assert.deepEqual({ width: info.width, height: info.height }, expectedDimensions)
+        const offset = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4
+        assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
+      }
+    }
     assert.deepEqual(result.diagnostics, [])
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
 })
+
+const leftColors = [
+  { r: 255, g: 0, b: 0 },
+  { r: 255, g: 128, b: 0 },
+  { r: 255, g: 255, b: 0 },
+  { r: 0, g: 255, b: 0 },
+  { r: 0, g: 128, b: 255 },
+  { r: 255, g: 0, b: 255 },
+] as const
+
+async function writeTwoBySixJudgementSheet(filePath: string): Promise<void> {
+  const frameWidth = 8
+  const frameHeight = 6
+  const width = frameWidth * 2
+  const height = frameHeight * 6
+  const data = Buffer.alloc(width * height * 4)
+
+  for (let row = 0; row < 6; row += 1) {
+    const leftColor = leftColors[row]
+    if (!leftColor) {
+      throw new Error(`Missing judgement fixture color for row ${row}`)
+    }
+    for (let column = 0; column < 2; column += 1) {
+      const color = column === 0 ? leftColor : { r: 16, g: row * 20, b: 16 }
+      for (let y = 0; y < frameHeight; y += 1) {
+        for (let x = 0; x < frameWidth; x += 1) {
+          const sourceX = column * frameWidth + x
+          const sourceY = row * frameHeight + y
+          const offset = (sourceY * width + sourceX) * 4
+          data[offset] = color.r
+          data[offset + 1] = color.g
+          data[offset + 2] = color.b
+          data[offset + 3] = 255
+        }
+      }
+    }
+  }
+
+  await sharp(data, { raw: { width, height, channels: 4 } })
+    .png()
+    .toFile(filePath)
+}
 
 function alphaBounds(data: Buffer, width: number, height: number) {
   let left = width

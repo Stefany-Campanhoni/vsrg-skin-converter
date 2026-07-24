@@ -1,6 +1,7 @@
 import type { Diagnostic } from "./diagnostics.ts"
 import type { GameId } from "./game.ts"
 import type { ReceptorSet, TapNoteSet } from "./image.ts"
+import type { JudgementSet } from "./judgement.ts"
 
 export interface SkinReference {
   game: GameId
@@ -23,6 +24,7 @@ export interface PlayfieldConfiguration {
 export interface SkinAssets {
   receptors?: ReceptorSet
   tapNotes?: TapNoteSet
+  judgements?: JudgementSet
 }
 
 export interface SkinModel {

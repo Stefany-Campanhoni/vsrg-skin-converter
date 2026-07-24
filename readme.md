@@ -40,6 +40,15 @@ The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
 Internal build assets are removed from the generated skin after all output tasks succeed.
 
+The Etterna reader resolves the judgement selected for profile `00000000` from
+`Etterna.xml` and `Save/Rebirth_settings/assetsConfig.lua`. It accepts `1x6` and
+`2x6` sheets, uses the left/Early column, and maps W1 through Miss to
+`marvelous`, `perfect`, `great`, `good`, `bad`, and `miss`.
+
+Every grade is written as both SD and `@2x`. `(Doubleres)` sources preserve the
+original as `@2x` and generate SD at 50%; standard sources preserve the original
+as SD and generate `@2x` at 200%.
+
 The default installation and output paths are defined in `src/config`.
 
 ## Verification

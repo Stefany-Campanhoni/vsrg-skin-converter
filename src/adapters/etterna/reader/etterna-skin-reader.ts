@@ -1,6 +1,10 @@
 import type { SkinReader } from "../../../application/ports/skin-reader.ts"
 import type { Diagnostic } from "../../../domain/diagnostics.ts"
 import type { PlayfieldConfiguration, SkinModel, SkinReference } from "../../../domain/skin.ts"
+import {
+  type EtternaJudgementAnalysis,
+  readEtternaJudgements,
+} from "../judgements/read-etterna-judgements.ts"
 import { loadNoteSkinContext, type NoteSkinContext } from "../noteskin/note-skin-context.ts"
 import { analyzeEtternaNotes, type EtternaNoteAnalysis } from "../noteskin/notes/analyze-notes.ts"
 import {
@@ -14,6 +18,7 @@ export interface EtternaSkinReaderDependencies {
   loadNoteSkinContext(skinDirectory: string): Promise<NoteSkinContext>
   analyzeReceptors(context: NoteSkinContext): Promise<EtternaReceptorAnalysis>
   analyzeNotes(context: NoteSkinContext): Promise<EtternaNoteAnalysis>
+  analyzeJudgements(gameRoot: string): Promise<EtternaJudgementAnalysis>
 }
 
 const defaultDependencies: EtternaSkinReaderDependencies = {
@@ -21,6 +26,7 @@ const defaultDependencies: EtternaSkinReaderDependencies = {
   loadNoteSkinContext,
   analyzeReceptors: analyzeEtternaReceptors,
   analyzeNotes: analyzeEtternaNotes,
+  analyzeJudgements: readEtternaJudgements,
 }
 
 export class EtternaSkinReader implements SkinReader {
@@ -36,15 +42,20 @@ export class EtternaSkinReader implements SkinReader {
       throw new Error(`Etterna reader cannot read a ${reference.game} skin`)
     }
 
-    const [playfield, context] = await Promise.all([
+    const [playfield, context, judgementAnalysis] = await Promise.all([
       this.#dependencies.readProfile(reference.gameRoot),
       this.#dependencies.loadNoteSkinContext(reference.sourcePath),
+      this.#dependencies.analyzeJudgements(reference.gameRoot),
     ])
     const [receptorAnalysis, noteAnalysis] = await Promise.all([
       this.#dependencies.analyzeReceptors(context),
       this.#dependencies.analyzeNotes(context),
     ])
-    const diagnostics: Diagnostic[] = [...receptorAnalysis.diagnostics, ...noteAnalysis.diagnostics]
+    const diagnostics: Diagnostic[] = [
+      ...receptorAnalysis.diagnostics,
+      ...noteAnalysis.diagnostics,
+      ...judgementAnalysis.diagnostics,
+    ]
 
     return {
       game: this.game,
@@ -53,6 +64,7 @@ export class EtternaSkinReader implements SkinReader {
       assets: {
         receptors: receptorAnalysis.receptors,
         tapNotes: noteAnalysis.notes,
+        judgements: judgementAnalysis.judgements,
       },
       diagnostics,
     }

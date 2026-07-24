@@ -1,6 +1,7 @@
 import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
 import type { ColumnDirection } from "../../../domain/image.ts"
+import { parseEtternaImageMetadata } from "../image/parse-etterna-image-metadata.ts"
 
 export interface ResolvedSkinAsset {
   filePath: string
@@ -103,7 +104,7 @@ export async function createSkinFileResolver(skinDirectory: string): Promise<Ski
 function indexFile(root: string, absolutePath: string): IndexedFile {
   const extension = path.extname(absolutePath).toLowerCase()
   const stem = path.basename(absolutePath, path.extname(absolutePath))
-  const { logicalStem, columns, rows } = parseDecoratedStem(stem)
+  const { logicalStem, columns, rows } = parseEtternaImageMetadata(stem)
 
   return {
     absolutePath,
@@ -117,25 +118,9 @@ function indexFile(root: string, absolutePath: string): IndexedFile {
   }
 }
 
-function parseDecoratedStem(stem: string): {
-  logicalStem: string
-  columns: number
-  rows: number
-} {
-  const layout = /\s(\d+)x(\d+)(?=\s*(?:\((?:doubleres|res [^)]*)\)\s*)*$)/i.exec(stem)
-  const metadata = /\s*\((?:doubleres|res [^)]*)\)\s*$/i.exec(stem)
-  const decorationIndex = layout?.index ?? metadata?.index
-
-  return {
-    logicalStem: decorationIndex === undefined ? stem : stem.slice(0, decorationIndex).trimEnd(),
-    columns: Number(layout?.[1] ?? 1),
-    rows: Number(layout?.[2] ?? 1),
-  }
-}
-
 function normalizeRequestedName(value: string): string {
   const withoutExtension = value.replace(/\.(?:png|jpe?g)$/i, "")
-  return normalizeLogicalName(parseDecoratedStem(withoutExtension).logicalStem)
+  return normalizeLogicalName(parseEtternaImageMetadata(withoutExtension).logicalStem)
 }
 
 function normalizeLogicalName(value: string): string {

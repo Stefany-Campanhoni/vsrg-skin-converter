@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.ts"
+import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
+import type { EtternaJudgementAnalysis } from "../judgements/read-etterna-judgements.ts"
 import type { NoteSkinContext } from "../noteskin/note-skin-context.ts"
 import { EtternaSkinReader } from "./etterna-skin-reader.ts"
 
@@ -18,8 +20,14 @@ const tapNotes: TapNoteSet = {
   up: image,
   right: image,
 }
+const judgements: JudgementSet = {
+  sourceDensity: 1,
+  images: Object.fromEntries(
+    judgementGrades.map((grade) => [grade, image]),
+  ) as JudgementSet["images"],
+}
 
-test("loads one NoteSkin context and shares it across asset analyzers", async () => {
+test("loads initial inputs concurrently and publishes assets with ordered diagnostics", async () => {
   const reference: SkinReference = {
     game: "etterna",
     name: "Fixture",
@@ -29,6 +37,31 @@ test("loads one NoteSkin context and shares it across asset analyzers", async ()
   const context = { filePath: "NoteSkin.lua" } as NoteSkinContext
   let contextLoads = 0
   const seenContexts: NoteSkinContext[] = []
+  const sequence: string[] = []
+  let judgementGameRoot: string | undefined
+  let resolveContext: () => void = () => {
+    throw new Error("context promise was not initialized")
+  }
+  const contextPromise = new Promise<NoteSkinContext>((resolve) => {
+    resolveContext = () => resolve(context)
+  })
+  let resolveJudgements: () => void = () => {
+    throw new Error("judgement promise was not initialized")
+  }
+  const judgementPromise = new Promise<EtternaJudgementAnalysis>((resolve) => {
+    resolveJudgements = () =>
+      resolve({
+        judgements,
+        diagnostics: [
+          {
+            code: "judgement-warning",
+            severity: "warning",
+            component: "judgements",
+            message: "fixture fallback",
+          },
+        ],
+      })
+  })
   const reader = new EtternaSkinReader({
     readProfile: async () => ({
       hitPosition: -6,
@@ -38,28 +71,96 @@ test("loads one NoteSkin context and shares it across asset analyzers", async ()
     }),
     loadNoteSkinContext: async () => {
       contextLoads += 1
-      return context
+      sequence.push("context-start")
+      return contextPromise
     },
     analyzeReceptors: async (received) => {
+      sequence.push("receptors-start")
       seenContexts.push(received)
-      return { receptors, diagnostics: [] }
+      return {
+        receptors,
+        diagnostics: [
+          {
+            code: "receptor-warning",
+            severity: "warning",
+            component: "receptors",
+            direction: "left",
+            message: "receptor fallback",
+          },
+        ],
+      }
     },
     analyzeNotes: async (received) => {
+      sequence.push("notes-start")
       seenContexts.push(received)
-      return { notes: tapNotes, diagnostics: [] }
+      return {
+        notes: tapNotes,
+        diagnostics: [
+          {
+            code: "note-warning",
+            severity: "warning",
+            component: "notes",
+            direction: "down",
+            message: "note fallback",
+          },
+        ],
+      }
+    },
+    analyzeJudgements: async (gameRoot) => {
+      judgementGameRoot = gameRoot
+      sequence.push("judgements-start")
+      return judgementPromise
     },
   })
 
-  const skin = await reader.readSkin(reference)
+  const skinPromise = reader.readSkin(reference)
+
+  assert.equal(judgementGameRoot, reference.gameRoot)
+  assert.deepEqual(sequence, ["context-start", "judgements-start"])
+  resolveContext()
+  await Promise.resolve()
+  assert.deepEqual(sequence, ["context-start", "judgements-start"])
+
+  resolveJudgements()
+  const skin = await skinPromise
 
   assert.equal(contextLoads, 1)
   assert.deepEqual(seenContexts, [context, context])
+  assert.deepEqual(sequence, [
+    "context-start",
+    "judgements-start",
+    "receptors-start",
+    "notes-start",
+  ])
   assert.equal(skin.game, "etterna")
   assert.equal(skin.metadata.name, "Fixture")
   assert.equal(skin.playfield.hitPosition, -6)
   assert.equal(skin.playfield.columnWidth, 100)
   assert.equal(skin.assets.receptors, receptors)
   assert.equal(skin.assets.tapNotes, tapNotes)
+  assert.equal(skin.assets.judgements, judgements)
+  assert.deepEqual(skin.diagnostics, [
+    {
+      code: "receptor-warning",
+      severity: "warning",
+      component: "receptors",
+      direction: "left",
+      message: "receptor fallback",
+    },
+    {
+      code: "note-warning",
+      severity: "warning",
+      component: "notes",
+      direction: "down",
+      message: "note fallback",
+    },
+    {
+      code: "judgement-warning",
+      severity: "warning",
+      component: "judgements",
+      message: "fixture fallback",
+    },
+  ])
 })
 
 test("rejects references from another game", async () => {
@@ -74,6 +175,9 @@ test("rejects references from another game", async () => {
       throw new Error("should not run")
     },
     analyzeNotes: async () => {
+      throw new Error("should not run")
+    },
+    analyzeJudgements: async () => {
       throw new Error("should not run")
     },
   })

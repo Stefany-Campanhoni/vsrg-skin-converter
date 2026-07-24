@@ -5,6 +5,7 @@ import path from "node:path"
 import test from "node:test"
 import sharp from "sharp"
 import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.ts"
+import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
 import { TransactionalOutputPublisher } from "../../../infrastructure/filesystem/transactional-output-publisher.ts"
 import { OsuSkinWriter } from "./osu-skin-writer.ts"
@@ -58,6 +59,12 @@ test("writes a complete osu skin workspace", async () => {
     )
     const note = await sharp(path.join(workspace, "mania", "notes", "left.png")).metadata()
     assert.deepEqual({ width: note.width, height: note.height }, { width: 24, height: 16 })
+    await assert.doesNotReject(() =>
+      readFile(path.join(workspace, "mania", "judgements", "marvelous.png")),
+    )
+    await assert.doesNotReject(() =>
+      readFile(path.join(workspace, "mania", "judgements", "marvelous@2x.png")),
+    )
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), longNoteBody)
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "tail.png")), longNoteTail)
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
@@ -190,6 +197,19 @@ test("rejects incomplete or non-osu models", async () => {
     () => writer.writeSkin({ ...base, game: "etterna" }, "workspace"),
     /osu writer.*etterna/i,
   )
+
+  const complete = completeOsuSkin("source.png")
+  const withoutJudgements: SkinModel = {
+    ...complete,
+    assets: {
+      receptors: complete.assets.receptors,
+      tapNotes: complete.assets.tapNotes,
+    },
+  }
+  await assert.rejects(
+    () => writer.writeSkin(withoutJudgements, "workspace"),
+    /does not contain judgements/i,
+  )
 })
 
 function completeOsuSkin(source: string): SkinModel {
@@ -206,6 +226,12 @@ function completeOsuSkin(source: string): SkinModel {
     up: image,
     right: image,
   }
+  const judgements: JudgementSet = {
+    sourceDensity: 1,
+    images: Object.fromEntries(
+      judgementGrades.map((grade) => [grade, image]),
+    ) as JudgementSet["images"],
+  }
   return {
     game: "osu",
     metadata: { name: "Fixture" },
@@ -215,7 +241,7 @@ function completeOsuSkin(source: string): SkinModel {
       comboPosition: 210,
       columnWidth: 62,
     },
-    assets: { receptors, tapNotes },
+    assets: { receptors, tapNotes, judgements },
     diagnostics: [],
   }
 }

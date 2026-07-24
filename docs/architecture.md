@@ -49,6 +49,11 @@ Fixed osu! long-note assets are published by a target writer without entering th
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
 internal template artifacts from the staged workspace.
 
+Etterna asset adapters resolve the fixed profile's selected judgement and convert
+Etterna sheet coordinates into a semantic `JudgementSet`. The conversion preserves
+that format-neutral set. Generic Sharp infrastructure extracts and scales frames,
+while the osu! writer publishes the named SD and HD judgement files.
+
 An Etterna read creates one `NoteSkinContext`. Receptor and tap-note analysis share this
 context so the Lua source and skin directory are indexed only once.
 
