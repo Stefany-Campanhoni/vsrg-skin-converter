@@ -1,6 +1,7 @@
 import type { SkinReader } from "../../../application/ports/skin-reader.ts"
 import type { Diagnostic } from "../../../domain/diagnostics.ts"
 import type { PlayfieldConfiguration, SkinModel, SkinReference } from "../../../domain/skin.ts"
+import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import {
   type EtternaJudgementAnalysis,
   readEtternaJudgements,
@@ -42,14 +43,14 @@ export class EtternaSkinReader implements SkinReader {
       throw new Error(`Etterna reader cannot read a ${reference.game} skin`)
     }
 
-    const [playfield, context, judgementAnalysis] = await Promise.all([
-      this.#dependencies.readProfile(reference.gameRoot),
-      this.#dependencies.loadNoteSkinContext(reference.sourcePath),
-      this.#dependencies.analyzeJudgements(reference.gameRoot),
+    const [playfield, context, judgementAnalysis] = await settleAll([
+      invokeAsPromise(() => this.#dependencies.readProfile(reference.gameRoot)),
+      invokeAsPromise(() => this.#dependencies.loadNoteSkinContext(reference.sourcePath)),
+      invokeAsPromise(() => this.#dependencies.analyzeJudgements(reference.gameRoot)),
     ])
-    const [receptorAnalysis, noteAnalysis] = await Promise.all([
-      this.#dependencies.analyzeReceptors(context),
-      this.#dependencies.analyzeNotes(context),
+    const [receptorAnalysis, noteAnalysis] = await settleAll([
+      invokeAsPromise(() => this.#dependencies.analyzeReceptors(context)),
+      invokeAsPromise(() => this.#dependencies.analyzeNotes(context)),
     ])
     const diagnostics: Diagnostic[] = [
       ...receptorAnalysis.diagnostics,

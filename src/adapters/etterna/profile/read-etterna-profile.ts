@@ -1,8 +1,16 @@
 import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
-import type { Chunk, Expression, StringLiteral, TableConstructorExpression } from "luaparse"
+import type { Chunk } from "luaparse"
 import luaparse from "luaparse"
 import type { PlayfieldConfiguration } from "../../../domain/skin.ts"
+import {
+  type AstObject,
+  asAstObject,
+  getTableField,
+  getTableFieldCaseInsensitive,
+} from "../../../infrastructure/lua/ast.ts"
+
+const etternaJudgementZoomInfluence = 0.75
 
 export async function readEtternaProfile(gameRoot: string): Promise<PlayfieldConfiguration> {
   const profileDirectory = path.join(
@@ -25,10 +33,15 @@ export async function readEtternaProfile(gameRoot: string): Promise<PlayfieldCon
     throw new Error(`Etterna playerConfig.lua was not found in ${profileDirectory}`)
   }
   const source = await readFile(profilePath, "utf8")
-  return getGameplay4kCoordinates(luaparse.parse(source))
+  try {
+    return extractEtternaPlayfieldConfiguration(luaparse.parse(source))
+  } catch (cause) {
+    const detail = cause instanceof Error ? `: ${cause.message}` : ""
+    throw new Error(`Could not interpret Etterna profile ${profilePath}${detail}`, { cause })
+  }
 }
 
-export function getGameplay4kCoordinates(ast: Chunk): PlayfieldConfiguration {
+export function extractEtternaPlayfieldConfiguration(ast: Chunk): PlayfieldConfiguration {
   const returnStatement = ast.body.find((statement) => statement.type === "ReturnStatement")
 
   if (!returnStatement) {
@@ -36,50 +49,41 @@ export function getGameplay4kCoordinates(ast: Chunk): PlayfieldConfiguration {
   }
 
   const rootTable = requireTable(
-    returnStatement.arguments.find((argument) => argument.type === "TableConstructorExpression"),
+    asAstObject(
+      returnStatement.arguments.find((argument) => argument.type === "TableConstructorExpression"),
+    ),
     "returned value",
   )
 
   const gameplayCoordinates = requireTable(
-    findNamedField(rootTable, "GameplayXYCoordinates"),
+    getTableField(rootTable, "GameplayXYCoordinates"),
     "GameplayXYCoordinates",
   )
 
   const coordinates4k = requireTable(
-    findStringKey(gameplayCoordinates, "4k"),
+    getTableFieldCaseInsensitive(gameplayCoordinates, "4K"),
     'GameplayXYCoordinates["4k"]',
   )
+
+  const gameplaySizes = requireTable(getTableField(rootTable, "GameplaySizes"), "GameplaySizes")
+  const sizes4k = requireTable(
+    getTableFieldCaseInsensitive(gameplaySizes, "4K"),
+    'GameplaySizes["4K"]',
+  )
+  const judgementZoom = readNumber(sizes4k, "JudgmentZoom")
+  const comboZoom = readNumber(sizes4k, "ComboZoom")
 
   return {
     hitPosition: readNumber(coordinates4k, "NoteFieldY"),
     judgementPosition: readNumber(coordinates4k, "JudgmentY"),
     comboPosition: readNumber(coordinates4k, "ComboY"),
     columnWidth: readNumber(rootTable, "ReceptorSize"),
+    judgementScale: 1 + (judgementZoom - 1) * etternaJudgementZoomInfluence,
+    comboScale: comboZoom,
   }
 }
 
-function findNamedField(table: TableConstructorExpression, name: string): Expression | undefined {
-  return table.fields.find((field) => field.type === "TableKeyString" && field.key.name === name)
-    ?.value
-}
-
-function findStringKey(table: TableConstructorExpression, key: string): Expression | undefined {
-  return table.fields.find(
-    (field) =>
-      field.type === "TableKey" &&
-      field.key.type === "StringLiteral" &&
-      getStringLiteralValue(field.key).toLowerCase() === key.toLowerCase(),
-  )?.value
-}
-
-function getStringLiteralValue(literal: StringLiteral): string {
-  return (literal.value as string | null) ?? literal.raw.slice(1, -1)
-}
-
-function requireTable(
-  expression: Expression | undefined,
-  path: string,
-): TableConstructorExpression {
+function requireTable(expression: AstObject | undefined, path: string): AstObject {
   if (expression?.type !== "TableConstructorExpression") {
     throw new Error(`Expected ${path} to be a Lua table.`)
   }
@@ -87,19 +91,21 @@ function requireTable(
   return expression
 }
 
-function readNumber(table: TableConstructorExpression, key: string): number {
-  const expression = findNamedField(table, key)
+function readNumber(table: AstObject, key: string): number {
+  const expression = getTableField(table, key)
 
-  if (expression?.type === "NumericLiteral") {
+  if (expression?.type === "NumericLiteral" && typeof expression.value === "number") {
     return expression.value
   }
 
+  const argument = asAstObject(expression?.argument)
   if (
     expression?.type === "UnaryExpression" &&
     expression.operator === "-" &&
-    expression.argument.type === "NumericLiteral"
+    argument?.type === "NumericLiteral" &&
+    typeof argument.value === "number"
   ) {
-    return -expression.argument.value
+    return -argument.value
   }
 
   throw new Error(`Expected "${key}" to be a numeric value.`)

@@ -56,6 +56,16 @@ not print errors or diagnostics; only the CLI presents them.
 
 Never catch a filesystem or image-processing error only to log it and continue.
 
+When a lower-level decoder is used to answer a semantic question, such as whether an image
+is transparent, decoding failures remain errors. Do not reinterpret an unreadable image as
+a valid visible or transparent asset.
+
+Concurrent batches are quiescent: once work has started, the caller waits for every sibling
+to settle before returning or throwing. Apply this rule at every nested batch boundary; a
+fail-fast `Promise.all` inside `settleAll` still leaves orphan work. Wrap injected callbacks
+with `invokeAsPromise` before collecting them so a synchronous throw becomes a rejected task
+and cannot prevent later siblings from starting.
+
 ## Comments
 
 Prefer descriptive names and small functions. Add a comment only when it explains:
@@ -73,6 +83,8 @@ Do not narrate what the following code already states.
 - Put cross-module behavior in `tests/integration`.
 - Put dependency rules in `tests/architecture`.
 - Use small generated fixtures for deterministic tests.
+- Use valid encoded image buffers in image-facing tests. Invalid bytes are appropriate only
+  when the behavior under test is decoder failure.
 - Keep real skins under `tmp` as a compatibility-audit corpus, not as unit-test fixtures.
 - For a behavior change, write or update a failing test before production code.
 - Test public outcomes and important failure behavior, not private implementation details.
@@ -89,6 +101,15 @@ git diff --check
 
 Changes to Etterna analysis or image conversion also require a compatibility audit against
 the applicable real skins under `tmp`.
+
+For receptor rendering, tests must preserve this processing order: extract the selected
+frame, rotate it, normalize its size, apply target-specific vertical scaling, trim trailing
+transparent rows, and compose the final canvas. Reordering these operations changes the
+meaning of dimensions and frame orientation.
+
+Generic pixel inspection and Sharp operations belong in image infrastructure. A target
+writer owns target-format fallback policy; for example, the osu! writer may replace an empty
+pressed receptor with its normal counterpart, but infrastructure must not encode that rule.
 
 ## Output and Safety
 

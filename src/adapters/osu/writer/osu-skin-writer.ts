@@ -5,6 +5,7 @@ import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { copyDirectory } from "../../../infrastructure/filesystem/copy-directory.ts"
 import { renderTemplateFile } from "../templates/render-osu-template.ts"
 import { removeOsuTemplateArtifacts } from "./remove-osu-template-artifacts.ts"
+import { writeOsuComboImages } from "./write-osu-combo-images.ts"
 import { writeOsuJudgements } from "./write-osu-judgements.ts"
 import { writeOsuLongNotes } from "./write-osu-long-notes.ts"
 import { writeOsuNotes } from "./write-osu-notes.ts"
@@ -60,7 +61,9 @@ export class OsuSkinWriter implements SkinWriter {
       writeOsuJudgements({
         judgements,
         outputDirectory: workspace,
+        scale: skin.playfield.judgementScale,
       }),
+      writeOsuComboImages({ outputDirectory: workspace, scale: skin.playfield.comboScale }),
       writeOsuLongNotes({ outputDirectory: workspace }),
     ])
     await removeOsuTemplateArtifacts(workspace)

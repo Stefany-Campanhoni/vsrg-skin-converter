@@ -54,6 +54,46 @@ test("waits for every entry copy before rethrowing the exact copy failure", asyn
   }
 })
 
+test("starts every entry copy when an injected copier throws synchronously", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-copy-directory-"))
+  const source = path.join(root, "source")
+  const target = path.join(root, "target")
+  const sibling = deferred<void>()
+  const copiesStarted = deferred<void>()
+  const failure = new Error("synchronous copy failure")
+  let calls = 0
+  try {
+    await mkdir(source)
+    await writeFile(path.join(source, "a.txt"), "a")
+    await writeFile(path.join(source, "b.txt"), "b")
+
+    const copying = copyDirectory(source, target, {
+      copyEntry: () => {
+        calls += 1
+        if (calls === 2) {
+          copiesStarted.resolve()
+          throw failure
+        }
+        return sibling.promise
+      },
+    })
+
+    await copiesStarted.promise
+    assert.equal(calls, 2)
+    let settled = false
+    void copying.catch(() => {
+      settled = true
+    })
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    sibling.resolve()
+    await assert.rejects(copying, (error) => error === failure)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 interface Deferred<T> {
   promise: Promise<T>
   resolve(value: T | PromiseLike<T>): void

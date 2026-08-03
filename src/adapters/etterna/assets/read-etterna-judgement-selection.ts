@@ -2,6 +2,7 @@ import { readFile, realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import luaparse, { type Chunk, type Expression } from "luaparse"
 import type { Diagnostic } from "../../../domain/diagnostics.ts"
+import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { type AstObject, asAstObject, getTableField } from "../../../infrastructure/lua/ast.ts"
 import { evaluateLuaString } from "../../../infrastructure/lua/evaluate-expression.ts"
 
@@ -26,7 +27,7 @@ export async function readEtternaJudgementSelection(
   const { configured, fallback } = extractConfiguredPaths(source, guid, configPath)
   const fallbackCandidate = resolveSafeCandidate(gameRoot, fallback)
   const configuredCandidate = configured ? resolveSafeCandidate(gameRoot, configured) : undefined
-  const [configuredFile, fallbackFile] = await Promise.all([
+  const [configuredFile, fallbackFile] = await settleAll([
     configuredCandidate
       ? resolveExistingFile(gameRoot, configuredCandidate)
       : Promise.resolve(undefined),
@@ -138,7 +139,7 @@ async function resolveExistingFile(
   candidate: string,
 ): Promise<string | undefined> {
   try {
-    const [realRoot, realCandidate] = await Promise.all([realpath(gameRoot), realpath(candidate)])
+    const [realRoot, realCandidate] = await settleAll([realpath(gameRoot), realpath(candidate)])
     const relative = path.relative(realRoot, realCandidate)
     if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
       throw new Error(`Unsafe Etterna judgement path: ${candidate}`)

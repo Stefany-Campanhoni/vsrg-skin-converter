@@ -68,6 +68,8 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
       judgementPosition: 4,
       comboPosition: 8,
       columnWidth: 100,
+      comboScale: 1,
+      judgementScale: 1,
     }),
     loadNoteSkinContext: async () => {
       contextLoads += 1
@@ -136,6 +138,8 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
   assert.equal(skin.metadata.name, "Fixture")
   assert.equal(skin.playfield.hitPosition, -6)
   assert.equal(skin.playfield.columnWidth, 100)
+  assert.equal(skin.playfield.comboScale, 1)
+  assert.equal(skin.playfield.judgementScale, 1)
   assert.equal(skin.assets.receptors, receptors)
   assert.equal(skin.assets.tapNotes, tapNotes)
   assert.equal(skin.assets.judgements, judgements)
@@ -161,6 +165,93 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
       message: "fixture fallback",
     },
   ])
+})
+
+test("starts and settles every initial reader dependency after a synchronous failure", async () => {
+  const profile = deferred<{
+    hitPosition: number
+    judgementPosition: number
+    comboPosition: number
+    columnWidth: number
+    comboScale: number
+    judgementScale: number
+  }>()
+  const failure = new Error("exact synchronous context failure")
+  let judgementStarted = false
+  const reader = new EtternaSkinReader({
+    readProfile: () => profile.promise,
+    loadNoteSkinContext: () => {
+      throw failure
+    },
+    analyzeJudgements: async () => {
+      judgementStarted = true
+      return { judgements, diagnostics: [] }
+    },
+    analyzeReceptors: async () => ({ receptors, diagnostics: [] }),
+    analyzeNotes: async () => ({ notes: tapNotes, diagnostics: [] }),
+  })
+
+  const reading = reader.readSkin(etternaReference)
+  await Promise.resolve()
+  assert.equal(judgementStarted, true)
+  let settled = false
+  void reading.catch(() => {
+    settled = true
+  })
+  await Promise.resolve()
+  assert.equal(settled, false)
+
+  profile.resolve({
+    hitPosition: -6,
+    judgementPosition: 4,
+    comboPosition: -20,
+    columnWidth: 100,
+    comboScale: 1,
+    judgementScale: 1,
+  })
+  await assert.rejects(reading, (error) => error === failure)
+})
+
+test("settles both NoteSkin analyses after a synchronous failure", async () => {
+  const receptorAnalysis = deferred<{ receptors: ReceptorSet; diagnostics: [] }>()
+  const analysesStarted = deferred<void>()
+  const failure = new Error("exact synchronous note failure")
+  const reader = new EtternaSkinReader({
+    readProfile: async () => ({
+      hitPosition: -6,
+      judgementPosition: 4,
+      comboPosition: -20,
+      columnWidth: 100,
+      comboScale: 1,
+      judgementScale: 1,
+    }),
+    loadNoteSkinContext: async () => ({ filePath: "NoteSkin.lua" }) as NoteSkinContext,
+    analyzeJudgements: async () => ({ judgements, diagnostics: [] }),
+    analyzeReceptors: () => receptorAnalysis.promise,
+    analyzeNotes: () => {
+      analysesStarted.resolve()
+      throw failure
+    },
+  })
+
+  const reading = reader.readSkin(etternaReference)
+  const phase = await Promise.race([
+    analysesStarted.promise.then(() => "started"),
+    reading.then(
+      () => "completed",
+      () => "rejected",
+    ),
+  ])
+  assert.equal(phase, "started")
+  let settled = false
+  void reading.catch(() => {
+    settled = true
+  })
+  await Promise.resolve()
+  assert.equal(settled, false)
+
+  receptorAnalysis.resolve({ receptors, diagnostics: [] })
+  await assert.rejects(reading, (error) => error === failure)
 })
 
 test("rejects references from another game", async () => {
@@ -193,3 +284,23 @@ test("rejects references from another game", async () => {
     /Etterna reader.*osu/i,
   )
 })
+
+const etternaReference: SkinReference = {
+  game: "etterna",
+  name: "Fixture",
+  sourcePath: "C:/Etterna/NoteSkins/dance/Fixture",
+  gameRoot: "C:/Etterna",
+}
+
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve(value: T | PromiseLike<T>): void
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: Deferred<T>["resolve"]
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}

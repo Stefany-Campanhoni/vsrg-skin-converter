@@ -77,6 +77,7 @@ test("extracts the selected spritesheet frame before rendering", async () => {
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
         renderedWidth: 62,
@@ -89,9 +90,9 @@ test("extracts the selected spritesheet frame before rendering", async () => {
 
     assert.deepEqual([...centerBottom], [0, 0, 255, 255])
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
-      left: 70,
-      top: 213,
-      right: 79,
+      left: 0,
+      top: 73,
+      right: 149,
       bottom: 222,
     })
   })
@@ -116,6 +117,7 @@ test("rotates before centering and keeps the receptor anchored at the hit positi
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
         renderedWidth: 62,
@@ -126,12 +128,12 @@ test("rotates before centering and keeps the receptor anchored at the hit positi
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
-      left: 70,
-      top: 203,
-      right: 79,
-      bottom: 222,
+      left: 0,
+      top: 0,
+      right: 149,
+      bottom: 299,
     })
-    assert.equal(pixel(data, info.width, 74, 202)[3], 0)
+    assert.equal(pixel(data, info.width, 74, 300)[3], 0)
   })
 })
 
@@ -158,6 +160,7 @@ test("extracts a non-square frame before applying rotation", async () => {
         hitPosition: 438,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
         renderedWidth: 62,
@@ -168,15 +171,15 @@ test("extracts a non-square frame before applying rotation", async () => {
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
     assert.deepEqual(alphaBounds(data, info.width, info.height), {
-      left: 70,
-      top: 203,
-      right: 79,
-      bottom: 222,
+      left: 0,
+      top: 0,
+      right: 149,
+      bottom: 299,
     })
   })
 })
 
-test("downscales oversized receptors proportionally but never enlarges smaller ones", async () => {
+test("normalizes receptor width to 150 pixels while preserving its aspect ratio", async () => {
   await withImages(async ({ base, source }) => {
     const definition: ImageAsset = { filePath: source, rotation: 0 }
 
@@ -194,6 +197,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       hitPosition: 438,
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
+      normalizationSize: 150,
       verticalScale: 1,
       logicalCanvasHeight: 480,
       renderedWidth: 62,
@@ -202,9 +206,9 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
     })
     const smallRaw = await sharp(small).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(alphaBounds(smallRaw.data, smallRaw.info.width, smallRaw.info.height), {
-      left: 50,
-      top: 183,
-      right: 99,
+      left: 0,
+      top: 103,
+      right: 149,
       bottom: 222,
     })
 
@@ -222,6 +226,7 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       hitPosition: 438,
       referenceHitPosition: 438,
       pixelsPerHitPositionPoint: 2,
+      normalizationSize: 150,
       verticalScale: 1,
       logicalCanvasHeight: 480,
       renderedWidth: 62,
@@ -233,6 +238,44 @@ test("downscales oversized receptors proportionally but never enlarges smaller o
       left: 0,
       top: 173,
       right: 149,
+      bottom: 222,
+    })
+  })
+})
+
+test("keeps a tall receptor within the existing 150 pixel boundary", async () => {
+  await withImages(async ({ base, source }) => {
+    await sharp({
+      create: {
+        width: 200,
+        height: 400,
+        channels: 4,
+        background: { r: 0, g: 255, b: 0, alpha: 1 },
+      },
+    })
+      .png()
+      .toFile(source)
+
+    const output = await renderReceptorImage(
+      { filePath: source, rotation: 0 },
+      {
+        hitPosition: 438,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
+        verticalScale: 1,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
+        baseImagePath: base,
+      },
+    )
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
+
+    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+      left: 37,
+      top: 73,
+      right: 111,
       bottom: 222,
     })
   })
@@ -268,6 +311,7 @@ test("stretches the visible receptor and aligns its bottom edge with the canvas"
         hitPosition: 432,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
         verticalScale: 196 / 146,
         logicalCanvasHeight: 480,
         renderedWidth: 62,
@@ -322,6 +366,7 @@ test("keeps the visible receptor bottom at the logical hit position across width
         hitPosition: 432,
         referenceHitPosition: 438,
         pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
         verticalScale,
         logicalCanvasHeight: 480,
         renderedWidth,
@@ -338,7 +383,7 @@ test("keeps the visible receptor bottom at the logical hit position across width
   })
 })
 
-test("rejects a receptor without visible pixels", async () => {
+test("preserves a receptor without visible pixels", async () => {
   await withImages(async ({ base, source }) => {
     await sharp({
       create: {
@@ -351,23 +396,28 @@ test("rejects a receptor without visible pixels", async () => {
       .png()
       .toFile(source)
 
-    await assert.rejects(
-      () =>
-        renderReceptorImage(
-          { filePath: source, rotation: 0 },
-          {
-            hitPosition: 438,
-            referenceHitPosition: 438,
-            pixelsPerHitPositionPoint: 2,
-            verticalScale: 1,
-            logicalCanvasHeight: 480,
-            renderedWidth: 62,
-            logicalBottomOffset: 13,
-            baseImagePath: base,
-          },
-        ),
-      /contains no visible pixels/,
+    const output = await renderReceptorImage(
+      { filePath: source, rotation: 0 },
+      {
+        hitPosition: 438,
+        referenceHitPosition: 438,
+        pixelsPerHitPositionPoint: 2,
+        normalizationSize: 150,
+        verticalScale: 1,
+        logicalCanvasHeight: 480,
+        renderedWidth: 62,
+        logicalBottomOffset: 13,
+        baseImagePath: base,
+      },
     )
+    const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
+
+    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+      left: info.width,
+      top: info.height,
+      right: -1,
+      bottom: -1,
+    })
   })
 })
 

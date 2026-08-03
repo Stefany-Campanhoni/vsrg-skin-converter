@@ -25,6 +25,7 @@ test("writes a complete osu skin workspace", async () => {
     )
     await writeFile(path.join(templates, "LNB.png"), longNoteBody)
     await writeFile(path.join(templates, "LNT.png"), longNoteTail)
+    await writeComboTemplates(templates)
     await sharp({
       create: {
         width: 150,
@@ -59,12 +60,12 @@ test("writes a complete osu skin workspace", async () => {
     )
     const note = await sharp(path.join(workspace, "mania", "notes", "left.png")).metadata()
     assert.deepEqual({ width: note.width, height: note.height }, { width: 24, height: 16 })
-    await assert.doesNotReject(() =>
-      readFile(path.join(workspace, "mania", "judgements", "marvelous.png")),
-    )
-    await assert.doesNotReject(() =>
-      readFile(path.join(workspace, "mania", "judgements", "marvelous@2x.png")),
-    )
+    const judgement = await sharp(
+      path.join(workspace, "mania", "judgements", "marvelous.png"),
+    ).metadata()
+    assert.deepEqual({ width: judgement.width, height: judgement.height }, { width: 12, height: 8 })
+    const combo = await sharp(path.join(workspace, "score-0.png")).metadata()
+    assert.deepEqual({ width: combo.width, height: combo.height }, { width: 6, height: 4 })
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), longNoteBody)
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "tail.png")), longNoteTail)
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
@@ -89,6 +90,7 @@ test("preserves template artifacts when long-note publication fails", async () =
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeComboTemplates(templates)
     await sharp({
       create: {
         width: 150,
@@ -139,6 +141,7 @@ test("publisher preserves the previous target and removes staging after a writer
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
     await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeComboTemplates(templates)
     await sharp({
       create: {
         width: 150,
@@ -187,6 +190,8 @@ test("rejects incomplete or non-osu models", async () => {
       judgementPosition: 0,
       comboPosition: 0,
       columnWidth: 62,
+      comboScale: 1,
+      judgementScale: 1,
     },
     assets: {},
     diagnostics: [],
@@ -240,8 +245,29 @@ function completeOsuSkin(source: string): SkinModel {
       judgementPosition: 244,
       comboPosition: 210,
       columnWidth: 62,
+      comboScale: 0.6,
+      judgementScale: 0.5125,
     },
     assets: { receptors, tapNotes, judgements },
     diagnostics: [],
+  }
+}
+
+async function writeComboTemplates(directory: string): Promise<void> {
+  for (let digit = 0; digit <= 9; digit += 1) {
+    for (const [suffix, dimensions] of [
+      [".png", { width: 10, height: 6 }],
+      ["@2x.png", { width: 20, height: 12 }],
+    ] as const) {
+      await sharp({
+        create: {
+          ...dimensions,
+          channels: 4,
+          background: { r: 255, g: 255, b: 255, alpha: 1 },
+        },
+      })
+        .png()
+        .toFile(path.join(directory, `score-${digit}${suffix}`))
+    }
   }
 }

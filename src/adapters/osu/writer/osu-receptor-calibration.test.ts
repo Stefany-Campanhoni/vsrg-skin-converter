@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import {
   getOsuReceptorLogicalVerticalOffset,
+  getOsuReceptorNormalizationSize,
   getOsuReceptorVerticalScale,
 } from "./osu-receptor-calibration.ts"
 
@@ -17,4 +18,8 @@ test("rejects a non-positive extrapolated scale", () => {
 
 test("provides the calibrated logical receptor offset", () => {
   assert.equal(getOsuReceptorLogicalVerticalOffset(), 23)
+})
+
+test("provides the osu receptor normalization size", () => {
+  assert.equal(getOsuReceptorNormalizationSize(), 150)
 })

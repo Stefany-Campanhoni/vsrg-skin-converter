@@ -142,6 +142,55 @@ test("waits for every note write before rethrowing the exact write failure", asy
   }
 })
 
+test("starts every note write and waits for siblings after a synchronous failure", async () => {
+  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-note-writer-"))
+  const sibling = deferred<void>()
+  const writesStarted = deferred<void>()
+  const failure = new Error("exact synchronous note write failure")
+  let calls = 0
+  try {
+    const writing = writeOsuNotes({
+      notes,
+      outputDirectory,
+      render: async () => Buffer.from("png"),
+      write: () => {
+        calls += 1
+        if (calls === 4) {
+          writesStarted.resolve()
+        }
+        if (calls === 1) {
+          return sibling.promise
+        }
+        if (calls === 2) {
+          throw failure
+        }
+        return Promise.resolve()
+      },
+    })
+
+    const phase = await Promise.race([
+      writesStarted.promise.then(() => "started"),
+      writing.then(
+        () => "completed",
+        () => "rejected",
+      ),
+    ])
+    assert.equal(phase, "started")
+    assert.equal(calls, 4)
+    let settled = false
+    void writing.catch(() => {
+      settled = true
+    })
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    sibling.resolve()
+    await assert.rejects(writing, (error) => error === failure)
+  } finally {
+    await rm(outputDirectory, { recursive: true, force: true })
+  }
+})
+
 interface Deferred<T> {
   promise: Promise<T>
   resolve(value: T | PromiseLike<T>): void

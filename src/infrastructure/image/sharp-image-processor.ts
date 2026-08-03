@@ -10,10 +10,9 @@ export interface RenderReceptorOptions {
   logicalCanvasHeight: number
   renderedWidth: number
   logicalBottomOffset: number
+  normalizationSize: number
   baseImagePath: string
 }
-
-const maximumReceptorSize = 150
 
 export function getReceptorBottomPadding(
   hitPosition: number,
@@ -68,16 +67,32 @@ export async function renderReceptorImage(
   if (!baseMetadata.width || !baseMetadata.height) {
     throw new Error(`Could not read receptor base dimensions from ${options.baseImagePath}`)
   }
+  if (!Number.isInteger(options.normalizationSize) || options.normalizationSize <= 0) {
+    throw new Error("Receptor normalization size must be a positive integer")
+  }
 
   const receptorInput = await extractImageFrame(definition)
 
-  const normalizedReceptor = await sharp(receptorInput)
+  const rotatedReceptor = await sharp(receptorInput)
     .rotate(normalizeRotation(definition.rotation))
+    .ensureAlpha()
+    .png()
+    .toBuffer()
+  const rotatedMetadata = await sharp(rotatedReceptor).metadata()
+  if (!rotatedMetadata.width) {
+    throw new Error(`Could not render receptor ${definition.filePath}`)
+  }
+
+  const normalizedReceptor = await sharp(rotatedReceptor)
     .resize({
-      width: maximumReceptorSize,
-      height: maximumReceptorSize,
-      fit: "inside",
-      withoutEnlargement: true,
+      width: options.normalizationSize,
+      ...(rotatedMetadata.width >= options.normalizationSize
+        ? {
+            height: options.normalizationSize,
+            fit: "inside" as const,
+            withoutEnlargement: true,
+          }
+        : {}),
     })
     .ensureAlpha()
     .png()
@@ -95,10 +110,7 @@ export async function renderReceptorImage(
     .ensureAlpha()
     .png()
     .toBuffer()
-  const visibleReceptor = await removeTrailingTransparentRows(
-    stretchedReceptor,
-    definition.filePath,
-  )
+  const visibleReceptor = await removeTrailingTransparentRows(stretchedReceptor)
   const receptorMetadata = await sharp(visibleReceptor).metadata()
   if (!receptorMetadata.width || !receptorMetadata.height) {
     throw new Error(`Could not render receptor ${definition.filePath}`)
@@ -145,7 +157,7 @@ export async function renderNoteImage(definition: ImageAsset): Promise<Buffer> {
     .toBuffer()
 }
 
-async function removeTrailingTransparentRows(image: Buffer, filePath: string): Promise<Buffer> {
+async function removeTrailingTransparentRows(image: Buffer): Promise<Buffer> {
   const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true })
   let lastVisibleRow = -1
 
@@ -160,7 +172,7 @@ async function removeTrailingTransparentRows(image: Buffer, filePath: string): P
   }
 
   if (lastVisibleRow < 0) {
-    throw new Error(`Rendered receptor ${filePath} contains no visible pixels`)
+    return image
   }
 
   if (lastVisibleRow === info.height - 1) {

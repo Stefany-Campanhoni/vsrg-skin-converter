@@ -3,6 +3,7 @@ const receptorCalibration = {
   calibratedColumnWidth: 62,
   calibratedVerticalScale: 196 / 146,
   logicalVerticalOffset: 23,
+  normalizationSize: 150,
 } as const
 
 export function getOsuReceptorVerticalScale(columnWidth: number): number {
@@ -20,4 +21,8 @@ export function getOsuReceptorVerticalScale(columnWidth: number): number {
 
 export function getOsuReceptorLogicalVerticalOffset(): number {
   return receptorCalibration.logicalVerticalOffset
+}
+
+export function getOsuReceptorNormalizationSize(): number {
+  return receptorCalibration.normalizationSize
 }

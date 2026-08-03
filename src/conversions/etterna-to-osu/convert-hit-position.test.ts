@@ -2,10 +2,11 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { getHitPosition } from "./convert-hit-position.ts"
 
-test("converts an Etterna hit position to osu using game defaults", () => {
-  assert.equal(getHitPosition(-6), 432)
+test("converts an Etterna hit position with the osu calibration offset", () => {
+  assert.equal(getHitPosition(0), 439)
+  assert.equal(getHitPosition(-6), 433)
 })
 
-test("rounds the converted osu hit position to the nearest integer", () => {
-  assert.equal(getHitPosition(-6.6), 431)
+test("rounds before applying the hit-position calibration offset", () => {
+  assert.equal(getHitPosition(-6.6), 432)
 })

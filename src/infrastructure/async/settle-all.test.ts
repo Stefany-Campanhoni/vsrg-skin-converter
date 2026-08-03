@@ -1,6 +1,19 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { settleAll } from "./settle-all.ts"
+import { invokeAsPromise, settleAll } from "./settle-all.ts"
+
+test("invokes a task immediately and converts a synchronous throw into a rejection", async () => {
+  const failure = new Error("synchronous failure")
+  let invoked = false
+
+  const result = invokeAsPromise(() => {
+    invoked = true
+    throw failure
+  })
+
+  assert.equal(invoked, true)
+  await assert.rejects(result, (error) => error === failure)
+})
 
 test("waits for every promise and preserves successful result order", async () => {
   const first = deferred<string>()

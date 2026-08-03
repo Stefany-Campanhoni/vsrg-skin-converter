@@ -1,6 +1,6 @@
 import { cp, mkdir, readdir } from "node:fs/promises"
 import path from "node:path"
-import { settleAll } from "../async/settle-all.ts"
+import { invokeAsPromise, settleAll } from "../async/settle-all.ts"
 
 type DirectoryEntryCopier = (sourcePath: string, targetPath: string) => Promise<void>
 
@@ -25,7 +25,9 @@ export async function copyDirectory(
       }))
   await settleAll(
     entries.map((entry) =>
-      copyEntry(path.join(sourceDirectory, entry), path.join(targetDirectory, entry)),
+      invokeAsPromise(() =>
+        copyEntry(path.join(sourceDirectory, entry), path.join(targetDirectory, entry)),
+      ),
     ),
   )
 }

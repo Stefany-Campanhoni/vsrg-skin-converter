@@ -21,6 +21,8 @@ const sourceSkin: SkinModel = {
     judgementPosition: 0,
     comboPosition: 0,
     columnWidth: 100,
+    comboScale: 1,
+    judgementScale: 1,
   },
   assets: {},
   diagnostics: [],

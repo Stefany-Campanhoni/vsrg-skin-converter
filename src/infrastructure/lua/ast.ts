@@ -28,6 +28,24 @@ export function getTableField(
   tableLike: AstObject | undefined,
   expectedName: string,
 ): AstObject | undefined {
+  return findTableField(tableLike, (fieldName) => fieldName === expectedName)
+}
+
+export function getTableFieldCaseInsensitive(
+  tableLike: AstObject | undefined,
+  expectedName: string,
+): AstObject | undefined {
+  const normalizedExpectedName = expectedName.toLowerCase()
+  return findTableField(
+    tableLike,
+    (fieldName) => fieldName.toLowerCase() === normalizedExpectedName,
+  )
+}
+
+function findTableField(
+  tableLike: AstObject | undefined,
+  matches: (fieldName: string) => boolean,
+): AstObject | undefined {
   const argumentTable = asAstObject(tableLike?.arguments)
   const rawFields = Array.isArray(tableLike?.fields)
     ? tableLike.fields
@@ -46,7 +64,10 @@ export function getTableField(
         ? readLuaStringLiteral(key)
         : undefined
 
-    if (identifierKey === expectedName || stringKey === expectedName) {
+    if (
+      (identifierKey !== undefined && matches(identifierKey)) ||
+      (stringKey !== undefined && matches(stringKey))
+    ) {
       return asAstObject(field?.value)
     }
   }

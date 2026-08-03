@@ -22,10 +22,13 @@ test("writes exact osu judgement filenames", async (t) => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
   t.after(() => rm(outputDirectory, { recursive: true, force: true }))
 
+  const observedScales: number[] = []
   await writeOsuJudgements({
     judgements,
     outputDirectory,
-    render: async (definition) => {
+    scale: 0.5125,
+    render: async (definition, _sourceDensity, scale) => {
+      observedScales.push(scale)
       const grade = definition.filePath as JudgementGrade
       return {
         standardResolution: Buffer.from(`sd-${grade}`),
@@ -48,6 +51,7 @@ test("writes exact osu judgement filenames", async (t) => {
     "perfect.png",
     "perfect@2x.png",
   ])
+  assert.deepEqual(observedScales, [0.5125, 0.5125, 0.5125, 0.5125, 0.5125, 0.5125])
 })
 
 test("waits for all renders and writes nothing when rendering fails", async (t) => {
@@ -61,6 +65,7 @@ test("waits for all renders and writes nothing when rendering fails", async (t) 
   const writing = writeOsuJudgements({
     judgements,
     outputDirectory,
+    scale: 1,
     render: async () => {
       calls += 1
       if (calls === 1) {
@@ -104,6 +109,7 @@ test("waits for all writes before rejecting with the first write failure", async
   const writing = writeOsuJudgements({
     judgements,
     outputDirectory,
+    scale: 1,
     render: async () => ({
       standardResolution: Buffer.from("sd"),
       doubleResolution: Buffer.from("hd"),
@@ -153,6 +159,7 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
   const writing = writeOsuJudgements({
     judgements,
     outputDirectory,
+    scale: 1,
     render: async () => ({
       standardResolution: Buffer.from("sd"),
       doubleResolution: Buffer.from("hd"),

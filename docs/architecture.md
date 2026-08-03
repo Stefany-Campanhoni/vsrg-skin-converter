@@ -39,11 +39,13 @@ catalogs, readers, writers, and output publication. It depends only on the domai
 
 Translates external game formats to and from the neutral model.
 
-- `adapters/etterna` discovers skins, statically reads gameplay positions and `ReceptorSize`
-  from `playerConfig.lua`, performs static NoteSkin analysis, and resolves Etterna assets.
+- `adapters/etterna` discovers skins, statically reads gameplay positions, `ReceptorSize`,
+  `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, performs static NoteSkin analysis,
+  and resolves Etterna assets.
 - `adapters/osu` renders `skin.ini` and writes image assets using osu! naming and layout
   conventions. Its receptor calibration converts the target column width into a
-  vertical-only image scale before composition.
+  vertical-only image scale before composition. It applies neutral judgement and combo scale
+  factors to image outputs without changing `skin.ini`.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -54,6 +56,11 @@ Etterna sheet coordinates into a semantic `JudgementSet`. The conversion preserv
 that format-neutral set. Generic Sharp infrastructure extracts and scales frames,
 while the osu! writer publishes the named SD and HD judgement files.
 
+The source adapter maps `ComboZoom` directly to `comboScale` and maps `JudgmentZoom` to
+`judgementScale` with `1 + (zoom - 1) * 0.75`. Generic image infrastructure proportionally
+resizes rounded, minimum-one-pixel dimensions. After template copying, the osu! adapter
+overwrites `score-0.png` through `score-9.png` and their `@2x` variants at `comboScale`.
+
 An Etterna read creates one `NoteSkinContext`. Receptor and tap-note analysis share this
 context so the Lua source and skin directory are indexed only once.
 
@@ -61,9 +68,9 @@ context so the Lua source and skin directory are indexed only once.
 
 Owns equivalences between a specific source and target format. The Etterna-to-osu!
 conversion maps hit position, combo position, judgement/score position, and column width
-using named game defaults. For these coordinates, the osu! writer only serializes
-already-converted target values. The conversion does not parse Lua, process pixels, write
-files, or interact with the user.
+using named game defaults and preserves the neutral combo and judgement scale factors. For
+these coordinates, the osu! writer only serializes already-converted target values. The
+conversion does not parse Lua, process pixels, write files, or interact with the user.
 
 ### `infrastructure`
 
@@ -74,7 +81,9 @@ Contains technical implementations shared by adapters:
 - filesystem copying and transactional publication.
 
 Concurrent infrastructure batches use one typed quiescent waiter: every sibling settles
-before the batch returns or rethrows the original first input-order failure.
+before the batch returns or rethrows the original first input-order failure. Injected
+callbacks are started through `invokeAsPromise`, which preserves eager startup while turning
+a synchronous throw into a rejected task that participates in the same settlement barrier.
 
 Etterna Lua is parsed and inspected but never executed.
 
@@ -92,7 +101,7 @@ diagnostics or fatal errors.
 
 Contains the complete static osu! output skeleton copied into the staging workspace before
 target-specific rendering. The bundle currently includes `skin.ini`, `receptor-base.png`,
-`LNB.png`, and `LNT.png`.
+`LNB.png`, `LNT.png`, and the SD and `@2x` `score-0.png` through `score-9.png` combo images.
 
 ## Dependency Rules
 
@@ -115,8 +124,8 @@ Dependencies within the same layer are allowed. Production dependency cycles are
 
 `SkinModel` is the only data exchanged between a reader, conversion, and writer. It contains:
 
-- neutral metadata and playfield configuration, including column width in the current
-  model game's units;
+- neutral metadata and playfield configuration, including column width in the current model
+  game's units and neutral combo and judgement image scale factors;
 - direction-keyed normal and pressed receptors;
 - direction-keyed tap notes;
 - typed diagnostics accumulated during static analysis.
@@ -126,12 +135,13 @@ is deferred until the target writer requests it.
 
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
-generic vertical scale and geometry. The osu! adapter supplies logical playfield height and
-rendered column width, plus a named logical bottom offset from its calibration module. Image
-infrastructure converts that geometry into source-pixel padding, removes input-specific
-trailing transparency, and composes the receptor above the calculated footer without
-embedding osu!-specific constants. Target calibration values remain outside infrastructure,
-keeping source properties and target rendering details out of the neutral domain.
+generic vertical scale and geometry. The osu! adapter supplies logical playfield height,
+rendered column width, receptor normalization size, and a named logical bottom offset from
+its calibration module. Image infrastructure converts that geometry into source-pixel
+padding, removes input-specific trailing transparency, and composes the receptor above the
+calculated footer without embedding osu!-specific constants. Target calibration values
+remain outside infrastructure, keeping source properties and target rendering details out
+of the neutral domain.
 
 ## Transactional Publication
 

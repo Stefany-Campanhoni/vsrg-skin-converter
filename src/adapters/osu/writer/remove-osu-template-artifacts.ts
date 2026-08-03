@@ -1,6 +1,6 @@
 import { rm } from "node:fs/promises"
 import path from "node:path"
-import { settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 
 const internalOsuTemplateArtifacts = ["receptor-base.png", "LNB.png", "LNT.png"] as const
 
@@ -17,7 +17,7 @@ export async function removeOsuTemplateArtifacts(
   const removeArtifact = options.removeArtifact ?? rm
   await settleAll(
     internalOsuTemplateArtifacts.map((filename) =>
-      removeArtifact(path.join(outputDirectory, filename)),
+      invokeAsPromise(() => removeArtifact(path.join(outputDirectory, filename))),
     ),
   )
 }

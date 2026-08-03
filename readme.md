@@ -58,6 +58,7 @@ npm test
 npm run typecheck
 npm run lint
 npm run test:architecture
+git diff --check
 ```
 
 ## Architecture
@@ -84,19 +85,29 @@ tests/
 
 See [Architecture](docs/architecture.md) for the data flow and dependency boundaries, and
 [Development Standards](docs/development-standards.md) for mandatory placement, naming,
-testing, error-handling, and safety rules.
+testing, error-handling, and safety rules. Use the
+[Agent Prompt Guidelines](docs/agent-prompt-guidelines.md) to specify and review future
+agent-authored iterations consistently.
 
 ## Current Coordinate Mapping
 
-Etterna hit position `0` maps to osu!mania hit position `438`. Each Etterna point changes
+Etterna hit position `0` maps to osu!mania hit position `439`. Each Etterna point changes
 the osu! value by one point. The osu! integer value is rounded because `skin.ini` does not
-support fractional hit positions.
+support fractional hit positions: `HitPosition = round(438 + NoteFieldY) + 1`.
 
 Etterna `ComboY` and `JudgmentY` are read from
 `GameplayXYCoordinates["4K"]`. The Etterna neutral value `0` maps to osu!
-`ComboPosition 230` and `ScorePosition 240`, with one-to-one offsets:
-`ComboPosition = round(230 + ComboY)` and
+`ComboPosition 229` and `ScorePosition 240`, with one-to-one offsets:
+`ComboPosition = round(230 + ComboY) - 1` and
 `ScorePosition = round(240 + JudgmentY)`.
+
+Etterna `ComboZoom` and `JudgmentZoom` are required numeric fields read from
+`GameplaySizes["4K"]`. Combo images use `ComboZoom` directly, while judgement images use
+`1 + (JudgmentZoom - 1) * 0.75`; for example, `0.6` produces 60% combo images and `0.35`
+produces 51.25% judgement images. Both dimensions are rounded and clamped to at least one
+pixel. The osu! writer applies these scales to the generated judgement variants and to the
+copied `score-0.png` through `score-9.png` assets, including every `@2x` variant. This is an
+image-only conversion because osu!mania has no equivalent size setting in `skin.ini`.
 
 The receptor canvas changes linearly with the converted hit position: each one osu! hit
 position point removed adds two pixels of height, and the inverse change reduces the canvas.

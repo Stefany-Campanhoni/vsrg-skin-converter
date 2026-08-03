@@ -76,6 +76,12 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
               ComboY = -20,
             },
           },
+          GameplaySizes = {
+            ["4K"] = {
+              JudgmentZoom = 0.35,
+              ComboZoom = 0.6,
+            },
+          },
           ReceptorSize = 100,
         }
       `,
@@ -131,6 +137,22 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     )
     await writeFile(path.join(templatesDirectory, "LNB.png"), longNoteBody)
     await writeFile(path.join(templatesDirectory, "LNT.png"), longNoteTail)
+    for (let digit = 0; digit <= 9; digit += 1) {
+      for (const [suffix, dimensions] of [
+        [".png", { width: 10, height: 6 }],
+        ["@2x.png", { width: 20, height: 12 }],
+      ] as const) {
+        await sharp({
+          create: {
+            ...dimensions,
+            channels: 4,
+            background: { r: 255, g: 255, b: 255, alpha: 1 },
+          },
+        })
+          .png()
+          .toFile(path.join(templatesDirectory, `score-${digit}${suffix}`))
+      }
+    }
     await sharp({
       create: {
         width: 150,
@@ -163,20 +185,20 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     assert.equal(
       await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-      "Name: Fixture Skin\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
+      "Name: Fixture Skin\nHitPosition: 433\nComboPosition: 209\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
     )
     assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
     const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
     const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
     assert.deepEqual(
       { width: receptor.info.width, height: receptor.info.height },
-      { width: 150, height: 368 },
+      { width: 150, height: 366 },
     )
     assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
-      left: 65,
-      top: 183,
-      right: 84,
-      bottom: 195,
+      left: 0,
+      top: 96,
+      right: 149,
+      bottom: 196,
     })
     await assert.rejects(
       () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
@@ -218,8 +240,8 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     for (const [grade, color] of Object.entries(expectedLeftColors)) {
       for (const [suffix, expectedDimensions] of [
-        [".png", { width: 4, height: 3 }],
-        ["@2x.png", { width: 8, height: 6 }],
+        [".png", { width: 2, height: 2 }],
+        ["@2x.png", { width: 4, height: 3 }],
       ] as const) {
         const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
           .raw()
@@ -227,6 +249,15 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
         assert.deepEqual({ width: info.width, height: info.height }, expectedDimensions)
         const offset = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4
         assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
+      }
+    }
+    for (let digit = 0; digit <= 9; digit += 1) {
+      for (const [suffix, expectedDimensions] of [
+        [".png", { width: 6, height: 4 }],
+        ["@2x.png", { width: 12, height: 7 }],
+      ] as const) {
+        const image = await sharp(path.join(outputDirectory, `score-${digit}${suffix}`)).metadata()
+        assert.deepEqual({ width: image.width, height: image.height }, expectedDimensions)
       }
     }
     assert.deepEqual(result.diagnostics, [])

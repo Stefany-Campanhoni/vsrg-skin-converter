@@ -19,6 +19,8 @@ export interface PlayfieldConfiguration {
   judgementPosition: number
   comboPosition: number
   columnWidth: number
+  comboScale: number
+  judgementScale: number
 }
 
 export interface SkinAssets {
