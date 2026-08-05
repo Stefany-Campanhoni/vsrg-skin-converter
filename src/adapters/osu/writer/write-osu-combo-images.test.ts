@@ -11,12 +11,12 @@ test("resizes every copied osu combo image with rounded proportional dimensions"
   t.after(() => rm(outputDirectory, { recursive: true, force: true }))
 
   const expectedFilenames: string[] = []
-  for (let digit = 0; digit <= 9; digit += 1) {
+  for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
     for (const [suffix, dimensions] of [
       [".png", { width: 10, height: 6 }],
       ["@2x.png", { width: 20, height: 12 }],
     ] as const) {
-      const filename = `score-${digit}${suffix}`
+      const filename = `combo-${character}${suffix}`
       expectedFilenames.push(filename)
       await sharp({
         create: {
@@ -33,10 +33,10 @@ test("resizes every copied osu combo image with rounded proportional dimensions"
   await writeOsuComboImages({ outputDirectory, scale: 0.6 })
 
   assert.deepEqual((await readdir(outputDirectory)).sort(), expectedFilenames.sort())
-  for (let digit = 0; digit <= 9; digit += 1) {
-    const standard = await sharp(path.join(outputDirectory, `score-${digit}.png`)).metadata()
+  for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
+    const standard = await sharp(path.join(outputDirectory, `combo-${character}.png`)).metadata()
     assert.deepEqual({ width: standard.width, height: standard.height }, { width: 6, height: 4 })
-    const double = await sharp(path.join(outputDirectory, `score-${digit}@2x.png`)).metadata()
+    const double = await sharp(path.join(outputDirectory, `combo-${character}@2x.png`)).metadata()
     assert.deepEqual({ width: double.width, height: double.height }, { width: 12, height: 7 })
   }
 })
@@ -54,7 +54,7 @@ test("finishes every resize and writes nothing when combo preparation fails", as
     read: async (filePath) => Buffer.from(filePath),
     resize: async (image) => {
       resizeCalls += 1
-      if (resizeCalls === 20) {
+      if (resizeCalls === 24) {
         preparationsStarted.resolve()
       }
       if (resizeCalls === 1) {
@@ -90,7 +90,7 @@ test("finishes every resize and writes nothing when combo preparation fails", as
   await assert.rejects(
     writing,
     (error) =>
-      error instanceof Error && error.cause === failure && /score-0@2x\.png/.test(error.message),
+      error instanceof Error && error.cause === failure && /combo-0@2x\.png/.test(error.message),
   )
   assert.equal(writeCalls, 0)
 })
@@ -108,7 +108,7 @@ test("starts every combo write and waits for siblings when a writer throws synch
     resize: async (image) => image,
     write: () => {
       writeCalls += 1
-      if (writeCalls === 20) {
+      if (writeCalls === 24) {
         writesStarted.resolve()
       }
       if (writeCalls === 1) {
@@ -129,7 +129,7 @@ test("starts every combo write and waits for siblings when a writer throws synch
     ),
   ])
   assert.equal(writePhase, "started")
-  assert.equal(writeCalls, 20)
+  assert.equal(writeCalls, 24)
   let settled = false
   void writing.catch(() => {
     settled = true
@@ -141,7 +141,7 @@ test("starts every combo write and waits for siblings when a writer throws synch
   await assert.rejects(
     writing,
     (error) =>
-      error instanceof Error && error.cause === failure && /score-0@2x\.png/.test(error.message),
+      error instanceof Error && error.cause === failure && /combo-0@2x\.png/.test(error.message),
   )
 })
 

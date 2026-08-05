@@ -53,10 +53,10 @@ test("renders scaled standard-density judgement images at SD and HD sizes", asyn
   t.after(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "standard.png"), 6, 4)
-  const variants = await renderJudgementImageVariants(asset, 1, 0.5125)
+  const variants = await renderJudgementImageVariants(asset, 1, 0.675)
 
-  assert.deepEqual(await dimensions(variants.standardResolution), { width: 3, height: 2 })
-  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 6, height: 4 })
+  assert.deepEqual(await dimensions(variants.standardResolution), { width: 4, height: 3 })
+  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 8, height: 5 })
 })
 
 test("renders scaled double-density judgement images with rounded dimensions", async (t) => {
@@ -64,10 +64,10 @@ test("renders scaled double-density judgement images with rounded dimensions", a
   t.after(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "double.png"), 9, 7)
-  const variants = await renderJudgementImageVariants(asset, 2, 0.5125)
+  const variants = await renderJudgementImageVariants(asset, 2, 0.675)
 
-  assert.deepEqual(await dimensions(variants.standardResolution), { width: 2, height: 2 })
-  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 5, height: 4 })
+  assert.deepEqual(await dimensions(variants.standardResolution), { width: 3, height: 2 })
+  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 6, height: 5 })
 })
 
 test("preserves unscaled standard-density judgement output", async (t) => {

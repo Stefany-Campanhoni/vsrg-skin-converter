@@ -59,7 +59,7 @@ test("extracts the real 4K coordinates from a profile with multiple key modes", 
     judgementPosition: 4.199984,
     comboPosition: -20.800002,
     columnWidth: 106,
-    judgementScale: 0.5125,
+    judgementScale: 0.675,
     comboScale: 0.6,
   })
 })
@@ -95,7 +95,7 @@ test("uses the last repeated Lua fields when extracting the playfield configurat
     judgementPosition: 4,
     comboPosition: -20,
     columnWidth: 106,
-    judgementScale: 0.5125,
+    judgementScale: 0.675,
     comboScale: 0.6,
   })
 })

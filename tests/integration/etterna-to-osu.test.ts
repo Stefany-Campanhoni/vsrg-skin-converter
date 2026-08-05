@@ -137,7 +137,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
     )
     await writeFile(path.join(templatesDirectory, "LNB.png"), longNoteBody)
     await writeFile(path.join(templatesDirectory, "LNT.png"), longNoteTail)
-    for (let digit = 0; digit <= 9; digit += 1) {
+    for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
       for (const [suffix, dimensions] of [
         [".png", { width: 10, height: 6 }],
         ["@2x.png", { width: 20, height: 12 }],
@@ -150,7 +150,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
           },
         })
           .png()
-          .toFile(path.join(templatesDirectory, `score-${digit}${suffix}`))
+          .toFile(path.join(templatesDirectory, `combo-${character}${suffix}`))
       }
     }
     await sharp({
@@ -240,8 +240,8 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
 
     for (const [grade, color] of Object.entries(expectedLeftColors)) {
       for (const [suffix, expectedDimensions] of [
-        [".png", { width: 2, height: 2 }],
-        ["@2x.png", { width: 4, height: 3 }],
+        [".png", { width: 3, height: 2 }],
+        ["@2x.png", { width: 5, height: 4 }],
       ] as const) {
         const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
           .raw()
@@ -251,12 +251,14 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
         assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
       }
     }
-    for (let digit = 0; digit <= 9; digit += 1) {
+    for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
       for (const [suffix, expectedDimensions] of [
         [".png", { width: 6, height: 4 }],
         ["@2x.png", { width: 12, height: 7 }],
       ] as const) {
-        const image = await sharp(path.join(outputDirectory, `score-${digit}${suffix}`)).metadata()
+        const image = await sharp(
+          path.join(outputDirectory, `combo-${character}${suffix}`),
+        ).metadata()
         assert.deepEqual({ width: image.width, height: image.height }, expectedDimensions)
       }
     }

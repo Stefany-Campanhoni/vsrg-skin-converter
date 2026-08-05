@@ -1,14 +1,13 @@
 # Etterna Gameplay Zoom Implementation Plan
 
-> Historical note: the initial `0.5` judgement influence documented in this plan was
-> superseded by `2026-08-03-judgement-zoom-calibration.md`. The current authoritative formula
-> is `1 + (JudgmentZoom - 1) * 0.75`.
+> Historical note: the initial `0.5` judgement influence documented in this plan remains the
+> current authoritative formula: `1 + (JudgmentZoom - 1) * 0.5`.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Convert Etterna 4K `JudgmentZoom` and `ComboZoom` settings into resized osu!mania judgement and combo-number images.
 
-**Architecture:** The Etterna profile adapter turns source-specific zoom controls into neutral `comboScale` and `judgementScale` factors on `PlayfieldConfiguration`. The osu! writer consumes only those factors: its judgement writer renders scaled variants and a focused combo writer scales copied `score-*.png` template assets. Generic proportional PNG resizing remains in image infrastructure.
+**Architecture:** The Etterna profile adapter turns source-specific zoom controls into neutral `comboScale` and `judgementScale` factors on `PlayfieldConfiguration`. The osu! writer consumes only those factors: its judgement writer renders scaled variants and a focused combo writer scales copied `combo-*.png` template assets. Generic proportional PNG resizing remains in image infrastructure.
 
 **Tech Stack:** TypeScript, Node.js test runner, `luaparse`, Sharp, Biome.
 
@@ -19,7 +18,7 @@
 - `ComboZoom` is the direct output scale; `JudgmentZoom` maps to `1 + (zoom - 1) * 0.5`.
 - Preserve aspect ratio, round dimensions, and clamp each to at least one pixel.
 - The neutral model exposes `comboScale` and `judgementScale`; the osu! writer must not parse Etterna settings.
-- Resize `score-0.png` through `score-9.png` and every matching `@2x` variant after template copying.
+- Resize the `combo` digit, comma, and dot sprites and every matching `@2x` variant after template copying.
 - Do not alter `skin.ini` for these settings.
 - Keep all existing local changes intact and do not create a commit.
 - Finish with `npm test`, `npm run typecheck`, `npm run lint`, `npm run test:architecture`, and `git diff --check`.
@@ -33,7 +32,7 @@
 - `src/infrastructure/image/resize-image.ts`: generic buffer-to-buffer proportional PNG resizing.
 - `src/adapters/osu/writer/write-osu-judgements.ts`: supply the neutral judgement scale to image rendering.
 - `src/infrastructure/image/sharp-judgement-processor.ts`: render density-aware scaled judgement variants.
-- `src/adapters/osu/writer/write-osu-combo-images.ts`: resize copied osu! score-font assets.
+- `src/adapters/osu/writer/write-osu-combo-images.ts`: resize copied osu! combo-font assets.
 - `src/adapters/osu/writer/osu-skin-writer.ts`: coordinate combo and judgement image writing.
 
 ### Task 1: Parse source zooms into neutral scale factors
@@ -191,7 +190,7 @@ Expected: PASS.
 
 - [ ] **Step 1: Write failing combo and integration tests**
 
-Generate all twenty template files (`score-0.png` through `score-9.png` and their `@2x` versions). Assert a `10 × 6` SD image becomes `6 × 4`, while a `20 × 12` HD image becomes `12 × 7` at scale `0.6`. In the integration profile, set `JudgmentZoom = 0.35` and `ComboZoom = 0.6`; assert scaled judgement and score dimensions in the converted output.
+Generate all twenty-four template files (`combo-0.png` through `combo-9.png`, `combo-comma.png`, `combo-dot.png`, and their `@2x` versions). Assert a `10 × 6` SD image becomes `6 × 4`, while a `20 × 12` HD image becomes `12 × 7` at scale `0.6`. In the integration profile, set `JudgmentZoom = 0.35` and `ComboZoom = 0.6`; assert scaled judgement and combo dimensions in the converted output.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -199,9 +198,9 @@ Run: `node --test src/adapters/osu/writer/write-osu-combo-images.test.ts src/ada
 
 Expected: FAIL because the combo writer does not exist and the full writer does not call it.
 
-- [ ] **Step 3: Implement score-font publishing**
+- [ ] **Step 3: Implement combo-font publishing**
 
-Define the twenty exact score filenames in the osu! adapter. For every copied image, read it, call `resizeImageProportionally`, and overwrite it. Start all operations through `settleAll` so failures wait for every sibling. Add this writer to `OsuSkinWriter`'s existing task batch. Document the two source fields, scale rules, and image-based output behavior.
+Define the twenty-four exact combo filenames in the osu! adapter. For every copied image, read it, call `resizeImageProportionally`, and overwrite it. Start all operations through `settleAll` so failures wait for every sibling. Add this writer to `OsuSkinWriter`'s existing task batch. Document the two source fields, scale rules, and image-based output behavior.
 
 - [ ] **Step 4: Run focused behavior tests**
 

@@ -26,16 +26,16 @@ dimensions with a minimum of one pixel.
 
 - Combo images use `ComboZoom` directly. Every `0.1` represents ten percentage
   points of the original asset size: `0.6` becomes 60% and `1` remains 100%.
-- Judgement images use `1 + (JudgmentZoom - 1) * 0.75`. Every `0.1` differs by
-  7.5 percentage points from the original asset size: `0.35` becomes 51.25% and
+- Judgement images use `1 + (JudgmentZoom - 1) * 0.5`. Every `0.1` differs by
+  5 percentage points from the original asset size: `0.35` becomes 67.5% and
   `1` remains 100%.
 
 ## Output behavior
 
 The osu! writer applies the normalized judgement scale when it renders each
 selected Etterna judgement sheet into its SD and `@2x` variants. It applies the
-normalized combo scale after template copying to `score-0.png` through
-`score-9.png` and their `@2x` counterparts. The `skin.ini` remains unchanged
+normalized combo scale after template copying to the `combo` digit, comma, and
+dot sprites and their `@2x` counterparts. No zoom value is written to `skin.ini`
 because osu!mania has no equivalent size setting.
 
 ## Failure behavior

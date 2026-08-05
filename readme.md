@@ -40,6 +40,11 @@ The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
 Internal build assets are removed from the generated skin after all output tasks succeed.
 
+The template also supplies the global osu! interface assets required by the generated skin.
+Score glyphs keep the `score` prefix and are copied unchanged. Combo glyphs use the separate
+`combo` prefix and are resized by the converter so Etterna's combo zoom does not alter score
+or ranking text.
+
 The Etterna reader resolves the judgement selected for profile `00000000` from
 `Etterna.xml` and `Save/Rebirth_settings/assetsConfig.lua`. It accepts `1x6` and
 `2x6` sheets, uses the left/Early column, and maps W1 through Miss to
@@ -103,11 +108,12 @@ Etterna `ComboY` and `JudgmentY` are read from
 
 Etterna `ComboZoom` and `JudgmentZoom` are required numeric fields read from
 `GameplaySizes["4K"]`. Combo images use `ComboZoom` directly, while judgement images use
-`1 + (JudgmentZoom - 1) * 0.75`; for example, `0.6` produces 60% combo images and `0.35`
-produces 51.25% judgement images. Both dimensions are rounded and clamped to at least one
+`1 + (JudgmentZoom - 1) * 0.5`; for example, `0.6` produces 60% combo images and `0.35`
+produces 67.5% judgement images. Both dimensions are rounded and clamped to at least one
 pixel. The osu! writer applies these scales to the generated judgement variants and to the
-copied `score-0.png` through `score-9.png` assets, including every `@2x` variant. This is an
-image-only conversion because osu!mania has no equivalent size setting in `skin.ini`.
+copied `combo-0.png` through `combo-9.png`, `combo-comma.png`, and `combo-dot.png` assets,
+including every `@2x` variant. This is an image-only conversion because osu!mania has no
+equivalent size setting in `skin.ini`.
 
 The receptor canvas changes linearly with the converted hit position: each one osu! hit
 position point removed adds two pixels of height, and the inverse change reduces the canvas.

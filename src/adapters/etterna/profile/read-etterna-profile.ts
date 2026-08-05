@@ -10,7 +10,7 @@ import {
   getTableFieldCaseInsensitive,
 } from "../../../infrastructure/lua/ast.ts"
 
-const etternaJudgementZoomInfluence = 0.75
+const etternaJudgementZoomInfluence = 0.5
 
 export async function readEtternaProfile(gameRoot: string): Promise<PlayfieldConfiguration> {
   const profileDirectory = path.join(

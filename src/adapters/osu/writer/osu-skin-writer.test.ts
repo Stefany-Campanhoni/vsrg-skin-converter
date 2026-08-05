@@ -63,8 +63,11 @@ test("writes a complete osu skin workspace", async () => {
     const judgement = await sharp(
       path.join(workspace, "mania", "judgements", "marvelous.png"),
     ).metadata()
-    assert.deepEqual({ width: judgement.width, height: judgement.height }, { width: 12, height: 8 })
-    const combo = await sharp(path.join(workspace, "score-0.png")).metadata()
+    assert.deepEqual(
+      { width: judgement.width, height: judgement.height },
+      { width: 16, height: 11 },
+    )
+    const combo = await sharp(path.join(workspace, "combo-0.png")).metadata()
     assert.deepEqual({ width: combo.width, height: combo.height }, { width: 6, height: 4 })
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), longNoteBody)
     assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "tail.png")), longNoteTail)
@@ -246,7 +249,7 @@ function completeOsuSkin(source: string): SkinModel {
       comboPosition: 210,
       columnWidth: 62,
       comboScale: 0.6,
-      judgementScale: 0.5125,
+      judgementScale: 0.675,
     },
     assets: { receptors, tapNotes, judgements },
     diagnostics: [],
@@ -254,7 +257,7 @@ function completeOsuSkin(source: string): SkinModel {
 }
 
 async function writeComboTemplates(directory: string): Promise<void> {
-  for (let digit = 0; digit <= 9; digit += 1) {
+  for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
     for (const [suffix, dimensions] of [
       [".png", { width: 10, height: 6 }],
       ["@2x.png", { width: 20, height: 12 }],
@@ -267,7 +270,7 @@ async function writeComboTemplates(directory: string): Promise<void> {
         },
       })
         .png()
-        .toFile(path.join(directory, `score-${digit}${suffix}`))
+        .toFile(path.join(directory, `combo-${character}${suffix}`))
     }
   }
 }

@@ -57,9 +57,10 @@ that format-neutral set. Generic Sharp infrastructure extracts and scales frames
 while the osu! writer publishes the named SD and HD judgement files.
 
 The source adapter maps `ComboZoom` directly to `comboScale` and maps `JudgmentZoom` to
-`judgementScale` with `1 + (zoom - 1) * 0.75`. Generic image infrastructure proportionally
+`judgementScale` with `1 + (zoom - 1) * 0.5`. Generic image infrastructure proportionally
 resizes rounded, minimum-one-pixel dimensions. After template copying, the osu! adapter
-overwrites `score-0.png` through `score-9.png` and their `@2x` variants at `comboScale`.
+overwrites the `combo` digit, comma, and dot sprites and their `@2x` variants at
+`comboScale`. The separate `score` and `scoreentry` sprites remain fixed template assets.
 
 An Etterna read creates one `NoteSkinContext`. Receptor and tap-note analysis share this
 context so the Lua source and skin directory are indexed only once.
@@ -100,8 +101,10 @@ diagnostics or fatal errors.
 ### `templates`
 
 Contains the complete static osu! output skeleton copied into the staging workspace before
-target-specific rendering. The bundle currently includes `skin.ini`, `receptor-base.png`,
-`LNB.png`, `LNT.png`, and the SD and `@2x` `score-0.png` through `score-9.png` combo images.
+target-specific rendering. The bundle includes `skin.ini`, internal receptor and long-note
+sources, global cursor/countdown/sound assets, fixed score and ranking glyphs, and the SD and
+`@2x` combo glyphs. Target writers transform only the assets they own, and the finalizer
+removes internal build-only sources after every output task succeeds.
 
 ## Dependency Rules
 

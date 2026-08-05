@@ -29,6 +29,9 @@ regressions.
 - Put osu! filenames and fallback policy in `src/adapters/osu`.
 - Put source-to-target equivalences in `src/conversions/etterna-to-osu`.
 - Keep empirical target calibration in the target adapter's calibration module.
+- Keep runtime paths in `src/config`, but keep the exact target asset inventory in its
+  writer. Do not make a writer discover filenames from the repository's global template at
+  module initialization.
 
 ### Failure and concurrency contract
 
@@ -48,6 +51,8 @@ regressions.
 - Require the complete verification suite from `docs/development-standards.md`.
 - Treat dated plans and specs as historical records; current architecture, standards, and
   approved follow-up calibrations take precedence when they differ.
+- When changing a template prefix or asset inventory, update `skin.ini`, the owning writer,
+  isolated writer fixtures, and the end-to-end output assertions together.
 
 ## Receptor-Specific Invariants
 

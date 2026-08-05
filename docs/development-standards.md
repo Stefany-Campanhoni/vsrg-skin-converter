@@ -22,6 +22,9 @@ Do not create generic dumping grounds named `utils`, `helpers`, `common`, `objec
 
 Constants stay with their owner. For example, an osu! output filename belongs to the osu!
 adapter, while an Etterna-to-osu! coordinate equivalence belongs to that conversion.
+Configuration modules export runtime paths and installation defaults only. They must not
+enumerate a target template at module initialization; exact target asset inventories belong
+to the corresponding target adapter.
 
 ## Naming and Modules
 

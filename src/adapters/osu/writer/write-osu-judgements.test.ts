@@ -26,7 +26,7 @@ test("writes exact osu judgement filenames", async (t) => {
   await writeOsuJudgements({
     judgements,
     outputDirectory,
-    scale: 0.5125,
+    scale: 0.675,
     render: async (definition, _sourceDensity, scale) => {
       observedScales.push(scale)
       const grade = definition.filePath as JudgementGrade
@@ -51,7 +51,7 @@ test("writes exact osu judgement filenames", async (t) => {
     "perfect.png",
     "perfect@2x.png",
   ])
-  assert.deepEqual(observedScales, [0.5125, 0.5125, 0.5125, 0.5125, 0.5125, 0.5125])
+  assert.deepEqual(observedScales, [0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
 })
 
 test("waits for all renders and writes nothing when rendering fails", async (t) => {

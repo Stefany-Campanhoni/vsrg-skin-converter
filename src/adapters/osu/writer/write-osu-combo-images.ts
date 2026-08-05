@@ -7,10 +7,23 @@ type ComboImageReader = (filePath: string) => Promise<Buffer>
 type ComboImageResizer = (image: Buffer, scale: number) => Promise<Buffer>
 type ComboImageWriter = (filePath: string, image: Buffer) => Promise<void>
 
-const osuComboDigits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"] as const
+const osuComboImageCharacters = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "comma",
+  "dot",
+] as const
 const osuComboDensitySuffixes = ["", "@2x"] as const
-const osuComboImageFilenames = osuComboDigits.flatMap((digit) =>
-  osuComboDensitySuffixes.map((suffix) => `score-${digit}${suffix}.png`),
+const osuComboImageFilenames = osuComboImageCharacters.flatMap((character) =>
+  osuComboDensitySuffixes.map((suffix) => `combo-${character}${suffix}.png`),
 )
 
 export interface WriteOsuComboImagesOptions {
