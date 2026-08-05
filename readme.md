@@ -10,8 +10,8 @@ publishes a complete skin directly into the local osu! installation.
 ## Requirements
 
 - Node.js 22.18 or newer
-- An Etterna installation at the configured location
-- A Windows `LOCALAPPDATA` directory containing the osu! installation at `osu!`
+- Windows, for the native installation-folder picker
+- Etterna and osu! installations, either at their defaults or selected interactively
 
 Install dependencies:
 
@@ -33,13 +33,19 @@ For development with automatic restart:
 npm run dev
 ```
 
-The CLI discovers local Etterna profiles under `Save/LocalProfiles`, automatically uses the
-only profile or asks when multiple profiles exist, then discovers skins under
-`NoteSkins/dance`. It resolves the active Etterna theme from `Save/Preferences.ini` so
-playfield and judgement settings come from the selected profile and theme. The complete
-osu! skin is written to `%LOCALAPPDATA%/osu!/Skins/<skin name>`. A successful run
-transactionally replaces only that named skin, while a failed run preserves its previous
-version and every other installed skin.
+The CLI first checks the default Etterna installation at `C:/Games/Etterna`. If it is
+missing, the CLI waits for a keypress and opens a native folder picker. It then discovers
+local profiles under `Save/LocalProfiles`, automatically uses the only profile or asks when
+multiple profiles exist, and discovers skins under `NoteSkins/dance`. The active Etterna
+theme comes from `Save/Preferences.ini`, so playfield and judgement settings use the
+selected profile and theme.
+
+Before publication, the CLI checks the default osu! installation at
+`%LOCALAPPDATA%/osu!` and offers the same folder-picker recovery when unavailable. The
+complete skin is written to `<resolved osu! installation>/Skins/<skin name>`. Cancelling a
+picker ends the CLI without publishing. A successful run transactionally replaces only the
+named skin, while a failed run preserves its previous version and every other installed
+skin.
 
 The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-byte to
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.

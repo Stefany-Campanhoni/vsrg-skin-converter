@@ -16,3 +16,19 @@ export async function askSelect(
   }
   return result
 }
+
+export async function waitForAnyKey(message: string): Promise<void> {
+  process.stdout.write(`${message}\n`)
+  if (!process.stdin.isTTY) {
+    return
+  }
+  await new Promise<void>((resolve) => {
+    process.stdin.setRawMode(true)
+    process.stdin.resume()
+    process.stdin.once("data", () => {
+      process.stdin.setRawMode(false)
+      process.stdin.pause()
+      resolve()
+    })
+  })
+}

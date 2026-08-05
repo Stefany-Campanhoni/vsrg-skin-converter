@@ -1,5 +1,11 @@
 # osu! Skin Output Implementation Plan
 
+> Historical note: installation-folder recovery subsequently changed
+> `resolveOsuSkinOutputPath` to consume an already resolved osu! installation root. The CLI
+> now derives the `%LOCALAPPDATA%/osu!` default centrally and may replace it with an absolute
+> directory selected by the user. The snippets below record the original implementation
+> sequence rather than the current interface.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to
 > implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

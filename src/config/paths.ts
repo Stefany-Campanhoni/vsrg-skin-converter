@@ -1,20 +1,18 @@
 import path from "node:path"
-import { osuInstallationDirectoryName } from "./osu-installation.ts"
 
 export const osuTemplatesPath = path.resolve("src", "templates")
 
 export function resolveOsuSkinOutputPath(
   skinName: string,
-  localAppData: string | undefined,
+  osuInstallationDirectory: string,
 ): string {
-  if (!localAppData?.trim()) {
-    throw new Error("LOCALAPPDATA is required to locate osu! skins")
-  }
-  if (!path.isAbsolute(localAppData)) {
-    throw new Error(`Expected an absolute LOCALAPPDATA path: ${JSON.stringify(localAppData)}`)
+  if (!path.isAbsolute(osuInstallationDirectory)) {
+    throw new Error(
+      `Expected an absolute osu! installation path: ${JSON.stringify(osuInstallationDirectory)}`,
+    )
   }
   assertSafeSkinName(skinName)
-  return path.join(localAppData, osuInstallationDirectoryName, "Skins", skinName)
+  return path.join(osuInstallationDirectory, "Skins", skinName)
 }
 
 function assertSafeSkinName(skinName: string): void {

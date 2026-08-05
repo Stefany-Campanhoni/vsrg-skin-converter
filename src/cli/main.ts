@@ -1,4 +1,3 @@
-import { access } from "node:fs/promises"
 import { EtternaSkinCatalog } from "../adapters/etterna/catalog/etterna-skin-catalog.ts"
 import {
   type EtternaProfile,
@@ -13,11 +12,18 @@ import type { SkinCatalog } from "../application/ports/skin-catalog.ts"
 import type { SkinReader } from "../application/ports/skin-reader.ts"
 import type { SkinWriter } from "../application/ports/skin-writer.ts"
 import { gameDefaults } from "../config/game-defaults.ts"
+import { resolveDefaultOsuInstallationDirectory } from "../config/osu-installation.ts"
 import { osuTemplatesPath, resolveOsuSkinOutputPath } from "../config/paths.ts"
 import { EtternaToOsuConversion } from "../conversions/etterna-to-osu/etterna-to-osu-conversion.ts"
 import type { GameId } from "../domain/game.ts"
 import { TransactionalOutputPublisher } from "../infrastructure/filesystem/transactional-output-publisher.ts"
-import { askSelect, type SelectOption } from "./prompts.ts"
+import { pickDirectory } from "./folder-picker.ts"
+import {
+  directoryExists,
+  type InstallationDirectoryDependencies,
+  resolveInstallationDirectory,
+} from "./installation-directory.ts"
+import { askSelect, type SelectOption, waitForAnyKey } from "./prompts.ts"
 
 type SelectProfile = (message: string, options: SelectOption[]) => Promise<string | undefined>
 
@@ -34,8 +40,14 @@ export async function runCli(): Promise<void> {
     return
   }
   const source = sourceGame as GameId
-  const gameLocation = gameDefaults[source].location
-  await assertPathExists(gameLocation)
+  const gameLocation = await resolveInstallationDirectory(
+    gameDefaults[source].location,
+    "Etterna was not found. Press any key to select its installation folder.",
+    installationDirectoryDependencies,
+  )
+  if (!gameLocation) {
+    return
+  }
   const selectedProfile = await selectEtternaProfile(
     await listEtternaProfiles(gameLocation),
     askSelect,
@@ -70,11 +82,21 @@ export async function runCli(): Promise<void> {
     throw new Error("Selected skin is not available")
   }
 
+  const osuDefaultLocation = resolveDefaultOsuInstallationDirectory(process.env.LOCALAPPDATA)
+  const osuLocation = await resolveInstallationDirectory(
+    osuDefaultLocation,
+    "osu! was not found. Press any key to select its installation folder.",
+    installationDirectoryDependencies,
+  )
+  if (!osuLocation) {
+    return
+  }
+
   const result = await convertSkin(
     {
       reference,
       targetGame: "osu",
-      outputDirectory: resolveOsuSkinOutputPath(reference.name, process.env.LOCALAPPDATA),
+      outputDirectory: resolveOsuSkinOutputPath(reference.name, osuLocation),
     },
     {
       readers,
@@ -90,6 +112,12 @@ export async function runCli(): Promise<void> {
       `${diagnostic.severity.toUpperCase()} ${diagnostic.component}${direction}: ${diagnostic.message}`,
     )
   }
+}
+
+const installationDirectoryDependencies: InstallationDirectoryDependencies = {
+  directoryExists,
+  waitForAnyKey,
+  pickDirectory,
 }
 
 export async function selectEtternaProfile(
@@ -111,14 +139,4 @@ export async function selectEtternaProfile(
     throw new Error("Selected Etterna profile is not available")
   }
   return selectedProfile.id
-}
-
-async function assertPathExists(location: string): Promise<void> {
-  try {
-    await access(location)
-  } catch (error) {
-    throw new Error(`Game folder does not exist: ${location}`, {
-      cause: error,
-    })
-  }
 }
