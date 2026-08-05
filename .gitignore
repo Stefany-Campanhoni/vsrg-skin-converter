@@ -1,4 +1,5 @@
 node_modules/
+.worktrees/
 output_folder/
 tmp/
 *.log
