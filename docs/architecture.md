@@ -153,10 +153,15 @@ of the neutral domain.
 
 ## Transactional Publication
 
-The output publisher builds the entire result in a temporary sibling of `output_folder`.
+The output publisher builds the entire result in a temporary sibling of the selected
+`%LOCALAPPDATA%/osu!/Skins/<skin name>` directory.
 After a successful build, it moves the previous output to a temporary backup and promotes
 the staged result. If promotion fails, it restores the backup. A build failure removes only
 staging and preserves the previously published output.
+
+The CLI supplies an absolute `LOCALAPPDATA` root, and runtime-path configuration rejects
+unsafe skin-name segments before publication. This keeps every generated target exactly one
+directory below the osu! `Skins` root.
 
 Therefore writers must treat their workspace as a complete target, not as an incremental
 patch over an existing skin.

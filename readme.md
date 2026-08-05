@@ -5,12 +5,13 @@ skins. The currently supported route is Etterna to osu!mania.
 
 The converter statically analyzes Etterna `NoteSkin.lua` files, resolves receptors and tap
 notes, converts gameplay coordinates, renders the osu! assets described by the template, and
-publishes a complete `output_folder`.
+publishes a complete skin directly into the local osu! installation.
 
 ## Requirements
 
 - Node.js 22.18 or newer
 - An Etterna installation at the configured location
+- A Windows `LOCALAPPDATA` directory containing the osu! installation at `osu!`
 
 Install dependencies:
 
@@ -36,8 +37,9 @@ The CLI discovers local Etterna profiles under `Save/LocalProfiles`, automatical
 only profile or asks when multiple profiles exist, then discovers skins under
 `NoteSkins/dance`. It resolves the active Etterna theme from `Save/Preferences.ini` so
 playfield and judgement settings come from the selected profile and theme. The complete
-osu! skin is written to `output_folder`; a successful run fully replaces the previous
-output, while a failed run preserves it.
+osu! skin is written to `%LOCALAPPDATA%/osu!/Skins/<skin name>`. A successful run
+transactionally replaces only that named skin, while a failed run preserves its previous
+version and every other installed skin.
 
 The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-byte to
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
@@ -57,7 +59,8 @@ Every grade is written as both SD and `@2x`. `(Doubleres)` sources preserve the
 original as `@2x` and generate SD at 50%; standard sources preserve the original
 as SD and generate `@2x` at 200%.
 
-The default installation and output paths are defined in `src/config`.
+Installation defaults, template paths, and osu! output-path resolution are defined in
+`src/config`.
 
 ## Verification
 

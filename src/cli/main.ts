@@ -13,7 +13,7 @@ import type { SkinCatalog } from "../application/ports/skin-catalog.ts"
 import type { SkinReader } from "../application/ports/skin-reader.ts"
 import type { SkinWriter } from "../application/ports/skin-writer.ts"
 import { gameDefaults } from "../config/game-defaults.ts"
-import { osuTemplatesPath, outputPath } from "../config/paths.ts"
+import { osuTemplatesPath, resolveOsuSkinOutputPath } from "../config/paths.ts"
 import { EtternaToOsuConversion } from "../conversions/etterna-to-osu/etterna-to-osu-conversion.ts"
 import type { GameId } from "../domain/game.ts"
 import { TransactionalOutputPublisher } from "../infrastructure/filesystem/transactional-output-publisher.ts"
@@ -74,7 +74,7 @@ export async function runCli(): Promise<void> {
     {
       reference,
       targetGame: "osu",
-      outputDirectory: outputPath,
+      outputDirectory: resolveOsuSkinOutputPath(reference.name, process.env.LOCALAPPDATA),
     },
     {
       readers,

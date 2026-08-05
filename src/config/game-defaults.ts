@@ -1,3 +1,5 @@
+import { osuDefaultLocation } from "./osu-installation.ts"
+
 export const gameDefaults = {
   etterna: {
     hitPosition: 0,
@@ -9,6 +11,6 @@ export const gameDefaults = {
     hitPosition: 438,
     judgementPosition: 240,
     comboPosition: 230,
-    location: "%LOCALAPPDATA%/osu",
+    location: osuDefaultLocation,
   },
 } as const

@@ -116,17 +116,18 @@ pressed receptor with its normal counterpart, but infrastructure must not encode
 
 ## Output and Safety
 
-The target writer builds a complete workspace. Publication replaces `output_folder` in full
-through `TransactionalOutputPublisher`; writers must not depend on files from an earlier
-conversion.
+The target writer builds a complete workspace. Publication replaces only the resolved target
+skin directory in full through `TransactionalOutputPublisher`; writers must not depend on
+files from an earlier conversion.
 
 Never execute skin-provided Lua. Use the static AST and conservative resolution rules. An
 unsupported construct should produce a diagnostic or contextual failure according to
 whether a valid target can still be generated.
 
 Validate externally derived directory names before composing paths. A selected profile ID,
-theme name, or similar segment must remain exactly one directory level under its owning
-root; centralize repeated format-specific path rules in the responsible adapter.
+theme name, output skin name, or similar segment must remain exactly one directory level
+under its owning root; centralize repeated format-specific path rules in the responsible
+adapter or runtime-path configuration module.
 
 Do not weaken target-path validation or replace transactional publication with direct
 recursive deletion.
