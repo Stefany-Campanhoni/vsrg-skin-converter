@@ -15,11 +15,20 @@ import {
 import { readEtternaProfile } from "../profile/read-etterna-profile.ts"
 
 export interface EtternaSkinReaderDependencies {
-  readProfile(gameRoot: string): Promise<PlayfieldConfiguration>
+  readProfile(gameRoot: string, profileId: string, theme: string): Promise<PlayfieldConfiguration>
   loadNoteSkinContext(skinDirectory: string): Promise<NoteSkinContext>
   analyzeReceptors(context: NoteSkinContext): Promise<EtternaReceptorAnalysis>
   analyzeNotes(context: NoteSkinContext): Promise<EtternaNoteAnalysis>
-  analyzeJudgements(gameRoot: string): Promise<EtternaJudgementAnalysis>
+  analyzeJudgements(
+    gameRoot: string,
+    profileId: string,
+    theme: string,
+  ): Promise<EtternaJudgementAnalysis>
+}
+
+export interface EtternaSkinReaderConfiguration {
+  readonly profileId: string
+  readonly theme: string
 }
 
 const defaultDependencies: EtternaSkinReaderDependencies = {
@@ -32,9 +41,16 @@ const defaultDependencies: EtternaSkinReaderDependencies = {
 
 export class EtternaSkinReader implements SkinReader {
   readonly game = "etterna"
+  readonly #profileId: string
+  readonly #theme: string
   readonly #dependencies: EtternaSkinReaderDependencies
 
-  constructor(dependencies: EtternaSkinReaderDependencies = defaultDependencies) {
+  constructor(
+    configuration: EtternaSkinReaderConfiguration,
+    dependencies: EtternaSkinReaderDependencies = defaultDependencies,
+  ) {
+    this.#profileId = configuration.profileId
+    this.#theme = configuration.theme
     this.#dependencies = dependencies
   }
 
@@ -44,9 +60,13 @@ export class EtternaSkinReader implements SkinReader {
     }
 
     const [playfield, context, judgementAnalysis] = await settleAll([
-      invokeAsPromise(() => this.#dependencies.readProfile(reference.gameRoot)),
+      invokeAsPromise(() =>
+        this.#dependencies.readProfile(reference.gameRoot, this.#profileId, this.#theme),
+      ),
       invokeAsPromise(() => this.#dependencies.loadNoteSkinContext(reference.sourcePath)),
-      invokeAsPromise(() => this.#dependencies.analyzeJudgements(reference.gameRoot)),
+      invokeAsPromise(() =>
+        this.#dependencies.analyzeJudgements(reference.gameRoot, this.#profileId, this.#theme),
+      ),
     ])
     const [receptorAnalysis, noteAnalysis] = await settleAll([
       invokeAsPromise(() => this.#dependencies.analyzeReceptors(context)),

@@ -1,17 +1,15 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { resolveEtternaProfilePath } from "../settings/etterna-settings-paths.ts"
 
-const supportedProfileId = "00000000"
-
-export async function readEtternaProfileGuid(gameRoot: string): Promise<string> {
-  const profilePath = path.join(
-    gameRoot,
-    "Save",
-    "LocalProfiles",
-    supportedProfileId,
-    "Etterna.xml",
-  )
-  const source = await readFile(profilePath, "utf8")
+export async function readEtternaProfileGuid(gameRoot: string, profileId: string): Promise<string> {
+  const profilePath = path.join(resolveEtternaProfilePath(gameRoot, profileId), "Etterna.xml")
+  let source: string
+  try {
+    source = await readFile(profilePath, "utf8")
+  } catch (cause) {
+    throw new Error(`Could not read Etterna profile GUID from ${profilePath}`, { cause })
+  }
   return extractEtternaProfileGuid(source, profilePath)
 }
 

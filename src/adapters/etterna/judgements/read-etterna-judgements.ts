@@ -9,9 +9,13 @@ export interface EtternaJudgementAnalysis {
   diagnostics: Diagnostic[]
 }
 
-export async function readEtternaJudgements(gameRoot: string): Promise<EtternaJudgementAnalysis> {
-  const guid = await readEtternaProfileGuid(gameRoot)
-  const selection = await readEtternaJudgementSelection(gameRoot, guid)
+export async function readEtternaJudgements(
+  gameRoot: string,
+  profileId: string,
+  theme: string,
+): Promise<EtternaJudgementAnalysis> {
+  const guid = await readEtternaProfileGuid(gameRoot, profileId)
+  const selection = await readEtternaJudgementSelection(gameRoot, guid, theme)
   return {
     judgements: await analyzeEtternaJudgementSheet(selection.filePath),
     diagnostics: selection.diagnostics,

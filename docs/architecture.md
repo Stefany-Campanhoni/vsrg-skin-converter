@@ -51,9 +51,14 @@ Fixed osu! long-note assets are published by a target writer without entering th
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
 internal template artifacts from the staged workspace.
 
-Etterna asset adapters resolve the fixed profile's selected judgement and convert
-Etterna sheet coordinates into a semantic `JudgementSet`. The conversion preserves
-that format-neutral set. Generic Sharp infrastructure extracts and scales frames,
+The CLI discovers Etterna local profiles and selects one before constructing the source
+reader. The Etterna adapter resolves the active theme from `Preferences.ini` and uses one
+named reader configuration for both playfield and judgement reads. A central Etterna path
+module validates profile IDs and theme names before composing settings paths.
+
+Etterna asset adapters resolve the selected profile's judgement and playfield configuration,
+then convert Etterna sheet coordinates into a semantic `JudgementSet`. The conversion
+preserves that format-neutral set. Generic Sharp infrastructure extracts and scales frames,
 while the osu! writer publishes the named SD and HD judgement files.
 
 The source adapter maps `ComboZoom` directly to `comboScale` and maps `JudgmentZoom` to

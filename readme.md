@@ -32,9 +32,12 @@ For development with automatic restart:
 npm run dev
 ```
 
-The CLI discovers Etterna skins under `NoteSkins/dance`, asks which skin to convert, and
-writes the complete osu! skin to `output_folder`. A successful run fully replaces the
-previous output. A failed run preserves it.
+The CLI discovers local Etterna profiles under `Save/LocalProfiles`, automatically uses the
+only profile or asks when multiple profiles exist, then discovers skins under
+`NoteSkins/dance`. It resolves the active Etterna theme from `Save/Preferences.ini` so
+playfield and judgement settings come from the selected profile and theme. The complete
+osu! skin is written to `output_folder`; a successful run fully replaces the previous
+output, while a failed run preserves it.
 
 The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-byte to
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
@@ -45,9 +48,9 @@ Score glyphs keep the `score` prefix and are copied unchanged. Combo glyphs use 
 `combo` prefix and are resized by the converter so Etterna's combo zoom does not alter score
 or ranking text.
 
-The Etterna reader resolves the judgement selected for profile `00000000` from
-`Etterna.xml` and `Save/Rebirth_settings/assetsConfig.lua`. It accepts `1x6` and
-`2x6` sheets, uses the left/Early column, and maps W1 through Miss to
+The Etterna reader resolves the selected profile's GUID from `Etterna.xml` and its judgement
+from `Save/<theme>_settings/assetsConfig.lua`. It accepts `1x6` and `2x6` sheets, uses the
+left/Early column, and maps W1 through Miss to
 `marvelous`, `perfect`, `great`, `good`, `bad`, and `miss`.
 
 Every grade is written as both SD and `@2x`. `(Doubleres)` sources preserve the

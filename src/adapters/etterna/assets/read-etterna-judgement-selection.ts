@@ -5,6 +5,7 @@ import type { Diagnostic } from "../../../domain/diagnostics.ts"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { type AstObject, asAstObject, getTableField } from "../../../infrastructure/lua/ast.ts"
 import { evaluateLuaString } from "../../../infrastructure/lua/evaluate-expression.ts"
+import { resolveEtternaThemeSettingsPath } from "../settings/etterna-settings-paths.ts"
 
 export interface EtternaJudgementSelection {
   filePath: string
@@ -21,9 +22,15 @@ const supportedImageExtensions = new Set([".png", ".jpg", ".jpeg"])
 export async function readEtternaJudgementSelection(
   gameRoot: string,
   guid: string,
+  theme: string,
 ): Promise<EtternaJudgementSelection> {
-  const configPath = path.join(gameRoot, "Save", "Rebirth_settings", "assetsConfig.lua")
-  const source = await readFile(configPath, "utf8")
+  const configPath = path.join(resolveEtternaThemeSettingsPath(gameRoot, theme), "assetsConfig.lua")
+  let source: string
+  try {
+    source = await readFile(configPath, "utf8")
+  } catch (cause) {
+    throw new Error(`Could not read Etterna asset configuration ${configPath}`, { cause })
+  }
   const { configured, fallback } = extractConfiguredPaths(source, guid, configPath)
   const fallbackCandidate = resolveSafeCandidate(gameRoot, fallback)
   const configuredCandidate = configured ? resolveSafeCandidate(gameRoot, configured) : undefined

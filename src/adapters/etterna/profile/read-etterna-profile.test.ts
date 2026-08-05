@@ -214,7 +214,7 @@ test("discovers playerConfig.lua case-insensitively instead of using another Lua
       `,
     )
 
-    assert.deepEqual(await readEtternaProfile(gameRoot), {
+    assert.deepEqual(await readEtternaProfile(gameRoot, "00000000", "Rebirth"), {
       hitPosition: -6,
       judgementPosition: 4,
       comboPosition: -20,
@@ -222,6 +222,59 @@ test("discovers playerConfig.lua case-insensitively instead of using another Lua
       judgementScale: 1,
       comboScale: 1,
     })
+  } finally {
+    await rm(gameRoot, { recursive: true, force: true })
+  }
+})
+
+test("reads playerConfig from the requested Etterna profile", async () => {
+  const gameRoot = await mkdtemp(path.join(os.tmpdir(), "vsrg-selected-profile-"))
+  const profileDirectory = path.join(
+    gameRoot,
+    "Save",
+    "LocalProfiles",
+    "selected-profile",
+    "Rebirth_settings",
+  )
+  try {
+    await mkdir(profileDirectory, { recursive: true })
+    await writeFile(
+      path.join(profileDirectory, "playerConfig.lua"),
+      `
+        return {
+          GameplayXYCoordinates = { ["4K"] = { NoteFieldY = -6, JudgmentY = 4, ComboY = -20 } },
+          GameplaySizes = { ["4K"] = { JudgmentZoom = 1, ComboZoom = 1 } },
+          ReceptorSize = 106
+        }
+      `,
+    )
+
+    assert.equal(
+      (await readEtternaProfile(gameRoot, "selected-profile", "Rebirth")).columnWidth,
+      106,
+    )
+  } finally {
+    await rm(gameRoot, { recursive: true, force: true })
+  }
+})
+
+test("adds the selected settings directory and cause when profile discovery fails", async () => {
+  const gameRoot = await mkdtemp(path.join(os.tmpdir(), "vsrg-profile-read-failure-"))
+  const profileDirectory = path.join(
+    gameRoot,
+    "Save",
+    "LocalProfiles",
+    "missing-profile",
+    "Custom_settings",
+  )
+  try {
+    await assert.rejects(
+      () => readEtternaProfile(gameRoot, "missing-profile", "Custom"),
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(profileDirectory) &&
+        error.cause instanceof Error,
+    )
   } finally {
     await rm(gameRoot, { recursive: true, force: true })
   }
@@ -242,7 +295,7 @@ test("adds the playerConfig path and cause when profile parsing fails", async ()
     await writeFile(profilePath, "return { GameplayXYCoordinates = {")
 
     await assert.rejects(
-      () => readEtternaProfile(gameRoot),
+      () => readEtternaProfile(gameRoot, "00000000", "Rebirth"),
       (error) =>
         error instanceof Error &&
         error.message.includes(profilePath) &&

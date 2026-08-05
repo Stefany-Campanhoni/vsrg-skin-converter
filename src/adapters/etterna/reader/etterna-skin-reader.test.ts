@@ -39,6 +39,11 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
   const seenContexts: NoteSkinContext[] = []
   const sequence: string[] = []
   let judgementGameRoot: string | undefined
+  let profileGameRoot: string | undefined
+  let profileId: string | undefined
+  let profileTheme: string | undefined
+  let judgementProfileId: string | undefined
+  let judgementTheme: string | undefined
   let resolveContext: () => void = () => {
     throw new Error("context promise was not initialized")
   }
@@ -62,62 +67,77 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
         ],
       })
   })
-  const reader = new EtternaSkinReader({
-    readProfile: async () => ({
-      hitPosition: -6,
-      judgementPosition: 4,
-      comboPosition: 8,
-      columnWidth: 100,
-      comboScale: 1,
-      judgementScale: 1,
-    }),
-    loadNoteSkinContext: async () => {
-      contextLoads += 1
-      sequence.push("context-start")
-      return contextPromise
+  const reader = new EtternaSkinReader(
+    { profileId: "selected-profile", theme: "Rebirth" },
+    {
+      readProfile: async (gameRoot, receivedProfileId, receivedTheme) => {
+        profileGameRoot = gameRoot
+        profileId = receivedProfileId
+        profileTheme = receivedTheme
+        return {
+          hitPosition: -6,
+          judgementPosition: 4,
+          comboPosition: 8,
+          columnWidth: 100,
+          comboScale: 1,
+          judgementScale: 1,
+        }
+      },
+      loadNoteSkinContext: async () => {
+        contextLoads += 1
+        sequence.push("context-start")
+        return contextPromise
+      },
+      analyzeReceptors: async (received) => {
+        sequence.push("receptors-start")
+        seenContexts.push(received)
+        return {
+          receptors,
+          diagnostics: [
+            {
+              code: "receptor-warning",
+              severity: "warning",
+              component: "receptors",
+              direction: "left",
+              message: "receptor fallback",
+            },
+          ],
+        }
+      },
+      analyzeNotes: async (received) => {
+        sequence.push("notes-start")
+        seenContexts.push(received)
+        return {
+          notes: tapNotes,
+          diagnostics: [
+            {
+              code: "note-warning",
+              severity: "warning",
+              component: "notes",
+              direction: "down",
+              message: "note fallback",
+            },
+          ],
+        }
+      },
+      analyzeJudgements: async (gameRoot, receivedProfileId, receivedTheme) => {
+        judgementGameRoot = gameRoot
+        judgementProfileId = receivedProfileId
+        judgementTheme = receivedTheme
+        sequence.push("judgements-start")
+        return judgementPromise
+      },
     },
-    analyzeReceptors: async (received) => {
-      sequence.push("receptors-start")
-      seenContexts.push(received)
-      return {
-        receptors,
-        diagnostics: [
-          {
-            code: "receptor-warning",
-            severity: "warning",
-            component: "receptors",
-            direction: "left",
-            message: "receptor fallback",
-          },
-        ],
-      }
-    },
-    analyzeNotes: async (received) => {
-      sequence.push("notes-start")
-      seenContexts.push(received)
-      return {
-        notes: tapNotes,
-        diagnostics: [
-          {
-            code: "note-warning",
-            severity: "warning",
-            component: "notes",
-            direction: "down",
-            message: "note fallback",
-          },
-        ],
-      }
-    },
-    analyzeJudgements: async (gameRoot) => {
-      judgementGameRoot = gameRoot
-      sequence.push("judgements-start")
-      return judgementPromise
-    },
-  })
+  )
 
   const skinPromise = reader.readSkin(reference)
 
   assert.equal(judgementGameRoot, reference.gameRoot)
+  assert.equal(profileGameRoot, reference.gameRoot)
+  assert.equal(profileId, "selected-profile")
+  assert.equal(profileTheme, "Rebirth")
+  assert.equal(judgementProfileId, "selected-profile")
+  assert.equal(judgementTheme, "Rebirth")
   assert.deepEqual(sequence, ["context-start", "judgements-start"])
   resolveContext()
   await Promise.resolve()
@@ -178,18 +198,21 @@ test("starts and settles every initial reader dependency after a synchronous fai
   }>()
   const failure = new Error("exact synchronous context failure")
   let judgementStarted = false
-  const reader = new EtternaSkinReader({
-    readProfile: () => profile.promise,
-    loadNoteSkinContext: () => {
-      throw failure
+  const reader = new EtternaSkinReader(
+    { profileId: "selected-profile", theme: "Rebirth" },
+    {
+      readProfile: () => profile.promise,
+      loadNoteSkinContext: () => {
+        throw failure
+      },
+      analyzeJudgements: async () => {
+        judgementStarted = true
+        return { judgements, diagnostics: [] }
+      },
+      analyzeReceptors: async () => ({ receptors, diagnostics: [] }),
+      analyzeNotes: async () => ({ notes: tapNotes, diagnostics: [] }),
     },
-    analyzeJudgements: async () => {
-      judgementStarted = true
-      return { judgements, diagnostics: [] }
-    },
-    analyzeReceptors: async () => ({ receptors, diagnostics: [] }),
-    analyzeNotes: async () => ({ notes: tapNotes, diagnostics: [] }),
-  })
+  )
 
   const reading = reader.readSkin(etternaReference)
   await Promise.resolve()
@@ -216,23 +239,26 @@ test("settles both NoteSkin analyses after a synchronous failure", async () => {
   const receptorAnalysis = deferred<{ receptors: ReceptorSet; diagnostics: [] }>()
   const analysesStarted = deferred<void>()
   const failure = new Error("exact synchronous note failure")
-  const reader = new EtternaSkinReader({
-    readProfile: async () => ({
-      hitPosition: -6,
-      judgementPosition: 4,
-      comboPosition: -20,
-      columnWidth: 100,
-      comboScale: 1,
-      judgementScale: 1,
-    }),
-    loadNoteSkinContext: async () => ({ filePath: "NoteSkin.lua" }) as NoteSkinContext,
-    analyzeJudgements: async () => ({ judgements, diagnostics: [] }),
-    analyzeReceptors: () => receptorAnalysis.promise,
-    analyzeNotes: () => {
-      analysesStarted.resolve()
-      throw failure
+  const reader = new EtternaSkinReader(
+    { profileId: "selected-profile", theme: "Rebirth" },
+    {
+      readProfile: async () => ({
+        hitPosition: -6,
+        judgementPosition: 4,
+        comboPosition: -20,
+        columnWidth: 100,
+        comboScale: 1,
+        judgementScale: 1,
+      }),
+      loadNoteSkinContext: async () => ({ filePath: "NoteSkin.lua" }) as NoteSkinContext,
+      analyzeJudgements: async () => ({ judgements, diagnostics: [] }),
+      analyzeReceptors: () => receptorAnalysis.promise,
+      analyzeNotes: () => {
+        analysesStarted.resolve()
+        throw failure
+      },
     },
-  })
+  )
 
   const reading = reader.readSkin(etternaReference)
   const phase = await Promise.race([
@@ -255,23 +281,26 @@ test("settles both NoteSkin analyses after a synchronous failure", async () => {
 })
 
 test("rejects references from another game", async () => {
-  const reader = new EtternaSkinReader({
-    readProfile: async () => {
-      throw new Error("should not run")
+  const reader = new EtternaSkinReader(
+    { profileId: "selected-profile", theme: "Rebirth" },
+    {
+      readProfile: async () => {
+        throw new Error("should not run")
+      },
+      loadNoteSkinContext: async () => {
+        throw new Error("should not run")
+      },
+      analyzeReceptors: async () => {
+        throw new Error("should not run")
+      },
+      analyzeNotes: async () => {
+        throw new Error("should not run")
+      },
+      analyzeJudgements: async () => {
+        throw new Error("should not run")
+      },
     },
-    loadNoteSkinContext: async () => {
-      throw new Error("should not run")
-    },
-    analyzeReceptors: async () => {
-      throw new Error("should not run")
-    },
-    analyzeNotes: async () => {
-      throw new Error("should not run")
-    },
-    analyzeJudgements: async () => {
-      throw new Error("should not run")
-    },
-  })
+  )
 
   await assert.rejects(
     () =>

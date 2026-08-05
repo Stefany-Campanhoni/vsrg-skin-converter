@@ -124,5 +124,9 @@ Never execute skin-provided Lua. Use the static AST and conservative resolution 
 unsupported construct should produce a diagnostic or contextual failure according to
 whether a valid target can still be generated.
 
+Validate externally derived directory names before composing paths. A selected profile ID,
+theme name, or similar segment must remain exactly one directory level under its owning
+root; centralize repeated format-specific path rules in the responsible adapter.
+
 Do not weaken target-path validation or replace transactional publication with direct
 recursive deletion.

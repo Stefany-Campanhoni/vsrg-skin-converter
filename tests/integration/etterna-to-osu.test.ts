@@ -176,7 +176,9 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
         outputDirectory,
       },
       {
-        readers: new Map([["etterna", new EtternaSkinReader()]]),
+        readers: new Map([
+          ["etterna", new EtternaSkinReader({ profileId: "00000000", theme: "Rebirth" })],
+        ]),
         writers: new Map([["osu", new OsuSkinWriter(templatesDirectory)]]),
         conversions: new ConversionRegistry([new EtternaToOsuConversion()]),
         publisher: new TransactionalOutputPublisher(),
