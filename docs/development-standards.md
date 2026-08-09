@@ -8,8 +8,9 @@ changes.
 Place code with the responsibility that owns it:
 
 - universal vocabulary and invariants: `src/domain`;
-- use-case coordination and interfaces: `src/application`;
-- one game's parsing or output conventions: `src/adapters/<game>`;
+- use-case coordination and interfaces, including installer and publication ports:
+  `src/application`;
+- one game's parsing, output, profile, or installation conventions: `src/adapters/<game>`;
 - cross-game equivalences: `src/conversions/<source>-to-<target>`;
 - technical filesystem, image, or language mechanisms: `src/infrastructure`;
 - runtime defaults and composition paths: `src/config`;
@@ -99,11 +100,16 @@ npm test
 npm run typecheck
 npm run lint
 npm run test:architecture
+npx tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
 Changes to Etterna analysis or image conversion also require a compatibility audit against
 the applicable real skins under `tmp`.
+
+Changes to either route require its integration test. Changes to shared domain,
+infrastructure, CLI dispatch, or installation discovery require both direction integration
+tests so the Etterna-to-osu! route cannot regress while the reverse route evolves.
 
 For receptor rendering, tests must preserve this processing order: extract the selected
 frame, rotate it, normalize its size, apply target-specific vertical scaling, trim trailing
@@ -116,9 +122,11 @@ pressed receptor with its normal counterpart, but infrastructure must not encode
 
 ## Output and Safety
 
-The target writer builds a complete workspace. Publication replaces only the resolved target
-skin directory in full through `TransactionalOutputPublisher`; writers must not depend on
-files from an earlier conversion.
+Each target writer builds a complete workspace. A single-directory output uses
+`TransactionalOutputPublisher`. A target that owns multiple independent directories uses an
+application `OutputSetPublisher` port and infrastructure implementation; it must build and
+settle every workspace before changing any target and must roll all targets back together.
+Writers must not depend on files from an earlier conversion.
 
 Never execute skin-provided Lua. Use the static AST and conservative resolution rules. An
 unsupported construct should produce a diagnostic or contextual failure according to
@@ -131,3 +139,34 @@ adapter or runtime-path configuration module.
 
 Do not weaken target-path validation or replace transactional publication with direct
 recursive deletion.
+
+Overwrite approval is an interaction concern. The CLI must identify the exact selected
+target, ask for explicit confirmation, and cancel before allocation or publication when the
+answer is false or cancelled. The installer receives the expected selected name and a
+separate overwrite policy, verifies the name again, and never prompts.
+
+For osu! sources, keep ordered INI parsing, CFG interpretation, and PNG path resolution in
+`adapters/osu`. Density is explicit model data: explicit `@2x` wins; otherwise resolutions
+above `1280x720` select only `@2x`, and standard resolutions select only unsuffixed PNGs.
+Never add density fallback silently, and never use the selected source density to vary target
+filenames or dimensions. Keep inverse osu!-to-Etterna coordinate/width formulas in
+`conversions/osu-to-etterna`, generic receptor normalization in image infrastructure,
+Etterna filenames, dimensions, fallback policy, and future output calibrations in
+`adapters/etterna`, and multi-target publication in filesystem infrastructure.
+
+The reverse target contract is fixed: notes use the four direction-specific ` (res 64x64)`
+names at exactly 150x150, and normal/pressed receptors use the eight direction/state-specific
+` (res 64x64)` names at exactly 146x146. Receptor processing order is vertical transparent-row
+trim, source-width square, then exact 146x146 resize. A fully transparent normal remains
+transparent; a fully transparent pressed receptor falls back to the processed normal from
+the same direction. Integration tests must assert the exact inventories, dimensions, and
+lane/state source pixels, and every route asset change must run both direction integration
+tests.
+
+Reverse judgement migration must resolve all six Mania grades at one common source density
+and preserve this row order: marvelous, perfect, great, good, bad, miss. Do not resize,
+trim, crop, or rotate these images. Center unequal images in transparent maximum-size cells;
+standard density names the result `1x6.png`, while double density uses
+`1x6 (Doubleres).png`. Treat the generated PNG and active-theme `assetsConfig.lua` update as
+members of the same mixed file/directory transaction as the NoteSkin and profile. Preserve
+unrelated Lua tokens and guard replacement with the exact original-content SHA-256.

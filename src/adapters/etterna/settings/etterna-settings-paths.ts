@@ -1,11 +1,18 @@
 import path from "node:path"
 
+const windowsReservedDeviceName = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i
+
+export function resolveEtternaNoteSkinPath(gameRoot: string, skinName: string): string {
+  assertSafeEtternaDirectorySegment(skinName, "NoteSkin name")
+  return path.join(gameRoot, "NoteSkins", "dance", skinName)
+}
+
 export function resolveEtternaProfilesPath(gameRoot: string): string {
   return path.join(gameRoot, "Save", "LocalProfiles")
 }
 
 export function resolveEtternaProfilePath(gameRoot: string, profileId: string): string {
-  assertSafeDirectoryName(profileId, "profile ID")
+  assertSafeEtternaDirectorySegment(profileId, "profile ID")
   return path.join(resolveEtternaProfilesPath(gameRoot), profileId)
 }
 
@@ -14,23 +21,41 @@ export function resolveEtternaProfileSettingsPath(
   profileId: string,
   theme: string,
 ): string {
-  assertSafeDirectoryName(theme, "theme")
+  assertSafeEtternaDirectorySegment(theme, "theme")
   return path.join(resolveEtternaProfilePath(gameRoot, profileId), `${theme}_settings`)
 }
 
 export function resolveEtternaThemeSettingsPath(gameRoot: string, theme: string): string {
-  assertSafeDirectoryName(theme, "theme")
+  assertSafeEtternaDirectorySegment(theme, "theme")
   return path.join(gameRoot, "Save", `${theme}_settings`)
 }
 
-function assertSafeDirectoryName(value: string, label: string): void {
+export function resolveEtternaJudgmentsPath(gameRoot: string): string {
+  return path.join(gameRoot, "Assets", "Judgments")
+}
+
+export function resolveEtternaJudgementPath(gameRoot: string, filename: string): string {
+  assertSafeEtternaDirectorySegment(filename, "judgement filename")
+  return path.join(resolveEtternaJudgmentsPath(gameRoot), filename)
+}
+
+export function assertSafeEtternaDirectorySegment(value: string, label: string): void {
   if (
-    value.trim().length === 0 ||
+    value.length === 0 ||
     value === "." ||
     value === ".." ||
     path.isAbsolute(value) ||
-    /[\\/\0]/.test(value)
+    hasWindowsInvalidCharacter(value) ||
+    /[. ]$/.test(value) ||
+    windowsReservedDeviceName.test(value)
   ) {
     throw new Error(`Unsafe Etterna ${label}: ${JSON.stringify(value)}`)
   }
+}
+
+function hasWindowsInvalidCharacter(value: string): boolean {
+  const invalidCharacters = '<>:"/\\|?*'
+  return [...value].some(
+    (character) => character.charCodeAt(0) < 32 || invalidCharacters.includes(character),
+  )
 }

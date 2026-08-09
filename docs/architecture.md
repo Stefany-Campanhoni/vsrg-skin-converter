@@ -2,21 +2,19 @@
 
 ## Purpose
 
-VSRG Skin Converter translates rhythm-game skins through a game-neutral model. The current
-supported route is Etterna to osu!, but source readers, semantic conversions, and target
-writers are intentionally independent so another direction can be added without rewriting
-the application flow.
+VSRG Skin Converter translates rhythm-game skins through a game-neutral model. It supports
+Etterna to osu! and a 4K-only osu!mania to Etterna route. Source readers, semantic
+conversions, and target outputs remain direction-specific.
 
 ## Conversion Flow
 
 ```text
-CLI
-  -> source SkinCatalog
-  -> source SkinReader
-  -> neutral SkinModel
-  -> source-to-target SkinConversion
-  -> target SkinWriter
+EtternaSkinReader -> EtternaToOsuConversion -> OsuSkinWriter
   -> TransactionalOutputPublisher
+
+OsuSkinReader -> OsuToEtternaConversion -> EtternaSkinInstaller
+  -> EtternaNoteSkinWriter + EtternaProfileWriter + EtternaJudgementWriter
+  -> TransactionalOutputSetPublisher
 ```
 
 The CLI is the composition root. It selects concrete implementations and passes them to the
@@ -32,8 +30,9 @@ knowledge of Lua, Sharp, filesystems, prompts, or game-specific formats.
 
 ### `application`
 
-Contains the conversion use case, the source-target conversion registry, and ports for skin
-catalogs, readers, writers, and output publication. It depends only on the domain.
+Contains conversion use cases, the source-target conversion registry, and ports for skin
+catalogs, readers, writers, installers, and single- or multi-target output publication. It
+depends only on the domain.
 
 ### `adapters`
 
@@ -41,11 +40,16 @@ Translates external game formats to and from the neutral model.
 
 - `adapters/etterna` discovers skins, statically reads gameplay positions, `ReceptorSize`,
   `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, performs static NoteSkin analysis,
-  and resolves Etterna assets.
-- `adapters/osu` renders `skin.ini` and writes image assets using osu! naming and layout
-  conventions. Its receptor calibration converts the target column width into a
-  vertical-only image scale before composition. It applies neutral judgement and combo scale
-  factors to image outputs without changing `skin.ini`.
+  and resolves Etterna assets. As a target, it validates NoteSkin/profile paths, owns fixed
+  output filenames and dimensions, renders the Etterna templates, allocates profile identity,
+  composes the judgement sheet, preserves the active theme asset configuration, and
+  coordinates installation.
+- `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections, and
+  resolves case-insensitive PNG references with explicit density. As a target, it renders
+  `skin.ini` and writes image assets using osu! naming and layout conventions. Its receptor
+  calibration converts the target column width into a vertical-only image scale before
+  composition. As a source, its reader projects the four 4K column widths to their arithmetic
+  mean before exposing the scalar through the neutral model.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -78,6 +82,12 @@ using named game defaults and preserves the neutral combo and judgement scale fa
 these coordinates, the osu! writer only serializes already-converted target values. The
 conversion does not parse Lua, process pixels, write files, or interact with the user.
 
+The osu!-to-Etterna conversion owns the inverse position formulas and maps the scalar osu!
+column width supplied by the reader into Etterna `ReceptorSize` units. It preserves the four
+normal receptors, four pressed receptors, and four tap notes while deliberately leaving
+fonts, long notes, and zoom migration out of the reverse scope. Judgements pass through the
+neutral model without coordinate or scale conversion.
+
 ### `infrastructure`
 
 Contains technical implementations shared by adapters:
@@ -100,18 +110,23 @@ remain with their adapter or conversion.
 
 ### `cli`
 
-Collects user choices, wires implementations, invokes the application use case, and presents
-diagnostics or fatal errors. A dedicated installation-directory coordinator checks default
-roots, pauses before opening the native Windows folder picker, validates selected directories,
-and returns cancellation without coupling that behavior to the composition root.
+Collects user choices, dispatches to one direction-specific route, wires implementations,
+invokes the application use case, and presents diagnostics or fatal errors. A dedicated
+installation-directory coordinator checks default roots, pauses before opening the native
+Windows folder picker, validates selected directories, and returns cancellation without
+coupling that behavior to the composition root. The reverse route owns the explicit
+overwrite prompt and cancels before profile allocation when it is declined.
 
 ### `templates`
 
-Contains the complete static osu! output skeleton copied into the staging workspace before
-target-specific rendering. The bundle includes `skin.ini`, internal receptor and long-note
-sources, global cursor/countdown/sound assets, fixed score and ranking glyphs, and the SD and
-`@2x` combo glyphs. Target writers transform only the assets they own, and the finalizer
-removes internal build-only sources after every output task succeeds.
+Contains one static output bundle per target game. `templates/osu` is the complete osu!
+output skeleton copied into the staging workspace before target-specific rendering. The
+bundle includes `skin.ini`, internal receptor and long-note sources, global
+cursor/countdown/sound assets, fixed score and ranking glyphs, and the SD and `@2x` combo
+glyphs. Target writers transform only the assets they own, and the finalizer removes
+internal build-only sources after every output task succeeds. `templates/etterna/noteskin`
+and `templates/etterna/profile` are independent bundles used by the reverse installer; the
+profile writer relocates `playerConfig.lua` below the active theme settings directory.
 
 ## Dependency Rules
 
@@ -143,6 +158,16 @@ Dependencies within the same layer are allowed. Production dependency cycles are
 `ImageAsset` represents a file, optional spritesheet frame, and rotation. Pixel processing
 is deferred until the target writer requests it.
 
+For the reverse route, osu! density is resolved entirely by the source adapter. Receptor and
+note density selects only the input file; judgement density also selects Etterna's standard
+or `(Doubleres)` sheet name. The target adapter always writes four
+150x150 tap notes and eight 146x146 receptors using the fixed ` (res 64x64)` filename
+decoration. Receptors are vertically trimmed, made into a source-width square, and then
+resized to 146x146. A transparent normal remains transparent; a transparent pressed receptor
+falls back to the processed normal from the same direction. Any future game-specific output
+calibration belongs in the target adapter; shared image infrastructure implements only the
+game-neutral trim, square, resize, and transparency mechanisms requested by that adapter.
+
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
 generic vertical scale and geometry. The osu! adapter supplies logical playfield height,
@@ -155,7 +180,7 @@ of the neutral domain.
 
 ## Transactional Publication
 
-The output publisher builds the entire result in a temporary sibling of the selected
+The single-target output publisher builds the entire result in a temporary sibling of the selected
 `<resolved osu! installation>/Skins/<skin name>` directory.
 After a successful build, it moves the previous output to a temporary backup and promotes
 the staged result. If promotion fails, it restores the backup. A build failure removes only
@@ -170,14 +195,27 @@ directory below the resolved osu! `Skins` root.
 Therefore writers must treat their workspace as a complete target, not as an incremental
 patch over an existing skin.
 
+The reverse route publishes four non-overlapping targets as one transaction: the NoteSkin,
+the must-not-exist profile, the must-not-exist judgement PNG, and the active theme's
+`assetsConfig.lua`. Every builder settles before publication begins. Directories and files
+share one backup/rollback boundary; new files use atomic hard-link promotion and replacement
+files use sibling backups. The prepared asset configuration records either an expected
+missing state or the SHA-256 of its exact original bytes, verified after staging and before
+any backup. A concurrent configuration edit therefore aborts without changing any target.
+
 ## Adding a Conversion Route
 
 1. Add or reuse a source `SkinCatalog` and `SkinReader`.
-2. Add or reuse a target `SkinWriter`.
+2. Add or reuse a target `SkinWriter`, or a `SkinInstaller` when the target spans multiple
+   owned directories.
 3. Implement `SkinConversion` for the exact source-target pair.
 4. Register the route in the CLI composition root.
 5. Add unit tests for format behavior and a cross-module integration test.
-6. Run the architecture and full verification commands.
+6. Keep source parsing under `adapters/<source>`, target installation under
+   `adapters/<target>`, pair-specific equivalences under
+   `conversions/<source>-to-<target>`, and generic publication under `infrastructure`.
+7. Run both direction integration tests, the architecture test, and the full verification
+   commands.
 
 Do not add conditionals for unrelated games inside an existing adapter. A reverse route
 should reuse neutral domain concepts while keeping each format's parsing and rendering rules

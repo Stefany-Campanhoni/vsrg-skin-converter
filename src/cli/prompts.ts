@@ -1,8 +1,28 @@
-import { cancel, isCancel, select } from "@clack/prompts"
+import { cancel, confirm, isCancel, select } from "@clack/prompts"
 
 export interface SelectOption {
   value: string
   label: string
+}
+
+export interface ConfirmPromptDependencies {
+  confirm(options: { message: string }): Promise<unknown>
+  isCancel(value: unknown): boolean
+  cancel(message: string): void
+}
+
+const confirmPromptDependencies: ConfirmPromptDependencies = { confirm, isCancel, cancel }
+
+export async function askConfirm(
+  message: string,
+  dependencies: ConfirmPromptDependencies = confirmPromptDependencies,
+): Promise<boolean | undefined> {
+  const result = await dependencies.confirm({ message })
+  if (dependencies.isCancel(result)) {
+    dependencies.cancel("bye bye...")
+    return undefined
+  }
+  return result as boolean
 }
 
 export async function askSelect(

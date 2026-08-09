@@ -7,6 +7,7 @@
     "start": "node src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test src/**/*.test.ts tests/**/*.test.ts",
+    "test:trim-osu-receptor": "node src/scripts/trim-osu-receptor.ts",
     "test:architecture": "node --test tests/architecture/*.test.ts",
     "lint": "npx @biomejs/biome check src tests",
     "format": "npx @biomejs/biome format --write src tests"

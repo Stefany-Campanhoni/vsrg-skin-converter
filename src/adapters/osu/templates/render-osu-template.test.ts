@@ -3,7 +3,10 @@ import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { test } from "node:test"
+import { osuTemplatesPath } from "../../../config/paths.ts"
 import { renderTemplateFile, replaceWildcards } from "./render-osu-template.ts"
+
+const skinIniTemplatePath = path.join(osuTemplatesPath, "skin.ini")
 
 test("replaces supplied string and numeric wildcards", () => {
   const template = `\${skin_name}|\${hit_position}|\${zero}|\${empty}`
@@ -31,7 +34,7 @@ test("preserves wildcards without a supplied value", () => {
 })
 
 test("references the exact @2x receptor filenames", async () => {
-  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const template = await readFile(skinIniTemplatePath, "utf8")
   const receptorLines = template
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -50,7 +53,7 @@ test("references the exact @2x receptor filenames", async () => {
 })
 
 test("uses one column-width wildcard for every lane", async () => {
-  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const template = await readFile(skinIniTemplatePath, "utf8")
   const columnWidthLine = template
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -63,7 +66,7 @@ test("uses one column-width wildcard for every lane", async () => {
 })
 
 test("uses combo and score position wildcards", async () => {
-  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const template = await readFile(skinIniTemplatePath, "utf8")
   const positionLines = template
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -76,7 +79,7 @@ test("uses combo and score position wildcards", async () => {
 })
 
 test("references the produced shared long-note body and tail paths for every lane", async () => {
-  const template = await readFile(path.resolve("src", "templates", "skin.ini"), "utf8")
+  const template = await readFile(skinIniTemplatePath, "utf8")
   const longNoteLines = template
     .split(/\r?\n/)
     .map((line) => line.trim())

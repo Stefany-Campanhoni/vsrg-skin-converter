@@ -8,7 +8,8 @@ regressions.
 
 ### Scope and workspace state
 
-- Name the conversion route being changed, currently Etterna to osu!mania.
+- Name the conversion route being changed: Etterna to osu!mania or the 4K-only osu!mania to
+  Etterna route.
 - List the files or responsibilities believed to be involved without forcing an incorrect
   implementation location.
 - State whether existing uncommitted changes must be preserved.
@@ -27,7 +28,8 @@ regressions.
 - Put generic filesystem, image, and language mechanisms in `src/infrastructure`.
 - Put Etterna interpretation in `src/adapters/etterna`.
 - Put osu! filenames and fallback policy in `src/adapters/osu`.
-- Put source-to-target equivalences in `src/conversions/etterna-to-osu`.
+- Put source-to-target equivalences in the exact
+  `src/conversions/<source>-to-<target>` directory.
 - Keep empirical target calibration in the target adapter's calibration module.
 - Keep runtime paths in `src/config`, but keep the exact target asset inventory in its
   writer. Do not make a writer discover filenames from the repository's global template at
@@ -41,6 +43,10 @@ regressions.
 - Require injected or replaceable callbacks to use `invokeAsPromise` so synchronous throws
   cannot prevent later siblings from starting.
 - State whether any output may be published after preparation fails.
+- For multi-target installation, require every builder to settle before publication and
+  require rollback of every promoted target when any later promotion fails.
+- Require an explicit CLI confirmation before replacing an existing target. Declining or
+  cancelling must return before allocating a profile or constructing publication work.
 
 ### Evidence and compatibility
 
@@ -53,8 +59,40 @@ regressions.
   approved follow-up calibrations take precedence when they differ.
 - When changing a template prefix or asset inventory, update `skin.ini`, the owning writer,
   isolated writer fixtures, and the end-to-end output assertions together.
+- When changing shared code or either CLI route, run both direction integration tests and
+  state how the existing Etterna-to-osu! semantics were preserved.
 
-## Receptor-Specific Invariants
+## osu! to Etterna Prompt Requirements
+
+- State that the current reverse scope is 4K only and whether the change affects NoteSkin,
+  profile, or both.
+- Name the required `[Mania]` properties and whether each image reference is explicit or
+  implicit density.
+- Preserve the CFG rule: `Fullscreen` selects the dimension pair; width above `1280` or
+  height above `720` selects implicit `@2x`; explicit `@2x` always wins; no density fallback.
+- State that density selects the osu! input asset. It does not change receptor/note output
+  geometry, but judgement density selects standard versus `(Doubleres)` sheet naming.
+- Specify the exact NoteSkin, profile, judgement, and asset-configuration destinations and
+  the expected profile-ID/GUID behavior.
+- Keep judgement/combo zoom, fonts, and long notes excluded unless the prompt explicitly
+  expands scope; judgement images are part of the supported reverse route.
+- Require the inverse formulas and rounding behavior. Name all four fixed ` (res 64x64)` tap
+  note outputs at exactly 150x150 and all eight fixed normal/pressed receptor outputs at
+  exactly 146x146.
+- Require reverse receptor processing in this exact order: vertical trim, source-width
+  square, then exact 146x146 resize.
+- Require a transparent normal receptor to remain transparent and a transparent pressed
+  receptor to fall back to the processed normal from the same direction. Unreadable images
+  must still abort with context.
+- Put future game-specific output calibrations in the target adapter, never the neutral
+  domain or generic image infrastructure.
+- Require overwrite-decline and cross-target rollback tests, not only the successful output.
+- For judgement changes, state the semantic six-row order, common-density requirement,
+  standard versus `(Doubleres)` naming, no-scaling rule, transparent centering behavior,
+  active-theme `assetsConfig.lua` ownership, optimistic content expectation, and rollback
+  expectations for all four outputs.
+
+## Etterna-to-osu! Receptor-Specific Invariants
 
 - Frame extraction happens before rotation.
 - Width normalization happens after rotation and before target vertical scaling.
@@ -99,6 +137,8 @@ Verification:
 - Add a failing regression test first and prove it detects the broken behavior.
 - Use valid generated image buffers except in decoder-failure tests.
 - Cover happy path, boundaries, fallback, failure context, and quiescence.
+- Assert exact output dimensions and transformation order where image geometry changes.
+- Run both direction integration tests and report their exact pass/fail counts.
 - Audit [representative tmp skins].
 - Run test, typecheck, lint, architecture, and diff-check gates.
 

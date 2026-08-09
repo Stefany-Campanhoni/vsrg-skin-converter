@@ -1,142 +1,27 @@
-import { EtternaSkinCatalog } from "../adapters/etterna/catalog/etterna-skin-catalog.ts"
-import {
-  type EtternaProfile,
-  listEtternaProfiles,
-} from "../adapters/etterna/profile/etterna-profile-catalog.ts"
-import { EtternaSkinReader } from "../adapters/etterna/reader/etterna-skin-reader.ts"
-import { readEtternaTheme } from "../adapters/etterna/theme/read-etterna-theme.ts"
-import { OsuSkinWriter } from "../adapters/osu/writer/osu-skin-writer.ts"
-import { ConversionRegistry } from "../application/conversion/conversion-registry.ts"
-import { convertSkin } from "../application/conversion/convert-skin.ts"
-import type { SkinCatalog } from "../application/ports/skin-catalog.ts"
-import type { SkinReader } from "../application/ports/skin-reader.ts"
-import type { SkinWriter } from "../application/ports/skin-writer.ts"
-import { gameDefaults } from "../config/game-defaults.ts"
-import { resolveDefaultOsuInstallationDirectory } from "../config/osu-installation.ts"
-import { osuTemplatesPath, resolveOsuSkinOutputPath } from "../config/paths.ts"
-import { EtternaToOsuConversion } from "../conversions/etterna-to-osu/etterna-to-osu-conversion.ts"
-import type { GameId } from "../domain/game.ts"
-import { TransactionalOutputPublisher } from "../infrastructure/filesystem/transactional-output-publisher.ts"
-import { pickDirectory } from "./folder-picker.ts"
-import {
-  directoryExists,
-  type InstallationDirectoryDependencies,
-  resolveInstallationDirectory,
-} from "./installation-directory.ts"
-import { askSelect, type SelectOption, waitForAnyKey } from "./prompts.ts"
+import { gameIds } from "../domain/game.ts"
+import { askSelect, type SelectOption } from "./prompts.ts"
+import { runEtternaToOsuRoute } from "./routes/run-etterna-to-osu.ts"
+import { runOsuToEtternaRoute } from "./routes/run-osu-to-etterna.ts"
 
-type SelectProfile = (message: string, options: SelectOption[]) => Promise<string | undefined>
+export interface CliDependencies {
+  askSelect(message: string, options: SelectOption[]): Promise<string | undefined>
+  runEtternaToOsuRoute(): Promise<void>
+  runOsuToEtternaRoute(): Promise<void>
+}
 
-export async function runCli(): Promise<void> {
-  const catalogs = new Map<GameId, SkinCatalog>([["etterna", new EtternaSkinCatalog()]])
-  const writers = new Map<GameId, SkinWriter>([["osu", new OsuSkinWriter(osuTemplatesPath)]])
-  const conversions = new ConversionRegistry([new EtternaToOsuConversion()])
+const defaultDependencies: CliDependencies = {
+  askSelect,
+  runEtternaToOsuRoute,
+  runOsuToEtternaRoute,
+}
 
-  const sourceGame = await askSelect(
+export async function runCli(dependencies: CliDependencies = defaultDependencies): Promise<void> {
+  const source = await dependencies.askSelect(
     "Select the source game:",
-    [...catalogs.keys()].map((game) => ({ value: game, label: game })),
+    gameIds.map((game) => ({ value: game, label: game })),
   )
-  if (!sourceGame) {
-    return
-  }
-  const source = sourceGame as GameId
-  const gameLocation = await resolveInstallationDirectory(
-    gameDefaults[source].location,
-    "Etterna was not found. Press any key to select its installation folder.",
-    installationDirectoryDependencies,
-  )
-  if (!gameLocation) {
-    return
-  }
-  const selectedProfile = await selectEtternaProfile(
-    await listEtternaProfiles(gameLocation),
-    askSelect,
-  )
-  if (!selectedProfile) {
-    return
-  }
-  const readers = new Map<GameId, SkinReader>([
-    [
-      "etterna",
-      new EtternaSkinReader({
-        profileId: selectedProfile,
-        theme: await readEtternaTheme(gameLocation),
-      }),
-    ],
-  ])
-
-  const catalog = catalogs.get(source)
-  if (!catalog) {
-    throw new Error(`No skin catalog is registered for ${source}`)
-  }
-  const skins = await catalog.listSkins(gameLocation)
-  const selectedPath = await askSelect(
-    "Select the skin to convert:",
-    skins.map((skin) => ({ value: skin.sourcePath, label: skin.name })),
-  )
-  if (!selectedPath) {
-    return
-  }
-  const reference = skins.find((skin) => skin.sourcePath === selectedPath)
-  if (!reference) {
-    throw new Error("Selected skin is not available")
-  }
-
-  const osuDefaultLocation = resolveDefaultOsuInstallationDirectory(process.env.LOCALAPPDATA)
-  const osuLocation = await resolveInstallationDirectory(
-    osuDefaultLocation,
-    "osu! was not found. Press any key to select its installation folder.",
-    installationDirectoryDependencies,
-  )
-  if (!osuLocation) {
-    return
-  }
-
-  const result = await convertSkin(
-    {
-      reference,
-      targetGame: "osu",
-      outputDirectory: resolveOsuSkinOutputPath(reference.name, osuLocation),
-    },
-    {
-      readers,
-      writers,
-      conversions,
-      publisher: new TransactionalOutputPublisher(),
-    },
-  )
-
-  for (const diagnostic of result.diagnostics) {
-    const direction = diagnostic.direction ? ` [${diagnostic.direction}]` : ""
-    console.warn(
-      `${diagnostic.severity.toUpperCase()} ${diagnostic.component}${direction}: ${diagnostic.message}`,
-    )
-  }
-}
-
-const installationDirectoryDependencies: InstallationDirectoryDependencies = {
-  directoryExists,
-  waitForAnyKey,
-  pickDirectory,
-}
-
-export async function selectEtternaProfile(
-  profiles: EtternaProfile[],
-  selectProfile: SelectProfile,
-): Promise<string | undefined> {
-  if (profiles.length === 1) {
-    return profiles[0]?.id
-  }
-  const selectedProfileId = await selectProfile(
-    "Select the Etterna profile:",
-    profiles.map((profile) => ({ value: profile.id, label: profile.displayName })),
-  )
-  if (!selectedProfileId) {
-    return undefined
-  }
-  const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId)
-  if (!selectedProfile) {
-    throw new Error("Selected Etterna profile is not available")
-  }
-  return selectedProfile.id
+  if (!source) return
+  if (source === "etterna") return dependencies.runEtternaToOsuRoute()
+  if (source === "osu") return dependencies.runOsuToEtternaRoute()
+  throw new Error(`Unsupported source game: ${source}`)
 }

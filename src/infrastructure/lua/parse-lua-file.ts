@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs"
-import luaparse, { type Chunk } from "luaparse"
+import type { Chunk } from "luaparse"
+import { parseLuaSource } from "./parse-lua-source.ts"
 
 export function parseLuaFile(luaFile: string): Chunk {
   const source = readFileSync(luaFile, "utf-8")
 
-  return luaparse.parse(source)
+  return parseLuaSource(source)
 }

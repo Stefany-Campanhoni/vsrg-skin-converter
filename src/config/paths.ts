@@ -1,6 +1,7 @@
 import path from "node:path"
 
-export const osuTemplatesPath = path.resolve("src", "templates")
+export const osuTemplatesPath = path.resolve("src", "templates", "osu")
+export const etternaTemplatesPath = path.resolve("src", "templates", "etterna")
 
 export function resolveOsuSkinOutputPath(
   skinName: string,

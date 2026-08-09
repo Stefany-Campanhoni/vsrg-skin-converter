@@ -1,11 +1,11 @@
 # VSRG Skin Converter
 
 VSRG Skin Converter is a TypeScript CLI for translating vertical-scrolling rhythm-game
-skins. The currently supported route is Etterna to osu!mania.
+skins. It supports Etterna to osu!mania and a 4K-only osu!mania to Etterna route.
 
-The converter statically analyzes Etterna `NoteSkin.lua` files, resolves receptors and tap
-notes, converts gameplay coordinates, renders the osu! assets described by the template, and
-publishes a complete skin directly into the local osu! installation.
+The converter either analyzes an Etterna `NoteSkin.lua` and publishes an osu! skin, or reads
+an osu! `skin.ini` and publishes an Etterna NoteSkin together with a new local profile. The
+two directions use independent readers, conversions, target writers, and publication flows.
 
 ## Requirements
 
@@ -33,19 +33,45 @@ For development with automatic restart:
 npm run dev
 ```
 
-The CLI first checks the default Etterna installation at `C:/Games/Etterna`. If it is
-missing, the CLI waits for a keypress and opens a native folder picker. It then discovers
-local profiles under `Save/LocalProfiles`, automatically uses the only profile or asks when
-multiple profiles exist, and discovers skins under `NoteSkins/dance`. The active Etterna
-theme comes from `Save/Preferences.ini`, so playfield and judgement settings use the
-selected profile and theme.
+The CLI first asks for the source game. Missing default installations are recovered through
+the same keypress and native folder-picker flow in either direction; cancelling a picker or
+selection ends the operation without publishing.
+
+For Etterna sources, the CLI checks `C:/Games/Etterna`, discovers local profiles under
+`Save/LocalProfiles`, and discovers skins under `NoteSkins/dance`. The active theme comes
+from `Save/Preferences.ini`, so playfield and judgement settings use the selected profile
+and theme.
 
 Before publication, the CLI checks the default osu! installation at
 `%LOCALAPPDATA%/osu!` and offers the same folder-picker recovery when unavailable. The
-complete skin is written to `<resolved osu! installation>/Skins/<skin name>`. Cancelling a
-picker ends the CLI without publishing. A successful run transactionally replaces only the
-named skin, while a failed run preserves its previous version and every other installed
-skin.
+complete skin is written to `<resolved osu! installation>/Skins/<skin name>`. A successful
+run transactionally replaces only the named skin, while a failed run preserves its previous
+version and every other installed skin.
+
+For osu! sources, the CLI discovers `osu!.*.cfg` files in the installation root. A single
+configuration is automatic; multiple configurations are selected by their `Username`.
+`Fullscreen` chooses either `WidthFullscreen`/`HeightFullscreen` or `Width`/`Height`.
+Resolutions wider than `1280` or taller than `720` use implicit `@2x` assets; exactly
+`1280x720` is standard density. An explicit `@2x` reference always uses that file, and the
+resolver never falls back between densities. Only PNG assets are supported.
+
+The reverse route reads exactly one 4K `[Mania]` section and installs:
+
+- `<Etterna>/NoteSkins/dance/<General Name>` with four normal receptors, four pressed
+  receptors, four tap notes, and the static Etterna NoteSkin template;
+- the next eight-digit directory below `<Etterna>/Save/LocalProfiles`, containing a new
+  profile named after the selected osu! `Username` and settings below
+  `<active-theme>_settings/playerConfig.lua`;
+- a generated judgement sheet below `<Etterna>/Assets/Judgments` and its profile-GUID
+  mapping in `<Etterna>/Save/<active-theme>_settings/assetsConfig.lua`.
+
+If the NoteSkin already exists, the CLI asks for explicit overwrite confirmation before
+allocating or publishing a profile. The NoteSkin, profile, judgement sheet, and asset
+configuration are staged together and published atomically; a failure restores every
+previous target and removes incomplete new output.
+
+The reverse route migrates the six judgement images, but not judgement/combo zoom, fonts,
+or long-note assets. Those remaining values and assets stay owned by the Etterna template.
 
 The osu! template supplies fixed long-note assets. `LNB.png` is copied byte-for-byte to
 `mania/lns/body.png`, and `LNT.png` is copied byte-for-byte to `mania/lns/tail.png`.
@@ -75,6 +101,7 @@ npm test
 npm run typecheck
 npm run lint
 npm run test:architecture
+npx tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
@@ -95,6 +122,8 @@ src/
   domain/
   infrastructure/
   templates/
+    etterna/
+    osu/
 tests/
   architecture/
   integration/
@@ -148,3 +177,33 @@ into generic image processing.
 
 Generated receptors use osu!'s `@2x` suffix, including pressed variants such as
 `left_tap@2x.png`; the `skin.ini` template references the same names.
+
+For osu! to Etterna, the inverse coordinate and width formulas are:
+
+```text
+NoteFieldY   = round(HitPosition) - 439
+ComboY       = round(ComboPosition) - 229
+JudgmentY    = round(ScorePosition) - 240
+ReceptorSize = round(arithmeticMean(ColumnWidth) + 38)
+```
+
+Source density selects only the osu! receptor/note input asset; it does not change those
+Etterna output names or dimensions. The four generated notes are `_Left Tap Note (res 64x64).png`, `_Down Tap Note
+(res 64x64).png`, `_Up Tap Note (res 64x64).png`, and `_Right Tap Note (res 64x64).png`, each
+resized to exactly 150x150 pixels.
+
+The eight generated receptors use the same fixed ` (res 64x64)` decoration with `release`
+and `pressed` prefixes. Each receptor is vertically trimmed to its visible rows, reshaped to
+a square whose sides equal the source width, and then resized to exactly 146x146 pixels. A
+fully transparent normal receptor remains transparent at the fixed output size. A fully
+transparent pressed receptor uses the processed normal receptor for the same direction;
+unreadable images remain fatal errors. Static template assets keep their template-defined
+names, including any `(doubleres)` decoration outside generated `Notes` and `Receptors`.
+
+The six osu! Mania judgement references are stacked without scaling in Etterna order:
+`marvelous`, `perfect`, `great`, `good`, `bad`, `miss`. Unequal images are centered in
+transparent cells sized to the maximum source width and height. All six inputs must resolve
+to one density. Standard input produces `<skin> - <guid> 1x6.png`; double-resolution input
+produces `<skin> - <guid> 1x6 (Doubleres).png`. The active theme's existing
+`assetsConfig.lua` is preserved apart from the new `judgment[guid]` mapping, and a concurrent
+change to that file aborts publication instead of overwriting it.
