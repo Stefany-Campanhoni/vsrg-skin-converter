@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
-import { cp, mkdir, rename, rm, stat } from "node:fs/promises"
+import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
@@ -26,7 +26,35 @@ export interface AssembleWindowsPortableOptions {
   readonly readmePath: string
   readonly noticesPath: string
   readonly licensePath: string
-  readonly dependencies?: { readonly token?: () => string }
+  readonly dependencies?: {
+    readonly token?: () => string
+    readonly renamePath?: (source: string, destination: string) => Promise<void>
+    readonly delay?: (milliseconds: number) => Promise<void>
+  }
+}
+
+async function delay(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
+async function renameWithTransientRetry(
+  source: string,
+  destination: string,
+  renamePath: (source: string, destination: string) => Promise<void>,
+  wait: (milliseconds: number) => Promise<void>,
+): Promise<void> {
+  const delays = [50, 100, 200, 400]
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await renamePath(source, destination)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      const retryDelay = delays[attempt]
+      if ((code !== "EPERM" && code !== "EBUSY") || retryDelay === undefined) throw error
+      await wait(retryDelay)
+    }
+  }
 }
 
 async function assertRegularFile(file: string): Promise<void> {
@@ -61,6 +89,22 @@ function assertSafePackageRoot(packageRoot: string): void {
   }
 }
 
+async function removeDevelopmentArtifacts(nodeModulesRoot: string): Promise<void> {
+  const entries = await readdir(nodeModulesRoot, { recursive: true, withFileTypes: true })
+  const targets = entries
+    .filter((entry) => {
+      const lower = entry.name.toLowerCase()
+      return (
+        (entry.isDirectory() && lower === ".cache") ||
+        (entry.isFile() &&
+          (lower.endsWith(".ts") || /\.test\.[^.]+$/.test(lower) || lower.endsWith(".map")))
+      )
+    })
+    .map((entry) => path.join(entry.parentPath, entry.name))
+    .sort((left, right) => right.length - left.length)
+  for (const target of targets) await rm(target, { recursive: true, force: true })
+}
+
 export async function assembleWindowsPortable(
   options: AssembleWindowsPortableOptions,
 ): Promise<PortablePackage> {
@@ -84,12 +128,17 @@ export async function assembleWindowsPortable(
     assertRegularFile(sources.notices),
     assertRegularFile(sources.license),
     assertDirectory(path.join(sources.nodeModules, "sharp")),
-    assertDirectory(path.join(sources.nodeModules, "@img")),
+    assertDirectory(path.join(sources.nodeModules, "detect-libc")),
+    assertDirectory(path.join(sources.nodeModules, "semver")),
+    assertDirectory(path.join(sources.nodeModules, "@img", "colour")),
+    assertDirectory(path.join(sources.nodeModules, "@img", "sharp-win32-x64")),
     assertDirectory(path.join(sources.templates, "osu")),
     assertDirectory(path.join(sources.templates, "etterna")),
   ])
 
   const token = options.dependencies?.token?.() ?? randomUUID()
+  const renamePath = options.dependencies?.renamePath ?? rename
+  const wait = options.dependencies?.delay ?? delay
   const stagingRoot = `${packageRoot}.${token}.staging`
   const backupRoot = `${packageRoot}.${token}.backup`
   await mkdir(path.dirname(packageRoot), { recursive: true })
@@ -113,11 +162,26 @@ export async function assembleWindowsPortable(
         errorOnExist: true,
         force: false,
       }),
-      cp(path.join(sources.nodeModules, "@img"), path.join(stagingRoot, "node_modules", "@img"), {
-        recursive: true,
-        errorOnExist: true,
-        force: false,
-      }),
+      cp(
+        path.join(sources.nodeModules, "@img", "colour"),
+        path.join(stagingRoot, "node_modules", "@img", "colour"),
+        { recursive: true, errorOnExist: true, force: false },
+      ),
+      cp(
+        path.join(sources.nodeModules, "@img", "sharp-win32-x64"),
+        path.join(stagingRoot, "node_modules", "@img", "sharp-win32-x64"),
+        { recursive: true, errorOnExist: true, force: false },
+      ),
+      cp(
+        path.join(sources.nodeModules, "detect-libc"),
+        path.join(stagingRoot, "node_modules", "detect-libc"),
+        { recursive: true, errorOnExist: true, force: false },
+      ),
+      cp(
+        path.join(sources.nodeModules, "semver"),
+        path.join(stagingRoot, "node_modules", "semver"),
+        { recursive: true, errorOnExist: true, force: false },
+      ),
       cp(path.join(sources.templates, "osu"), path.join(stagingRoot, "templates", "osu"), {
         recursive: true,
         errorOnExist: true,
@@ -141,6 +205,7 @@ export async function assembleWindowsPortable(
         force: false,
       }),
     ])
+    await removeDevelopmentArtifacts(path.join(stagingRoot, "node_modules"))
 
     let hadPrevious = true
     try {
@@ -148,11 +213,11 @@ export async function assembleWindowsPortable(
     } catch {
       hadPrevious = false
     }
-    if (hadPrevious) await rename(packageRoot, backupRoot)
+    if (hadPrevious) await renameWithTransientRetry(packageRoot, backupRoot, renamePath, wait)
     try {
-      await rename(stagingRoot, packageRoot)
+      await renameWithTransientRetry(stagingRoot, packageRoot, renamePath, wait)
     } catch (error) {
-      if (hadPrevious) await rename(backupRoot, packageRoot)
+      if (hadPrevious) await renameWithTransientRetry(backupRoot, packageRoot, renamePath, wait)
       throw error
     }
     await rm(backupRoot, { recursive: true, force: true })

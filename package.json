@@ -5,6 +5,8 @@
   "scripts": {
     "build": "node scripts/release/build-application.ts",
     "build:windows": "node scripts/release/assemble-windows-portable.ts",
+    "test:distribution": "node --test tests/distribution/*.test.ts && node scripts/release/create-windows-release.ts",
+    "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node scripts/release/create-windows-release.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
     "typecheck": "tsc --noEmit",

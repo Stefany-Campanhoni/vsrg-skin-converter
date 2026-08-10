@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -20,13 +20,21 @@ async function packageFixture() {
   const runtimeNodeModulesPath = path.join(source, "node_modules")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js"), "sharp")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "LICENSE"), "sharp license")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "lib", "index.d.ts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "test", "runtime.test.js"), "test")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js.map"), "map")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", ".cache", "state"), "cache")
+  await writeFixture(path.join(runtimeNodeModulesPath, "detect-libc", "index.js"), "detect-libc")
+  await writeFixture(path.join(runtimeNodeModulesPath, "semver", "index.js"), "semver")
+  await writeFixture(path.join(runtimeNodeModulesPath, ".bin", "semver.cmd"), "bin")
+  await writeFixture(path.join(runtimeNodeModulesPath, "@img", "colour", "index.js"), "colour")
   await writeFixture(
     path.join(runtimeNodeModulesPath, "@img", "sharp-win32-x64", "sharp.node"),
     "native",
   )
   await writeFixture(
-    path.join(runtimeNodeModulesPath, "@img", "sharp-libvips-win32-x64", "libvips.dll"),
-    "libvips",
+    path.join(runtimeNodeModulesPath, "@img", "sharp-wasm32", "sharp.wasm"),
+    "wasm",
   )
   const templatesRoot = path.join(source, "templates")
   await writeFixture(path.join(templatesRoot, "osu", "template.txt"), "osu-template")
@@ -84,8 +92,10 @@ test("assembles exactly the supported portable package with byte-identical templ
     "README.txt",
     "THIRD-PARTY-NOTICES.txt",
     "app.mjs",
-    "node_modules/@img/sharp-libvips-win32-x64/libvips.dll",
+    "node_modules/@img/colour/index.js",
     "node_modules/@img/sharp-win32-x64/sharp.node",
+    "node_modules/detect-libc/index.js",
+    "node_modules/semver/index.js",
     "node_modules/sharp/LICENSE",
     "node_modules/sharp/index.js",
     "runtime/node.exe",
@@ -127,4 +137,36 @@ test("preserves a previous package and removes staging when assembly fails", asy
     (await readdir(path.dirname(fixture.packageRoot))).filter((name) => name.includes(".staging")),
     [],
   )
+})
+
+test("retries a transient Windows sharing violation while promoting staging", async (context) => {
+  const fixture = await packageFixture()
+  context.after(() => rm(fixture.root, { recursive: true }))
+  let promotionAttempts = 0
+  const events: string[] = []
+
+  await assembleWindowsPortable({
+    ...fixture,
+    dependencies: {
+      token: () => "retry",
+      delay: async (milliseconds) => {
+        events.push(`delay:${milliseconds}`)
+      },
+      renamePath: async (source, destination) => {
+        if (source.endsWith(".staging") && destination === fixture.packageRoot) {
+          promotionAttempts += 1
+          events.push("rename")
+          if (promotionAttempts === 1) {
+            const error = new Error("file is temporarily locked") as NodeJS.ErrnoException
+            error.code = "EPERM"
+            throw error
+          }
+        }
+        await rename(source, destination)
+      },
+    },
+  })
+
+  assert.equal(promotionAttempts, 2)
+  assert.deepEqual(events, ["rename", "delay:50", "rename"])
 })
