@@ -1,0 +1,23 @@
+THIRD-PARTY NOTICES
+===================
+
+This distribution includes third-party software. The VSRG Skin Converter authors do not claim
+authorship of these components.
+
+Node.js 22.23.2
+Copyright Node.js contributors. Distributed under the MIT License.
+Source and license: https://github.com/nodejs/node
+
+Sharp 0.35.3
+Copyright Lovell Fuller and contributors. Distributed under the Apache License 2.0.
+Source and license: https://github.com/lovell/sharp
+
+Prebuilt @img Sharp and libvips runtime packages
+Sharp native packages are distributed under the Apache License 2.0. The packaged libvips
+runtime includes software distributed under the GNU Lesser General Public License version 2.1
+or later and other dependency licenses. Package-specific license files are retained in the
+node_modules tree.
+Sources and licenses:
+https://github.com/lovell/sharp
+https://github.com/libvips/libvips
+https://www.libvips.org/install.html

@@ -4,6 +4,7 @@
   "main": "src/cli.ts",
   "scripts": {
     "build": "node scripts/release/build-application.ts",
+    "build:windows": "node scripts/release/assemble-windows-portable.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
     "typecheck": "tsc --noEmit",
