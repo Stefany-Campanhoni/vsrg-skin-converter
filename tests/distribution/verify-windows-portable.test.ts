@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -215,4 +215,122 @@ test("preserves the previous ZIP and checksum when extracted verification fails"
 
   assert.equal(await readFile(zipPath, "utf8"), "previous zip")
   assert.equal(await readFile(checksumPath, "utf8"), "previous checksum")
+})
+
+for (const failedBoundary of [
+  "backup ZIP",
+  "backup checksum",
+  "publish ZIP",
+  "publish checksum",
+] as const) {
+  test(`rolls back the previous release pair when ${failedBoundary} rename fails`, async (context) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-rollback-test-"))
+    context.after(() => rm(root, { recursive: true }))
+    const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
+    const packageRoot = path.join(root, "build", packageDirectoryName)
+    const releaseRoot = path.join(root, "release")
+    const zipPath = path.join(releaseRoot, `${packageDirectoryName}.zip`)
+    const checksumPath = `${zipPath}.sha256`
+    const token = failedBoundary.replace(" ", "-")
+    const zipBackup = `${zipPath}.${token}.backup`
+    const checksumBackup = `${checksumPath}.${token}.backup`
+    await writeFixture(path.join(packageRoot, "marker"), "package")
+    await writeFixture(zipPath, "previous zip")
+    await writeFixture(checksumPath, "previous checksum")
+    const cause = new Error(`failed ${failedBoundary}`)
+
+    await assert.rejects(
+      createWindowsRelease({
+        packageRoot,
+        packageDirectoryName,
+        zipPath,
+        checksumPath,
+        sourceTemplatesRoot: path.join(root, "templates"),
+        expectedVersion: "1.0.0",
+        dependencies: {
+          token: () => token,
+          compress: async (_source, destination) => writeFile(destination, "new zip"),
+          extract: async (_archive, destination) => {
+            await writeFixture(path.join(destination, packageDirectoryName, "marker"), "package")
+          },
+          hashFile: async () => "c".repeat(64),
+          verifyPackage: async () => {},
+          delay: async () => {},
+          renamePath: async (source, destination) => {
+            const boundary =
+              source === zipPath && destination === zipBackup
+                ? "backup ZIP"
+                : source === checksumPath && destination === checksumBackup
+                  ? "backup checksum"
+                  : source.endsWith(".tmp.zip") && destination === zipPath
+                    ? "publish ZIP"
+                    : source.endsWith(".tmp.zip.sha256") && destination === checksumPath
+                      ? "publish checksum"
+                      : undefined
+            if (boundary === failedBoundary) throw cause
+            await rename(source, destination)
+          },
+        },
+      }),
+      (error: unknown) => error === cause,
+    )
+
+    assert.equal(await readFile(zipPath, "utf8"), "previous zip")
+    assert.equal(await readFile(checksumPath, "utf8"), "previous checksum")
+  })
+}
+
+test("retains both recovery backups when rollback cannot restore the previous pair", async (context) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-recovery-test-"))
+  context.after(() => rm(root, { recursive: true }))
+  const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
+  const packageRoot = path.join(root, "build", packageDirectoryName)
+  const releaseRoot = path.join(root, "release")
+  const zipPath = path.join(releaseRoot, `${packageDirectoryName}.zip`)
+  const checksumPath = `${zipPath}.sha256`
+  const token = "recovery"
+  const zipBackup = `${zipPath}.${token}.backup`
+  const checksumBackup = `${checksumPath}.${token}.backup`
+  await writeFixture(path.join(packageRoot, "marker"), "package")
+  await writeFixture(zipPath, "previous zip")
+  await writeFixture(checksumPath, "previous checksum")
+  const publicationCause = new Error("failed checksum publication")
+  const restorationCause = new Error("failed ZIP restoration")
+
+  await assert.rejects(
+    createWindowsRelease({
+      packageRoot,
+      packageDirectoryName,
+      zipPath,
+      checksumPath,
+      sourceTemplatesRoot: path.join(root, "templates"),
+      expectedVersion: "1.0.0",
+      dependencies: {
+        token: () => token,
+        compress: async (_source, destination) => writeFile(destination, "new zip"),
+        extract: async (_archive, destination) => {
+          await writeFixture(path.join(destination, packageDirectoryName, "marker"), "package")
+        },
+        hashFile: async () => "d".repeat(64),
+        verifyPackage: async () => {},
+        delay: async () => {},
+        renamePath: async (source, destination) => {
+          if (source.endsWith(".tmp.zip.sha256") && destination === checksumPath) {
+            throw publicationCause
+          }
+          if (source === zipBackup && destination === zipPath) throw restorationCause
+          await rename(source, destination)
+        },
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AggregateError)
+      assert.equal(error.cause, publicationCause)
+      assert.deepEqual(error.errors, [publicationCause, restorationCause])
+      return true
+    },
+  )
+
+  assert.equal(await readFile(zipBackup, "utf8"), "previous zip")
+  assert.equal(await readFile(checksumBackup, "utf8"), "previous checksum")
 })

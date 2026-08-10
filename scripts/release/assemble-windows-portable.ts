@@ -8,6 +8,7 @@ import { acquireNodeRuntime } from "./acquire-node-runtime.ts"
 import { buildApplication } from "./build-application.ts"
 import { installRuntimeDependencies } from "./install-runtime-dependencies.ts"
 import { getReleasePaths } from "./release-config.ts"
+import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 
 export interface PortablePackage {
   readonly root: string
@@ -35,26 +36,6 @@ export interface AssembleWindowsPortableOptions {
 
 async function delay(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
-}
-
-async function renameWithTransientRetry(
-  source: string,
-  destination: string,
-  renamePath: (source: string, destination: string) => Promise<void>,
-  wait: (milliseconds: number) => Promise<void>,
-): Promise<void> {
-  const delays = [50, 100, 200, 400]
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      await renamePath(source, destination)
-      return
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code
-      const retryDelay = delays[attempt]
-      if ((code !== "EPERM" && code !== "EBUSY") || retryDelay === undefined) throw error
-      await wait(retryDelay)
-    }
-  }
 }
 
 async function assertRegularFile(file: string): Promise<void> {
@@ -141,6 +122,8 @@ export async function assembleWindowsPortable(
   const wait = options.dependencies?.delay ?? delay
   const stagingRoot = `${packageRoot}.${token}.staging`
   const backupRoot = `${packageRoot}.${token}.backup`
+  let backupCreated = false
+  let backupNeedsRecovery = false
   await mkdir(path.dirname(packageRoot), { recursive: true })
   await rm(stagingRoot, { recursive: true, force: true })
   try {
@@ -213,17 +196,35 @@ export async function assembleWindowsPortable(
     } catch {
       hadPrevious = false
     }
-    if (hadPrevious) await renameWithTransientRetry(packageRoot, backupRoot, renamePath, wait)
+    if (hadPrevious) {
+      await renameWithTransientRetry(packageRoot, backupRoot, renamePath, wait)
+      backupCreated = true
+    }
     try {
       await renameWithTransientRetry(stagingRoot, packageRoot, renamePath, wait)
-    } catch (error) {
-      if (hadPrevious) await renameWithTransientRetry(backupRoot, packageRoot, renamePath, wait)
-      throw error
+    } catch (promotionError) {
+      if (backupCreated) {
+        try {
+          await renameWithTransientRetry(backupRoot, packageRoot, renamePath, wait)
+          backupCreated = false
+        } catch (restorationError) {
+          backupNeedsRecovery = true
+          throw new AggregateError(
+            [promotionError, restorationError],
+            "Portable package promotion failed and rollback was incomplete; the recovery backup was retained",
+            { cause: promotionError },
+          )
+        }
+      }
+      throw promotionError
     }
     await rm(backupRoot, { recursive: true, force: true })
+    backupCreated = false
   } finally {
     await rm(stagingRoot, { recursive: true, force: true })
-    await rm(backupRoot, { recursive: true, force: true })
+    if (backupCreated && !backupNeedsRecovery) {
+      await rm(backupRoot, { recursive: true, force: true })
+    }
   }
 
   return {

@@ -7,6 +7,7 @@ import { pipeline } from "node:stream/promises"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
 import { getReleasePaths } from "./release-config.ts"
+import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 import { verifyWindowsPortable } from "./verify-windows-portable.ts"
 
 export interface ReleaseArtifact {
@@ -21,6 +22,8 @@ export interface WindowsReleaseDependencies {
   readonly extract: (archive: string, destination: string) => Promise<void>
   readonly hashFile: (file: string) => Promise<string>
   readonly verifyPackage: (packageRoot: string) => Promise<void>
+  readonly renamePath: (source: string, destination: string) => Promise<void>
+  readonly delay: (milliseconds: number) => Promise<void>
 }
 
 export interface CreateWindowsReleaseOptions {
@@ -71,6 +74,10 @@ async function hashFile(file: string): Promise<string> {
   return hash.digest("hex")
 }
 
+async function delay(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds))
+}
+
 function assertReleasePaths(options: CreateWindowsReleaseOptions): void {
   const packageRoot = path.resolve(options.packageRoot)
   const zipPath = path.resolve(options.zipPath)
@@ -118,6 +125,8 @@ export async function createWindowsRelease(
     compress,
     extract,
     hashFile,
+    renamePath: rename,
+    delay,
     verifyPackage: async (root) =>
       verifyWindowsPortable({
         packageRoot: root,
@@ -139,14 +148,13 @@ export async function createWindowsRelease(
   const zipBackup = `${zipPath}.${token}.backup`
   const checksumBackup = `${checksumPath}.${token}.backup`
   await mkdir(path.dirname(zipPath), { recursive: true })
-  for (const temporaryPath of [
-    temporaryZip,
-    temporaryChecksum,
-    extractionRoot,
-    zipBackup,
-    checksumBackup,
-  ]) {
+  for (const temporaryPath of [temporaryZip, temporaryChecksum, extractionRoot]) {
     await rm(temporaryPath, { recursive: true, force: true })
+  }
+  for (const backupPath of [zipBackup, checksumBackup]) {
+    if (await pathExists(backupPath)) {
+      throw new Error(`Refusing to overwrite a release recovery artifact: ${backupPath}`)
+    }
   }
 
   try {
@@ -178,21 +186,83 @@ export async function createWindowsRelease(
     if (hadZip !== hadChecksum) {
       throw new Error(`Refusing to replace an incomplete prior release pair: ${zipPath}`)
     }
-    if (hadZip) {
-      await rename(zipPath, zipBackup)
-      await rename(checksumPath, checksumBackup)
-    }
+    let zipBackedUp = false
+    let checksumBackedUp = false
+    let zipPublished = false
+    let checksumPublished = false
     try {
-      await rename(temporaryZip, zipPath)
-      await rename(temporaryChecksum, checksumPath)
-    } catch (error) {
-      await rm(zipPath, { force: true })
-      await rm(checksumPath, { force: true })
       if (hadZip) {
-        await rename(zipBackup, zipPath)
-        await rename(checksumBackup, checksumPath)
+        await renameWithTransientRetry(
+          zipPath,
+          zipBackup,
+          dependencies.renamePath,
+          dependencies.delay,
+        )
+        zipBackedUp = true
+        await renameWithTransientRetry(
+          checksumPath,
+          checksumBackup,
+          dependencies.renamePath,
+          dependencies.delay,
+        )
+        checksumBackedUp = true
       }
-      throw error
+      await renameWithTransientRetry(
+        temporaryZip,
+        zipPath,
+        dependencies.renamePath,
+        dependencies.delay,
+      )
+      zipPublished = true
+      await renameWithTransientRetry(
+        temporaryChecksum,
+        checksumPath,
+        dependencies.renamePath,
+        dependencies.delay,
+      )
+      checksumPublished = true
+    } catch (publicationError) {
+      const rollbackErrors: unknown[] = []
+      try {
+        if (zipPublished) await rm(zipPath, { force: true })
+        if (checksumPublished) await rm(checksumPath, { force: true })
+      } catch (error) {
+        rollbackErrors.push(error)
+      }
+      if (rollbackErrors.length === 0 && zipBackedUp) {
+        try {
+          await renameWithTransientRetry(
+            zipBackup,
+            zipPath,
+            dependencies.renamePath,
+            dependencies.delay,
+          )
+          zipBackedUp = false
+        } catch (error) {
+          rollbackErrors.push(error)
+        }
+      }
+      if (rollbackErrors.length === 0 && checksumBackedUp) {
+        try {
+          await renameWithTransientRetry(
+            checksumBackup,
+            checksumPath,
+            dependencies.renamePath,
+            dependencies.delay,
+          )
+          checksumBackedUp = false
+        } catch (error) {
+          rollbackErrors.push(error)
+        }
+      }
+      if (rollbackErrors.length > 0) {
+        throw new AggregateError(
+          [publicationError, ...rollbackErrors],
+          "Windows release publication failed and rollback was incomplete; recovery backups were retained",
+          { cause: publicationError },
+        )
+      }
+      throw publicationError
     }
     await rm(zipBackup, { force: true })
     await rm(checksumBackup, { force: true })
@@ -201,8 +271,6 @@ export async function createWindowsRelease(
     await rm(temporaryZip, { force: true })
     await rm(temporaryChecksum, { force: true })
     await rm(extractionRoot, { recursive: true, force: true })
-    await rm(zipBackup, { force: true })
-    await rm(checksumBackup, { force: true })
   }
 }
 

@@ -170,3 +170,41 @@ test("retries a transient Windows sharing violation while promoting staging", as
   assert.equal(promotionAttempts, 2)
   assert.deepEqual(events, ["rename", "delay:50", "rename"])
 })
+
+test("retains the previous package backup when rollback restoration fails", async (context) => {
+  const fixture = await packageFixture()
+  context.after(() => rm(fixture.root, { recursive: true }))
+  await mkdir(fixture.packageRoot, { recursive: true })
+  await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
+  const token = "recovery"
+  const backupRoot = `${fixture.packageRoot}.${token}.backup`
+  const promotionCause = new Error("promotion failed")
+  const restorationCause = new Error("restoration failed")
+
+  await assert.rejects(
+    assembleWindowsPortable({
+      ...fixture,
+      dependencies: {
+        token: () => token,
+        delay: async () => {},
+        renamePath: async (source, destination) => {
+          if (source.endsWith(".staging") && destination === fixture.packageRoot) {
+            throw promotionCause
+          }
+          if (source === backupRoot && destination === fixture.packageRoot) {
+            throw restorationCause
+          }
+          await rename(source, destination)
+        },
+      },
+    }),
+    (error: unknown) => {
+      assert.ok(error instanceof AggregateError)
+      assert.equal(error.cause, promotionCause)
+      assert.deepEqual(error.errors, [promotionCause, restorationCause])
+      return true
+    },
+  )
+
+  assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+})
