@@ -128,6 +128,28 @@ internal build-only sources after every output task succeeds. `templates/etterna
 and `templates/etterna/profile` are independent bundles used by the reverse installer; the
 profile writer relocates `playerConfig.lua` below the active theme settings directory.
 
+## Windows Portable Distribution
+
+The maintained distribution pipeline is owned by `scripts/release`; it does not belong to a
+conversion adapter. esbuild bundles `src/cli.ts` as Node-targeted ESM while keeping `sharp`
+external. `src/application-root.ts` derives resources from `import.meta.url`, so the same
+invariant resolves `src/templates` during source execution and sibling `templates` beside
+`app.mjs` after packaging. No runtime resource depends on `process.cwd()`.
+
+The Windows x64 package includes pinned Node.js 22.23.2 and only the proven Sharp runtime
+closure: `sharp`, `detect-libc`, `semver`, `@img/colour`, and `@img/sharp-win32-x64`.
+Typings, tests, source maps, caches, npm command shims, and wasm fallbacks are excluded. The
+assembler copies external templates byte-for-byte into a unique staging sibling and promotes
+the completed package transactionally. Only transient Windows `EPERM`/`EBUSY` rename failures
+receive bounded backoff; validation and content errors never retry.
+
+The verifier rejects unexpected entries and links, compares every packaged template hash,
+runs the launcher from an external working directory, exercises paths containing spaces,
+performs a real Sharp resize with the included runtime, and reads both template roots. ZIP
+publication uses a temporary archive and checksum, validates SHA-256, extracts independently,
+repeats the full verifier, and only then replaces the previous release pair. The experimental
+Node SEA workstream remains unmerged and is not part of this architecture.
+
 ## Dependency Rules
 
 Production dependencies must follow these directions:

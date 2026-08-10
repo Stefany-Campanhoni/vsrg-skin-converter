@@ -12,10 +12,13 @@ Sharp 0.35.3
 Copyright Lovell Fuller and contributors. Distributed under the Apache License 2.0.
 Source and license: https://github.com/lovell/sharp
 
-Prebuilt @img Sharp and libvips runtime packages
-Sharp native packages are distributed under the Apache License 2.0. The packaged libvips
-runtime includes software distributed under the GNU Lesser General Public License version 2.1
-or later and other dependency licenses. Package-specific license files are retained in the
+Sharp runtime dependency closure
+detect-libc 2.1.2 is distributed under the Apache License 2.0.
+semver 7.8.5 is distributed under the ISC License.
+@img/colour 1.1.0 is distributed under the MIT License.
+@img/sharp-win32-x64 0.35.3 declares Apache-2.0 AND LGPL-3.0-or-later. Its packaged libvips
+runtime includes software under the GNU Lesser General Public License version 3.0 or later
+and other dependency licenses. Package-specific license files are retained in the
 node_modules tree.
 Sources and licenses:
 https://github.com/lovell/sharp

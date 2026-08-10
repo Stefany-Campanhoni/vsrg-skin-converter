@@ -7,7 +7,33 @@ The converter either analyzes an Etterna `NoteSkin.lua` and publishes an osu! sk
 an osu! `skin.ini` and publishes an Etterna NoteSkin together with a new local profile. The
 two directions use independent readers, conversions, target writers, and publication flows.
 
-## Requirements
+## Windows x64 Portable Release
+
+End users do not need Node.js or npm. Download the versioned Windows x64 ZIP, verify its
+adjacent `.sha256` file, extract the whole top-level directory, and run
+`vsrg-skin-converter.cmd`. The launcher accepts `--help` and `--version`; without arguments it
+starts the existing interactive converter. Keep `runtime`, `node_modules`, and `templates`
+beside the launcher.
+
+The portable ZIP contains the bundled ESM application, Node.js 22.23.2, the minimum Sharp
+Windows x64 dependency closure, external osu!/Etterna templates, the project license, and
+third-party notices. It is not an installer, is not code-signed, does not update itself, and
+does not support Windows ARM64, Linux, or macOS. Node SEA remains an isolated, unmerged
+experiment and is not a supported release format.
+
+```text
+vsrg-skin-converter-v<version>-win-x64/
+|-- vsrg-skin-converter.cmd
+|-- app.mjs
+|-- runtime/node.exe
+|-- node_modules/
+|-- templates/{osu,etterna}/
+|-- README.txt
+|-- LICENSE
+`-- THIRD-PARTY-NOTICES.txt
+```
+
+## Development Requirements
 
 - Node.js 22.18 or newer
 - Windows, for the native installation-folder picker
@@ -18,6 +44,26 @@ Install dependencies:
 ```sh
 npm install
 ```
+
+The maintained release commands are:
+
+```sh
+npm run build
+npm run build:windows
+npm run test:distribution
+npm run release:windows
+```
+
+`build` creates `build/app.mjs`. `build:windows` assembles the unpacked package under
+`build/windows-portable`. `test:distribution` runs the distribution tests and publishes a
+ZIP only after independent extraction and full verification. `release:windows` runs every
+quality gate, rebuilds the package, and transactionally writes the ZIP and checksum under
+`release`. These generated roots and `.cache/release` are ignored.
+
+The pinned Node archive metadata lives in `scripts/release/release-config.ts`. To update it,
+select a supported Node 22 LTS Windows x64 patch, replace the exact version, archive name,
+official URL, and SHA-256 together, regenerate and inspect the runtime package lock when
+needed, then run the complete release gate. Never accept an unverified cached download.
 
 ## Usage
 
@@ -91,8 +137,10 @@ Every grade is written as both SD and `@2x`. `(Doubleres)` sources preserve the
 original as `@2x` and generate SD at 50%; standard sources preserve the original
 as SD and generate `@2x` at 200%.
 
-Installation defaults, template paths, and osu! output-path resolution are defined in
-`src/config`.
+Installation defaults and osu! output-path resolution are defined in `src/config`. Template
+paths derive from the module-relative application root: source execution finds
+`src/templates`, while `app.mjs` finds the copied release `templates`, regardless of the
+current working directory.
 
 ## Verification
 
@@ -126,7 +174,11 @@ src/
     osu/
 tests/
   architecture/
+  distribution/
   integration/
+scripts/
+  release/
+distribution/
 ```
 
 See [Architecture](docs/architecture.md) for the data flow and dependency boundaries, and

@@ -15,7 +15,9 @@ Place code with the responsibility that owns it:
 - technical filesystem, image, or language mechanisms: `src/infrastructure`;
 - runtime defaults and composition paths: `src/config`;
 - command-line interaction and wiring: `src/cli`;
+- maintained release configuration, assembly, and verification: `scripts/release`;
 - cross-layer integration tests: `tests/integration`;
+- portable artifact tests and real Windows smoke checks: `tests/distribution`;
 - dependency enforcement: `tests/architecture`.
 
 Do not create generic dumping grounds named `utils`, `helpers`, `common`, `objects`, or
@@ -104,6 +106,17 @@ npx tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
+Release changes additionally require:
+
+```sh
+npm run build:windows
+npm run test:distribution
+npm run release:windows
+```
+
+Never commit `build`, `release`, or `.cache/release` contents. Inspect the final ZIP manifest
+and checksum even when unit tests pass.
+
 Changes to Etterna analysis or image conversion also require a compatibility audit against
 the applicable real skins under `tmp`.
 
@@ -139,6 +152,14 @@ adapter or runtime-path configuration module.
 
 Do not weaken target-path validation or replace transactional publication with direct
 recursive deletion.
+
+Release scripts may clean only absolute, validated descendants of their controlled build,
+cache, and release roots. Preserve the last complete unpacked package and ZIP/checksum pair
+until a staged replacement passes structural, launcher, template, and real Sharp checks.
+Pin redistributed runtimes by exact version and official checksum. Keep Sharp external to
+the application bundle, copy only its proven Windows x64 dependency closure, retain required
+licenses, and reject TypeScript, tests, maps, caches, links, npm shims, and wasm artifacts.
+Runtime resource resolution must derive from `import.meta.url`, never `process.cwd()`.
 
 Overwrite approval is an interaction concern. The CLI must identify the exact selected
 target, ask for explicit confirmation, and cancel before allocation or publication when the
