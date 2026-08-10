@@ -21,6 +21,8 @@ export interface ResolveOsuPngAssetDependencies {
 
 const defaultDependencies: ResolveOsuPngAssetDependencies = { realpath, readdir, stat }
 
+export class OsuPngAssetNotFoundError extends Error {}
+
 export async function resolveOsuPngAsset(
   options: ResolveOsuPngAssetOptions,
   dependencies: ResolveOsuPngAssetDependencies = defaultDependencies,
@@ -66,6 +68,26 @@ function selectVariant(
   logicalPath: string,
   useDoubleResolutionAssets: boolean,
 ): { segments: string[]; pixelDensity: ImageDensity } {
+  validateOsuPngLogicalPath(logicalPath)
+  const normalizedPath = logicalPath.replace(/\\/g, "/")
+
+  const segments = normalizedPath.split("/")
+  const fileName = segments.at(-1)
+  if (!fileName) {
+    throw new Error(`Cannot resolve osu PNG asset '${logicalPath}': path is empty`)
+  }
+
+  const extension = path.posix.extname(fileName)
+  const stem = extension ? fileName.slice(0, -extension.length) : fileName
+  const explicitlyDouble = /@2x$/i.test(stem)
+  const pixelDensity: ImageDensity =
+    explicitlyDouble || useDoubleResolutionAssets ? "double" : "standard"
+  const selectedName = `${stem}${!explicitlyDouble && useDoubleResolutionAssets ? "@2x" : ""}.png`
+
+  return { segments: [...segments.slice(0, -1), selectedName], pixelDensity }
+}
+
+export function validateOsuPngLogicalPath(logicalPath: string): void {
   const normalizedPath = logicalPath.replace(/\\/g, "/")
   if (path.posix.isAbsolute(normalizedPath) || path.win32.isAbsolute(logicalPath)) {
     throw new Error(`Cannot resolve osu PNG asset '${logicalPath}': absolute paths are not allowed`)
@@ -90,14 +112,6 @@ function selectVariant(
       `Cannot resolve osu PNG asset '${logicalPath}': only PNG files are supported, not '${extension}'`,
     )
   }
-
-  const stem = extension ? fileName.slice(0, -extension.length) : fileName
-  const explicitlyDouble = /@2x$/i.test(stem)
-  const pixelDensity: ImageDensity =
-    explicitlyDouble || useDoubleResolutionAssets ? "double" : "standard"
-  const selectedName = `${stem}${!explicitlyDouble && useDoubleResolutionAssets ? "@2x" : ""}.png`
-
-  return { segments: [...segments.slice(0, -1), selectedName], pixelDensity }
 }
 
 async function resolveSkinRoot(
@@ -133,7 +147,7 @@ async function resolveSegment(
 
   const matches = entries.filter((entry) => entry.toLowerCase() === segment.toLowerCase())
   if (matches.length === 0) {
-    throw new Error(`Cannot resolve ${description}: '${segment}' was not found`)
+    throw new OsuPngAssetNotFoundError(`Cannot resolve ${description}: '${segment}' was not found`)
   }
   if (matches.length > 1) {
     throw new Error(`Cannot resolve ${description}: '${segment}' is ambiguous ignoring case`)
@@ -141,7 +155,7 @@ async function resolveSegment(
 
   const match = matches.at(0)
   if (!match) {
-    throw new Error(`Cannot resolve ${description}: '${segment}' was not found`)
+    throw new OsuPngAssetNotFoundError(`Cannot resolve ${description}: '${segment}' was not found`)
   }
   return path.join(directory, match)
 }

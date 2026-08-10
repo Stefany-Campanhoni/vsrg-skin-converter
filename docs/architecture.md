@@ -160,7 +160,10 @@ is deferred until the target writer requests it.
 
 For the reverse route, osu! density is resolved entirely by the source adapter. Receptor and
 note density selects only the input file; judgement density also selects Etterna's standard
-or `(Doubleres)` sheet name. The target adapter always writes four
+or `(Doubleres)` sheet name. The judgement source resolver owns `Hit*` references, directory
+references, missing-property `mania-hit*` defaults, and `-0` frame precedence; the shared PNG
+resolver remains responsible for case-insensitive, density-specific, skin-contained file access.
+The target adapter always writes four
 150x150 tap notes and eight 146x146 receptors using the fixed ` (res 64x64)` filename
 decoration. Receptors are vertically trimmed, made into a source-width square, and then
 resized to 146x146. A transparent normal remains transparent; a transparent pressed receptor

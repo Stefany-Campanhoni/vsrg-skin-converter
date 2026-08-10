@@ -1,4 +1,5 @@
-import type { JudgementGrade } from "../../../domain/judgement.ts"
+import { type JudgementGrade, judgementGrades } from "../../../domain/judgement.ts"
+import { osuJudgementDefinitions } from "../judgements/osu-judgement-definitions.ts"
 
 export interface OsuIniSection {
   readonly name: string
@@ -13,7 +14,7 @@ export interface OsuMania4kDefinition {
   readonly normalReceptors: readonly [string, string, string, string]
   readonly pressedReceptors: readonly [string, string, string, string]
   readonly tapNotes: readonly [string, string, string, string]
-  readonly judgements: Readonly<Record<JudgementGrade, string>>
+  readonly judgements: Readonly<Record<JudgementGrade, string | undefined>>
 }
 
 export function parseOsuSkinIni(source: string, filePath: string): readonly OsuIniSection[] {
@@ -82,14 +83,12 @@ export function readOsuMania4kDefinition(
     normalReceptors: readTuple(properties, "keyimage", filePath),
     pressedReceptors: readTuple(properties, "keyimage", filePath, "d"),
     tapNotes: readTuple(properties, "noteimage", filePath),
-    judgements: {
-      marvelous: requiredProperty(properties, "hit300g", filePath),
-      perfect: requiredProperty(properties, "hit300", filePath),
-      great: requiredProperty(properties, "hit200", filePath),
-      good: requiredProperty(properties, "hit100", filePath),
-      bad: requiredProperty(properties, "hit50", filePath),
-      miss: requiredProperty(properties, "hit0", filePath),
-    },
+    judgements: Object.fromEntries(
+      judgementGrades.map((grade) => [
+        grade,
+        properties.get(osuJudgementDefinitions[grade].property),
+      ]),
+    ) as Record<JudgementGrade, string | undefined>,
   }
 }
 

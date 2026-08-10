@@ -14,6 +14,11 @@ import {
   type ResolveOsuPngAssetOptions,
   resolveOsuPngAsset,
 } from "../assets/resolve-osu-png-asset.ts"
+import { osuJudgementDefinitions } from "../judgements/osu-judgement-definitions.ts"
+import {
+  type ResolveOsuJudgementAssetOptions,
+  resolveOsuJudgementAsset,
+} from "../judgements/resolve-osu-judgement-asset.ts"
 import {
   type OsuMania4kDefinition,
   parseOsuSkinIni,
@@ -33,11 +38,13 @@ export interface OsuSkinIniSource {
 export interface OsuSkinReaderDependencies {
   readSkinIni(skinDirectory: string): Promise<OsuSkinIniSource>
   resolveAsset(options: ResolveOsuPngAssetOptions): Promise<ImageAsset>
+  resolveJudgementAsset(options: ResolveOsuJudgementAssetOptions): Promise<ImageAsset>
 }
 
 const defaultDependencies: OsuSkinReaderDependencies = {
   readSkinIni,
   resolveAsset: resolveOsuPngAsset,
+  resolveJudgementAsset: resolveOsuJudgementAsset,
 }
 
 export class OsuSkinReader implements SkinReader {
@@ -84,15 +91,8 @@ export class OsuSkinReader implements SkinReader {
         logicalPath: tupleValue(mania.tapNotes, index),
       })),
     )
-    references.push(
-      ...judgementGrades.map((grade) => ({
-        property: `judgements.${grade}`,
-        logicalPath: mania.judgements[grade],
-      })),
-    )
-
-    const assets = await settleAll(
-      references.map(({ property, logicalPath }) =>
+    const assets = await settleAll([
+      ...references.map(({ property, logicalPath }) =>
         invokeAsPromise(async () => {
           try {
             return await this.#dependencies.resolveAsset({
@@ -107,7 +107,26 @@ export class OsuSkinReader implements SkinReader {
           }
         }),
       ),
-    )
+      ...judgementGrades.map((grade) =>
+        invokeAsPromise(async () => {
+          const logicalPath = mania.judgements[grade]
+          try {
+            return await this.#dependencies.resolveJudgementAsset({
+              skinDirectory: reference.sourcePath,
+              logicalPath,
+              defaultFileName: osuJudgementDefinitions[grade].defaultFileName,
+              useDoubleResolutionAssets: this.#useDoubleResolutionAssets,
+            })
+          } catch (cause) {
+            const referenceDescription = logicalPath ? ` ('${logicalPath}')` : ""
+            throw new Error(
+              `Could not resolve osu skin asset judgements.${grade}${referenceDescription}`,
+              { cause },
+            )
+          }
+        }),
+      ),
+    ])
 
     const leftNormal = requiredAsset(assets[0], 0)
     const leftPressed = requiredAsset(assets[1], 1)

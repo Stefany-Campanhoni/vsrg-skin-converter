@@ -460,12 +460,15 @@ async function createFixture(): Promise<Fixture> {
       index,
       255,
     ])
-    await writeSolidPng(
-      path.join(assetsDirectory, `${fixture.grade}@2x.png`),
-      fixture.width,
-      fixture.height,
-      fixture.color,
-    )
+    const relativeDoubleResolutionPath = judgementDoubleResolutionPath(fixture.grade)
+    const doubleResolutionPath = path.join(skinDirectory, relativeDoubleResolutionPath)
+    await writeSolidPng(doubleResolutionPath.replace(/-0@2x\.png$/, "@2x.png"), 2, 2, [
+      index,
+      index,
+      index,
+      255,
+    ])
+    await writeSolidPng(doubleResolutionPath, fixture.width, fixture.height, fixture.color)
   }
 
   return {
@@ -560,15 +563,27 @@ function skinIni(name: string): string {
     "ComboPosition: 250",
     "ScorePosition: 280",
     "ColumnWidth: 68,68,68,68",
-    "Hit300g: assets\\marvelous",
-    "Hit300: assets\\perfect",
-    "Hit200: assets\\great",
+    "Hit300: perfect",
+    "Hit200: assets",
     "Hit100: assets\\good",
     "Hit50: assets\\bad",
     "Hit0: assets\\miss",
     ...entries,
     "",
   ].join("\n")
+}
+
+function judgementDoubleResolutionPath(grade: (typeof judgementFixtures)[number]["grade"]): string {
+  switch (grade) {
+    case "marvelous":
+      return "mania-hit300g-0@2x.png"
+    case "perfect":
+      return "perfect-0@2x.png"
+    case "great":
+      return path.join("assets", "mania-hit200-0@2x.png")
+    default:
+      return path.join("assets", `${grade}@2x.png`)
+  }
 }
 
 async function writeSolidPng(

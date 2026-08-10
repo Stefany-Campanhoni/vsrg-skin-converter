@@ -93,16 +93,18 @@ test("rejects missing Mania properties and invalid numerical values", () => {
   )
 })
 
-test("requires every 4K judgement reference", () => {
+test("allows missing 4K judgement references for osu default asset fallback", () => {
   for (const property of ["Hit300g", "Hit300", "Hit200", "Hit100", "Hit50", "Hit0"]) {
     const source = maniaSection()
       .split("\n")
       .filter((line) => !line.startsWith(`${property}:`))
       .join("\n")
 
-    assert.throws(
-      () => readOsuMania4kDefinition(parseOsuSkinIni(source, filePath), filePath),
-      new RegExp(`Missing ${property.toLowerCase()}.*skin\\.ini`, "i"),
+    const definition = readOsuMania4kDefinition(parseOsuSkinIni(source, filePath), filePath)
+
+    assert.equal(
+      definition.judgements[propertyToGrade[property] as keyof typeof definition.judgements],
+      undefined,
     )
   }
 })
@@ -177,3 +179,12 @@ ColumnWidth: 68,68,70,70
 
 [Mania]
 Keys: 7`
+
+const propertyToGrade: Readonly<Record<string, string>> = {
+  Hit300g: "marvelous",
+  Hit300: "perfect",
+  Hit200: "great",
+  Hit100: "good",
+  Hit50: "bad",
+  Hit0: "miss",
+}

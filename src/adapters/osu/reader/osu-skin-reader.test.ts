@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
+import type { ResolveOsuJudgementAssetOptions } from "../judgements/resolve-osu-judgement-asset.ts"
 import { OsuSkinReader, type OsuSkinReaderDependencies } from "./osu-skin-reader.ts"
 
 const source = `[General]
@@ -57,7 +58,7 @@ const logicalPaths = [
 test("reads the 4K Mania definition into an osu skin model", async () => {
   const started: string[] = []
   const settled: string[] = []
-  const dependencies: OsuSkinReaderDependencies = {
+  const dependencies = withGenericJudgementResolver({
     readSkinIni: async (skinDirectory) => {
       assert.equal(skinDirectory, reference.sourcePath)
       return { source, filePath: "C:/osu/Skins/Fixture/SKIN.InI" }
@@ -74,7 +75,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
         pixelDensity: "double",
       }
     },
-  }
+  })
 
   const model = await new OsuSkinReader({ useDoubleResolutionAssets: true }, dependencies).readSkin(
     reference,
@@ -133,30 +134,78 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
 test("rejects mixed osu judgement densities", async () => {
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: true },
-    {
+    withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: async (options) => ({
         filePath: `${options.logicalPath}.png`,
         rotation: 0,
         pixelDensity: options.logicalPath === "judgement-miss" ? "standard" : "double",
       }),
-    },
+    }),
   )
 
   await assert.rejects(() => reader.readSkin(reference), /mixed.*judgement.*densit/i)
 })
 
-test("rejects a judgement whose resolved density is missing", async () => {
+test("resolves absent judgement properties through osu default filenames", async () => {
+  const sourceWithoutJudgements = source
+    .split("\n")
+    .filter((line) => !/^Hit(?:300g|300|200|100|50|0):/.test(line))
+    .join("\n")
+  const requestedJudgements: ResolveOsuJudgementAssetOptions[] = []
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false },
     {
+      readSkinIni: async () => ({
+        source: sourceWithoutJudgements,
+        filePath: "C:/osu/Skins/Fixture/skin.ini",
+      }),
+      resolveAsset: async (options) => ({
+        filePath: `${options.logicalPath}.png`,
+        rotation: 0,
+        pixelDensity: "standard",
+      }),
+      resolveJudgementAsset: async (options: ResolveOsuJudgementAssetOptions) => {
+        requestedJudgements.push(options)
+        return {
+          filePath: `${options.defaultFileName}.png`,
+          rotation: 0,
+          pixelDensity: "standard",
+        }
+      },
+    },
+  )
+
+  const model = await reader.readSkin(reference)
+
+  assert.deepEqual(
+    requestedJudgements.map(({ logicalPath, defaultFileName }) => ({
+      logicalPath,
+      defaultFileName,
+    })),
+    [
+      { logicalPath: undefined, defaultFileName: "mania-hit300g" },
+      { logicalPath: undefined, defaultFileName: "mania-hit300" },
+      { logicalPath: undefined, defaultFileName: "mania-hit200" },
+      { logicalPath: undefined, defaultFileName: "mania-hit100" },
+      { logicalPath: undefined, defaultFileName: "mania-hit50" },
+      { logicalPath: undefined, defaultFileName: "mania-hit0" },
+    ],
+  )
+  assert.equal(model.assets.judgements?.images.miss.filePath, "mania-hit0.png")
+})
+
+test("rejects a judgement whose resolved density is missing", async () => {
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: false },
+    withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: async (options) => ({
         filePath: `${options.logicalPath}.png`,
         rotation: 0,
         pixelDensity: options.logicalPath === "judgement-good" ? undefined : "standard",
       }),
-    },
+    }),
   )
 
   await assert.rejects(() => reader.readSkin(reference), /missing.*judgement.*densit/i)
@@ -166,7 +215,7 @@ test("rejects references from another game before reading inputs", async () => {
   let readStarted = false
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false },
-    {
+    withGenericJudgementResolver({
       readSkinIni: async () => {
         readStarted = true
         throw new Error("should not run")
@@ -174,7 +223,7 @@ test("rejects references from another game before reading inputs", async () => {
       resolveAsset: async () => {
         throw new Error("should not run")
       },
-    },
+    }),
   )
 
   await assert.rejects(
@@ -188,7 +237,7 @@ test("wraps duplicate General sections with skin reader context and preserves th
   const iniPath = "C:/osu/Skins/Fixture/skin.ini"
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false },
-    {
+    withGenericJudgementResolver({
       readSkinIni: async () => ({
         source: `${source}\n[gEnErAl]\nName: Conflicting Name`,
         filePath: iniPath,
@@ -196,7 +245,7 @@ test("wraps duplicate General sections with skin reader context and preserves th
       resolveAsset: async () => {
         throw new Error("asset resolution must not start")
       },
-    },
+    }),
   )
 
   await assert.rejects(
@@ -218,7 +267,7 @@ test("settles all eighteen assets and reports the first input-order failure with
   const laterFailure = new Error("tap note missing")
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false },
-    {
+    withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: (options) => {
         started.push(options.logicalPath)
@@ -226,7 +275,7 @@ test("settles all eighteen assets and reports the first input-order failure with
         pending.set(options.logicalPath, task)
         return task.promise
       },
-    },
+    }),
   )
 
   const reading = reader.readSkin(reference)
@@ -276,6 +325,20 @@ interface Deferred<T> {
   readonly promise: Promise<T>
   resolve(value: T): void
   reject(reason: unknown): void
+}
+
+function withGenericJudgementResolver(
+  dependencies: Omit<OsuSkinReaderDependencies, "resolveJudgementAsset">,
+): OsuSkinReaderDependencies {
+  return {
+    ...dependencies,
+    resolveJudgementAsset: (options) =>
+      dependencies.resolveAsset({
+        skinDirectory: options.skinDirectory,
+        logicalPath: options.logicalPath ?? options.defaultFileName,
+        useDoubleResolutionAssets: options.useDoubleResolutionAssets,
+      }),
+  }
 }
 
 function deferred<T>(): Deferred<T> {

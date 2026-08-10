@@ -202,8 +202,11 @@ names, including any `(doubleres)` decoration outside generated `Notes` and `Rec
 
 The six osu! Mania judgement references are stacked without scaling in Etterna order:
 `marvelous`, `perfect`, `great`, `good`, `bad`, `miss`. Unequal images are centered in
-transparent cells sized to the maximum source width and height. All six inputs must resolve
-to one density. Standard input produces `<skin> - <guid> 1x6.png`; double-resolution input
-produces `<skin> - <guid> 1x6 (Doubleres).png`. The active theme's existing
+transparent cells sized to the maximum source width and height. A `Hit*` value can name a
+PNG relative to the skin root or a directory containing the corresponding `mania-hit*`
+default. Missing `Hit*` properties use those defaults from the skin root. When both an
+unsuffixed PNG and its `-0` animation frame exist, `-0` takes precedence. All six inputs must
+resolve to one density. Standard input produces `<skin> - <guid> 1x6.png`;
+double-resolution input produces `<skin> - <guid> 1x6 (Doubleres).png`. The active theme's existing
 `assetsConfig.lua` is preserved apart from the new `judgment[guid]` mapping, and a concurrent
 change to that file aborts publication instead of overwriting it.
