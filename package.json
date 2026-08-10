@@ -3,14 +3,15 @@
   "version": "1.0.0",
   "main": "src/cli.ts",
   "scripts": {
+    "build": "node scripts/release/build-application.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test src/**/*.test.ts tests/**/*.test.ts",
     "test:trim-osu-receptor": "node src/scripts/trim-osu-receptor.ts",
     "test:architecture": "node --test tests/architecture/*.test.ts",
-    "lint": "npx @biomejs/biome check src tests",
-    "format": "npx @biomejs/biome format --write src tests"
+    "lint": "npx @biomejs/biome check src tests scripts",
+    "format": "npx @biomejs/biome format --write src tests scripts"
   },
   "keywords": [],
   "author": "tefyy",
@@ -24,6 +25,7 @@
     "@biomejs/biome": "^2.5.5",
     "@types/luaparse": "^0.2.13",
     "@types/node": "^26.1.1",
+    "esbuild": "0.28.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {

@@ -4,3 +4,6 @@ output_folder/
 tmp/
 *.log
 .DS_Store
+/.cache/release/
+/build/
+/release/
