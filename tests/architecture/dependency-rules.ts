@@ -86,7 +86,12 @@ async function readProjectDependencies(
 }
 
 function classifyLayer(root: string, file: string): string {
-  const [first, second] = relative(root, file).split("/")
+  const relativeFile = relative(root, file)
+  if (relativeFile === "application-root.ts") {
+    return "config"
+  }
+
+  const [first, second] = relativeFile.split("/")
   return second ? (first ?? "root") : "root"
 }
 
