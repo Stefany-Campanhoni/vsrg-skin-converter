@@ -25,13 +25,19 @@ export interface ReleasePaths {
 
 function assertStrictDescendant(projectRoot: string, candidate: string): void {
   const relative = path.relative(projectRoot, candidate)
-  if (relative === "" || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+  if (
+    relative === "" ||
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative)
+  ) {
     throw new Error(`Release path must be a strict descendant of ${projectRoot}: ${candidate}`)
   }
 }
 
 export function getReleasePaths(projectRoot: string, version: string): ReleasePaths {
-  if (!path.isAbsolute(projectRoot)) throw new Error(`Expected an absolute project root: ${projectRoot}`)
+  if (!path.isAbsolute(projectRoot))
+    throw new Error(`Expected an absolute project root: ${projectRoot}`)
   const resolvedRoot = path.resolve(projectRoot)
   if (resolvedRoot === path.parse(resolvedRoot).root) {
     throw new Error(`Refusing to use a filesystem root: ${resolvedRoot}`)
