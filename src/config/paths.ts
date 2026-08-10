@@ -1,7 +1,8 @@
 import path from "node:path"
+import { applicationRoot } from "../application-root.ts"
 
-export const osuTemplatesPath = path.resolve("src", "templates", "osu")
-export const etternaTemplatesPath = path.resolve("src", "templates", "etterna")
+export const osuTemplatesPath = path.join(applicationRoot, "templates", "osu")
+export const etternaTemplatesPath = path.join(applicationRoot, "templates", "etterna")
 
 export function resolveOsuSkinOutputPath(
   skinName: string,

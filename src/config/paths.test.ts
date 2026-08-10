@@ -1,14 +1,28 @@
 import assert from "node:assert/strict"
+import os from "node:os"
 import path from "node:path"
 import test from "node:test"
+import { fileURLToPath } from "node:url"
+import { resolveApplicationRoot } from "../application-root.ts"
 import { etternaTemplatesPath, osuTemplatesPath, resolveOsuSkinOutputPath } from "./paths.ts"
 
-test("resolves the Etterna template bundle from its game-specific directory", () => {
-  assert.equal(etternaTemplatesPath, path.resolve("src", "templates", "etterna"))
+test("resolves resources from the application module instead of the working directory", () => {
+  assert.equal(
+    resolveApplicationRoot("file:///C:/Portable%20App/app.mjs"),
+    path.normalize("C:/Portable App"),
+  )
 })
 
-test("resolves the osu template bundle from its game-specific directory", () => {
-  assert.equal(osuTemplatesPath, path.resolve("src", "templates", "osu"))
+test("keeps both template roots stable after changing the working directory", () => {
+  const expectedSourceRoot = fileURLToPath(new URL("../", import.meta.url))
+  const original = process.cwd()
+  process.chdir(os.tmpdir())
+  try {
+    assert.equal(osuTemplatesPath, path.join(expectedSourceRoot, "templates", "osu"))
+    assert.equal(etternaTemplatesPath, path.join(expectedSourceRoot, "templates", "etterna"))
+  } finally {
+    process.chdir(original)
+  }
 })
 
 test("resolves an osu skin directory from the installation root and the skin name", () => {
