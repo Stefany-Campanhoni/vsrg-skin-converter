@@ -67,6 +67,15 @@ test("dependency updates cover both npm locks and GitHub Actions", async () => {
   assert.match(dependabot, /interval:\s+["']weekly["']/)
 })
 
+test("repository checkouts preserve the formatter line-ending contract", async () => {
+  const attributes = await read(".gitattributes")
+
+  assert.match(attributes, /^\*\s+text=auto\s+eol=lf$/m)
+  for (const extension of ["png", "zip", "exe"]) {
+    assert.match(attributes, new RegExp(`^\\*\\.${extension}\\s+binary$`, "m"))
+  }
+})
+
 test("public contribution and reporting controls are present", async () => {
   const [contributing, security, codeowners, pullRequest, bug, feature, issueConfig, releases] =
     await Promise.all([
