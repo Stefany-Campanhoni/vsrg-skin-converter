@@ -24,6 +24,7 @@ test("Windows CI exposes one stable least-privilege quality check", async () => 
   assert.match(workflow, /runs-on:\s+windows-latest/)
   assert.match(workflow, /timeout-minutes:\s+20/)
   assert.match(workflow, /node-version:\s+["']?22\.23\.2/)
+  assert.match(workflow, /fetch-depth:\s+0/)
   for (const command of ["npm ci", "npm run check", "git diff --check"]) {
     assert.ok(workflow.includes(command), `CI must run ${command}`)
   }
