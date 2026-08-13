@@ -326,7 +326,7 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
           },
         },
       }),
-      new RegExp(`node_modules[\\\\/]${missing.replace("@", "@")}`),
+      new RegExp(`node_modules[\\\\/]${missing}`),
     )
   }
 
