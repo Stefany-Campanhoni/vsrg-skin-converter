@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -15,7 +15,7 @@ async function createSelectionFixture(
   judgementFiles: readonly string[],
   theme = "Rebirth",
 ): Promise<SelectionFixture> {
-  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-selection-"))
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-selection-")))
   const settings = path.join(root, "Save", `${theme}_settings`)
   const judgements = path.join(root, "Assets", "Judgments")
   await mkdir(settings, { recursive: true })
