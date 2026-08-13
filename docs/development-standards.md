@@ -160,6 +160,12 @@ Pin redistributed runtimes by exact version and official checksum. Keep Sharp ex
 the application bundle, copy only its proven Windows x64 dependency closure, retain required
 licenses, and reject TypeScript, tests, maps, caches, links, npm shims, and wasm artifacts.
 Runtime resource resolution must derive from `import.meta.url`, never `process.cwd()`.
+An extracted runtime cache is trusted only when a checked stamp binds it to the pinned archive
+SHA-256, pinned executable SHA-256, configured version, and a successful matching
+`node --version`. Missing or mismatched evidence requires re-extraction. Release functions
+that remove, replace, or promote paths must receive an explicit controlled root, validate all
+derived transaction paths before callbacks or mutations, and retain recovery backups when a
+rollback cannot complete.
 
 Overwrite approval is an interaction concern. The CLI must identify the exact selected
 target, ask for explicit confirmation, and cancel before allocation or publication when the

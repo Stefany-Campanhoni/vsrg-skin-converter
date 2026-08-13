@@ -143,6 +143,13 @@ assembler copies external templates byte-for-byte into a unique staging sibling 
 the completed package transactionally. Only transient Windows `EPERM`/`EBUSY` rename failures
 receive bounded backoff; validation and content errors never retry.
 
+The Node cache is reusable only while the archive still matches its pinned SHA-256 and the
+extracted runtime has a matching verification stamp, pinned `node.exe` SHA-256, and reported
+`node --version`. A missing, stale, or tampered extraction is rebuilt from the verified
+archive. Acquisition, runtime installation, and package assembly receive an explicit
+controlled root and validate every staging, backup, cache, and output path before mutation.
+Runtime installation retains its recovery backup when rollback cannot restore it.
+
 The verifier rejects unexpected entries and links, compares every packaged template hash,
 runs the launcher from an external working directory, exercises paths containing spaces,
 performs a real Sharp resize with the included runtime, and reads both template roots. ZIP

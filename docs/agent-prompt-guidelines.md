@@ -67,7 +67,8 @@ regressions.
 - State whether the change affects the supported Windows x64 ZIP or an experiment. Do not
   merge SEA prototype work into the maintained release without an explicit decision.
 - Preserve pinned Node version/URL/SHA-256 as one reviewed unit and never bypass cache hash
-  verification.
+  verification. Pin and verify the extracted `node.exe` SHA-256 as well; require an exact
+  cache stamp plus a successful matching `node --version` before reusing an extraction.
 - Keep Sharp external to esbuild and name the exact runtime dependency closure being copied;
   exclude typings, tests, maps, caches, npm shims, wasm, and unrelated optional platforms.
 - Require module-relative template resolution and smoke tests from another working directory
@@ -78,6 +79,12 @@ regressions.
 - Require transactional staging and preservation of the previous unpacked package and
   ZIP/checksum pair. Retries may cover only bounded transient Windows rename errors, never
   validation or content failures.
+- Require an explicit controlled root for every release operation that deletes, replaces, or
+  promotes paths. Validate outputs, staging paths, and recovery backups before invoking
+  injected callbacks or mutating the filesystem; retain recovery artifacts after incomplete
+  rollback.
+- Require the launcher to preserve the child exit code, pause after failed no-argument
+  launches so double-click errors remain visible, and never pause argument-driven calls.
 - Require license/notices review and state the non-goals: installer, updates, signing,
   publication, ARM64, Linux, and macOS.
 
