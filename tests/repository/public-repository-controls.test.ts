@@ -58,6 +58,16 @@ test("security workflows use minimal permissions, complete history, and pinned A
   assertAllActionReferencesArePinned(secrets)
 })
 
+test("CodeQL initialization and analysis use one action release", async () => {
+  const codeql = await read(".github/workflows/codeql.yml")
+  const actionShas = [
+    ...codeql.matchAll(/uses:\s+github\/codeql-action\/(?:init|analyze)@([0-9a-f]{40})/g),
+  ].map((match) => match[1])
+
+  assert.equal(actionShas.length, 2, "expected both CodeQL init and analyze actions")
+  assert.equal(new Set(actionShas).size, 1, "CodeQL actions must use the same release SHA")
+})
+
 test("dependency updates cover both npm locks and GitHub Actions", async () => {
   const dependabot = await read(".github/dependabot.yml")
 
@@ -66,6 +76,20 @@ test("dependency updates cover both npm locks and GitHub Actions", async () => {
   assert.match(dependabot, /directory:\s+["']\/scripts\/release\/runtime-package["']/)
   assert.match(dependabot, /package-ecosystem:\s+["']github-actions["']/)
   assert.match(dependabot, /interval:\s+["']weekly["']/)
+})
+
+test("Dependabot updates every CodeQL action atomically across major versions", async () => {
+  const dependabot = await read(".github/dependabot.yml")
+
+  assert.match(
+    dependabot,
+    /codeql-actions:\s*\r?\n\s+patterns:\s*\r?\n\s+- ["']github\/codeql-action\/\*["']/,
+  )
+  assert.match(
+    dependabot,
+    /codeql-actions:[\s\S]*?update-types:\s*\r?\n\s+- ["']major["']\s*\r?\n\s+- ["']minor["']\s*\r?\n\s+- ["']patch["']/,
+  )
+  assert.match(dependabot, /exclude-patterns:\s*\r?\n\s+- ["']github\/codeql-action\/\*["']/)
 })
 
 test("repository checkouts preserve the formatter line-ending contract", async () => {
