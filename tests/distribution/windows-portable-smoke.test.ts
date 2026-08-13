@@ -5,6 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
+import packageJson from "../../package.json" with { type: "json" }
 import { acquireNodeRuntime } from "../../scripts/release/acquire-node-runtime.ts"
 import { assembleWindowsPortable } from "../../scripts/release/assemble-windows-portable.ts"
 import { buildApplication } from "../../scripts/release/build-application.ts"
@@ -58,7 +59,7 @@ test("runs the real portable package from an external cwd and a path containing 
   timeout: 180_000,
 }, async (context) => {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url))
-  const releasePaths = getReleasePaths(projectRoot, "1.0.0")
+  const releasePaths = getReleasePaths(projectRoot, packageJson.version)
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "Portable Build With Spaces "))
   context.after(() => rm(temporaryRoot, { recursive: true }))
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
@@ -91,7 +92,12 @@ test("runs the real portable package from an external cwd and a path containing 
   })
 
   const version = await runLauncher(portable.launcher, ["--version"], os.tmpdir())
-  assert.deepEqual(version, { stdout: "1.0.0\n", stderr: "", code: 0, timedOut: false })
+  assert.deepEqual(version, {
+    stdout: `${packageJson.version}\n`,
+    stderr: "",
+    code: 0,
+    timedOut: false,
+  })
   const help = await runLauncher(portable.launcher, ["--help"], os.tmpdir())
   assert.equal(help.code, 0)
   assert.equal(help.timedOut, false)
@@ -105,7 +111,7 @@ test("runs the real portable package from an external cwd and a path containing 
   await verifyWindowsPortable({
     packageRoot,
     sourceTemplatesRoot: path.join(projectRoot, "src", "templates"),
-    expectedVersion: "1.0.0",
+    expectedVersion: packageJson.version,
   })
   assert.ok((await readFile(path.join(packageRoot, "templates", "osu", "skin.ini"))).length > 0)
   assert.ok(

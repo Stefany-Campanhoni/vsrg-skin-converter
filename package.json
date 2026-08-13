@@ -1,6 +1,6 @@
 {
   "name": "vsrg-skin-converter",
-  "version": "1.0.0",
+  "version": "0.1.0-beta.1",
   "main": "src/cli.ts",
   "scripts": {
     "build": "node scripts/release/build-application.ts",
@@ -9,17 +9,33 @@
     "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node scripts/release/create-windows-release.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
+    "prepare": "husky",
+    "check": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "check:staged": "npm run lint && npm run typecheck && git diff --cached --check",
     "typecheck": "tsc --noEmit",
     "test": "node --test src/**/*.test.ts tests/**/*.test.ts",
-    "test:trim-osu-receptor": "node src/scripts/trim-osu-receptor.ts",
     "test:architecture": "node --test tests/architecture/*.test.ts",
     "lint": "npx @biomejs/biome check src tests scripts",
     "format": "npx @biomejs/biome format --write src tests scripts"
   },
-  "keywords": [],
+  "keywords": [
+    "etterna",
+    "osu",
+    "osu-mania",
+    "skin-converter",
+    "vsrg"
+  ],
   "author": "tefyy",
-  "license": "MIT",
-  "description": "",
+  "license": "GPL-3.0-only",
+  "description": "Convert VSRG skins between Etterna and osu!mania.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Stefany-Campanhoni/vsrg-skin-converter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Stefany-Campanhoni/vsrg-skin-converter/issues"
+  },
+  "homepage": "https://github.com/Stefany-Campanhoni/vsrg-skin-converter#readme",
   "type": "module",
   "engines": {
     "node": ">=22.18.0"
@@ -29,6 +45,7 @@
     "@types/luaparse": "^0.2.13",
     "@types/node": "^26.1.1",
     "esbuild": "0.28.2",
+    "husky": "9.1.7",
     "typescript": "^7.0.2"
   },
   "dependencies": {

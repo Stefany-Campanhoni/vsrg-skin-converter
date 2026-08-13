@@ -21,6 +21,16 @@ third-party notices. It is not an installer, is not code-signed, does not update
 does not support Windows ARM64, Linux, or macOS. Node SEA remains an isolated, unmerged
 experiment and is not a supported release format.
 
+## License and Template Assets
+
+The converter is licensed under the GNU General Public License v3.0 only
+(`GPL-3.0-only`). The bundled templates are distributed with permission. If you have any
+complaint or concern about the licensing, attribution, or ownership of a template or asset,
+contact scampanhoni@gmail.com.
+
+Release binaries and their corresponding source are published at
+https://github.com/Stefany-Campanhoni/vsrg-skin-converter.
+
 ```text
 vsrg-skin-converter-v<version>-win-x64/
 |-- vsrg-skin-converter.cmd
@@ -186,6 +196,10 @@ See [Architecture](docs/architecture.md) for the data flow and dependency bounda
 testing, error-handling, and safety rules. Use the
 [Agent Prompt Guidelines](docs/agent-prompt-guidelines.md) to specify and review future
 agent-authored iterations consistently.
+
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull
+request. Report vulnerabilities privately according to [SECURITY.md](SECURITY.md), never in
+a public issue.
 
 ## Current Coordinate Mapping
 

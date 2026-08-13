@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a reproducible converter failure or incorrect output.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report vulnerabilities here. Use private vulnerability reporting from SECURITY.md.
+        Sanitize paths, logs, profiles, screenshots, and configuration before submitting.
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Conversion direction
+      options:
+        - Etterna to osu!mania
+        - osu!mania to Etterna (4K)
+        - Startup or game discovery
+        - Windows portable release
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: other_direction
+    attributes:
+      label: Other conversion direction
+      description: If you selected "Other" above, briefly describe the affected conversion or area.
+      placeholder: Describe the conversion or affected area
+
+  - type: input
+    id: version
+    attributes:
+      label: Converter version
+      placeholder: 0.1.0-beta.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use sanitized paths and the smallest reproducible skin/configuration.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Attach sanitized logs or screenshots when useful.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed credentials and unrelated personal information.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

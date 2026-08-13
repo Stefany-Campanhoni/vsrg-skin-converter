@@ -5,6 +5,7 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { promisify } from "node:util"
+import packageJson from "../../package.json" with { type: "json" }
 import { buildApplication } from "../../scripts/release/build-application.ts"
 import { getReleasePaths, nodeRuntime } from "../../scripts/release/release-config.ts"
 
@@ -82,7 +83,7 @@ test("builds an ESM application bundle with Sharp external and cwd-independent m
     const { stdout, stderr } = await execFileAsync(process.execPath, [outputFile, "--version"], {
       cwd: os.tmpdir(),
     })
-    assert.equal(stdout, "1.0.0\n")
+    assert.equal(stdout, `${packageJson.version}\n`)
     assert.equal(stderr, "")
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })

@@ -1,5 +1,5 @@
-VSRG Skin Converter 1.0.0 — Windows x64 Portable
-=================================================
+VSRG Skin Converter — Windows x64 Portable
+===========================================
 
 Requirements
 ------------
@@ -24,3 +24,10 @@ Licenses
 --------
 The converter license is in LICENSE. Redistributed runtime notices are in
 THIRD-PARTY-NOTICES.txt and the license files retained below node_modules.
+
+The bundled templates are distributed with permission. For any complaint or concern about
+the licensing, attribution, or ownership of a template or asset, contact
+scampanhoni@gmail.com.
+
+The corresponding source code for this release is available at:
+https://github.com/Stefany-Campanhoni/vsrg-skin-converter

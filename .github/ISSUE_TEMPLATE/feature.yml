@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a focused converter capability or compatibility improvement.
+title: "[Feature]: "
+body:
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Conversion direction
+      options:
+        - Etterna to osu!mania
+        - osu!mania to Etterna
+        - Both directions
+        - CLI, installation discovery, or distribution
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Explain the concrete limitation and who benefits.
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Include source/target examples, boundaries, fallback behavior, and filenames.
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility evidence
+      description: Link public format documentation or describe representative skins without uploading restricted assets.
+
+  - type: checkboxes
+    id: assets
+    attributes:
+      label: Asset policy
+      options:
+        - label: Any proposed assets have documented provenance and redistribution permission.
+          required: true

@@ -2,6 +2,7 @@ node_modules/
 .worktrees/
 output_folder/
 tmp/
+/.tmp/
 *.log
 .DS_Store
 /.cache/release/
