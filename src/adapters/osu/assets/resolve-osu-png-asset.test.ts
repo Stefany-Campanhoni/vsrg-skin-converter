@@ -1,12 +1,12 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readdir, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { type ResolveOsuPngAssetDependencies, resolveOsuPngAsset } from "./resolve-osu-png-asset.ts"
 
 async function withSkin(run: (skinDirectory: string) => Promise<void>): Promise<void> {
-  const skinDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-png-"))
+  const skinDirectory = await realpath(await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-png-")))
   try {
     await run(skinDirectory)
   } finally {
