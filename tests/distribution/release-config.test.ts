@@ -15,6 +15,7 @@ test("pins the supported Node Windows x64 runtime", () => {
     version: "22.23.2",
     archiveName: "node-v22.23.2-win-x64.zip",
     sha256: "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97",
+    executableSha256: "0d0f5e39f9f3d9587bc19f73eab3c2c9c4903fd02d6dbf9c853dd81b3d95fad4",
     url: "https://nodejs.org/dist/v22.23.2/node-v22.23.2-win-x64.zip",
   })
 })

@@ -6,6 +6,11 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
 import { acquireNodeRuntime } from "./acquire-node-runtime.ts"
 import { buildApplication } from "./build-application.ts"
+import {
+  assertControlledReleasePath,
+  assertSafeTransactionToken,
+  resolveControlledRoot,
+} from "./controlled-release-path.ts"
 import { installRuntimeDependencies } from "./install-runtime-dependencies.ts"
 import { getReleasePaths } from "./release-config.ts"
 import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
@@ -18,6 +23,7 @@ export interface PortablePackage {
 }
 
 export interface AssembleWindowsPortableOptions {
+  readonly controlledRoot: string
   readonly packageRoot: string
   readonly bundlePath: string
   readonly nodeExecutablePath: string
@@ -59,17 +65,6 @@ async function assertDirectory(directory: string): Promise<void> {
     throw new Error(`Required package source is not a directory: ${directory}`)
 }
 
-function assertSafePackageRoot(packageRoot: string): void {
-  if (!path.isAbsolute(packageRoot) || packageRoot === path.parse(packageRoot).root) {
-    throw new Error(`Unsafe portable package root: ${packageRoot}`)
-  }
-  if (path.dirname(packageRoot) === path.parse(packageRoot).root) {
-    throw new Error(
-      `Portable package root must be nested below a controlled directory: ${packageRoot}`,
-    )
-  }
-}
-
 async function removeDevelopmentArtifacts(nodeModulesRoot: string): Promise<void> {
   const entries = await readdir(nodeModulesRoot, { recursive: true, withFileTypes: true })
   const targets = entries
@@ -89,8 +84,9 @@ async function removeDevelopmentArtifacts(nodeModulesRoot: string): Promise<void
 export async function assembleWindowsPortable(
   options: AssembleWindowsPortableOptions,
 ): Promise<PortablePackage> {
+  const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const packageRoot = path.resolve(options.packageRoot)
-  assertSafePackageRoot(packageRoot)
+  assertControlledReleasePath(controlledRoot, options.packageRoot, "portable package root")
   const sources = {
     bundle: path.resolve(options.bundlePath),
     node: path.resolve(options.nodeExecutablePath),
@@ -118,10 +114,13 @@ export async function assembleWindowsPortable(
   ])
 
   const token = options.dependencies?.token?.() ?? randomUUID()
+  assertSafeTransactionToken(token)
   const renamePath = options.dependencies?.renamePath ?? rename
   const wait = options.dependencies?.delay ?? delay
   const stagingRoot = `${packageRoot}.${token}.staging`
   const backupRoot = `${packageRoot}.${token}.backup`
+  assertControlledReleasePath(controlledRoot, stagingRoot, "portable package staging root")
+  assertControlledReleasePath(controlledRoot, backupRoot, "portable package backup root")
   let backupCreated = false
   let backupNeedsRecovery = false
   await mkdir(path.dirname(packageRoot), { recursive: true })
@@ -243,14 +242,17 @@ async function main(): Promise<void> {
     outputFile: paths.bundlePath,
   })
   const nodeExecutablePath = await acquireNodeRuntime({
+    controlledRoot: paths.cacheRoot,
     archivePath: paths.nodeArchivePath,
     extractionRoot: paths.nodeRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
+    controlledRoot: paths.cacheRoot,
     sourcePackageDirectory: path.join(projectRoot, "scripts", "release", "runtime-package"),
     installationRoot: paths.runtimeDependenciesRoot,
   })
   await assembleWindowsPortable({
+    controlledRoot: paths.windowsBuildRoot,
     packageRoot: paths.unpackedPackageRoot,
     bundlePath: paths.bundlePath,
     nodeExecutablePath,

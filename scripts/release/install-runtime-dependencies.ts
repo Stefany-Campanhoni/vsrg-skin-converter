@@ -4,7 +4,13 @@ import { cp, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import {
+  assertControlledReleasePath,
+  assertSafeTransactionToken,
+  resolveControlledRoot,
+} from "./controlled-release-path.ts"
 import { getReleasePaths } from "./release-config.ts"
+import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 
 export interface CommandInvocation {
   readonly executable: string
@@ -15,9 +21,12 @@ export interface CommandInvocation {
 export interface RuntimeDependencyInstallationDependencies {
   readonly token: () => string
   readonly runCommand: (command: CommandInvocation) => Promise<void>
+  readonly renamePath: (source: string, destination: string) => Promise<void>
+  readonly delay: (milliseconds: number) => Promise<void>
 }
 
 export interface InstallRuntimeDependenciesOptions {
+  readonly controlledRoot: string
   readonly sourcePackageDirectory: string
   readonly installationRoot: string
   readonly dependencies?: Partial<RuntimeDependencyInstallationDependencies>
@@ -47,6 +56,10 @@ export function runRuntimeCommand(command: CommandInvocation): Promise<void> {
 const defaultDependencies: RuntimeDependencyInstallationDependencies = {
   token: randomUUID,
   runCommand: runRuntimeCommand,
+  renamePath: rename,
+  delay: async (milliseconds) => {
+    await new Promise((resolve) => setTimeout(resolve, milliseconds))
+  },
 }
 
 async function assertRegularFile(file: string): Promise<void> {
@@ -60,6 +73,7 @@ async function assertDirectory(directory: string): Promise<void> {
 export async function installRuntimeDependencies(
   options: InstallRuntimeDependenciesOptions,
 ): Promise<string> {
+  const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const sourcePackageDirectory = path.resolve(options.sourcePackageDirectory)
   const installationRoot = path.resolve(options.installationRoot)
   if (!path.isAbsolute(options.sourcePackageDirectory)) {
@@ -67,18 +81,19 @@ export async function installRuntimeDependencies(
       `Expected an absolute runtime package source: ${options.sourcePackageDirectory}`,
     )
   }
-  if (
-    !path.isAbsolute(options.installationRoot) ||
-    installationRoot === path.parse(installationRoot).root
-  ) {
-    throw new Error(`Unsafe runtime installation root: ${options.installationRoot}`)
-  }
+  assertControlledReleasePath(controlledRoot, options.installationRoot, "runtime installation root")
   await assertRegularFile(path.join(sourcePackageDirectory, "package.json"))
   await assertRegularFile(path.join(sourcePackageDirectory, "package-lock.json"))
 
   const dependencies = { ...defaultDependencies, ...options.dependencies }
-  const stagingRoot = `${installationRoot}.${dependencies.token()}.staging`
-  const backupRoot = `${installationRoot}.${dependencies.token()}.backup`
+  const token = dependencies.token()
+  assertSafeTransactionToken(token)
+  const stagingRoot = `${installationRoot}.${token}.staging`
+  const backupRoot = `${installationRoot}.${token}.backup`
+  assertControlledReleasePath(controlledRoot, stagingRoot, "runtime installation staging root")
+  assertControlledReleasePath(controlledRoot, backupRoot, "runtime installation backup root")
+  let backupCreated = false
+  let backupNeedsRecovery = false
   await rm(stagingRoot, { recursive: true, force: true })
   try {
     await cp(sourcePackageDirectory, stagingRoot, {
@@ -107,17 +122,50 @@ export async function installRuntimeDependencies(
     } catch {
       hadPrevious = false
     }
-    if (hadPrevious) await rename(installationRoot, backupRoot)
+    if (hadPrevious) {
+      await renameWithTransientRetry(
+        installationRoot,
+        backupRoot,
+        dependencies.renamePath,
+        dependencies.delay,
+      )
+      backupCreated = true
+    }
     try {
-      await rename(stagingRoot, installationRoot)
-    } catch (error) {
-      if (hadPrevious) await rename(backupRoot, installationRoot)
-      throw error
+      await renameWithTransientRetry(
+        stagingRoot,
+        installationRoot,
+        dependencies.renamePath,
+        dependencies.delay,
+      )
+    } catch (promotionError) {
+      if (backupCreated) {
+        try {
+          await renameWithTransientRetry(
+            backupRoot,
+            installationRoot,
+            dependencies.renamePath,
+            dependencies.delay,
+          )
+          backupCreated = false
+        } catch (restorationError) {
+          backupNeedsRecovery = true
+          throw new AggregateError(
+            [promotionError, restorationError],
+            "Runtime dependency promotion failed and rollback was incomplete; the recovery backup was retained",
+            { cause: promotionError },
+          )
+        }
+      }
+      throw promotionError
     }
     await rm(backupRoot, { recursive: true, force: true })
+    backupCreated = false
   } finally {
     await rm(stagingRoot, { recursive: true, force: true })
-    await rm(backupRoot, { recursive: true, force: true })
+    if (backupCreated && !backupNeedsRecovery) {
+      await rm(backupRoot, { recursive: true, force: true })
+    }
   }
   return path.join(installationRoot, "node_modules")
 }
@@ -127,6 +175,7 @@ async function main(): Promise<void> {
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await installRuntimeDependencies({
+      controlledRoot: paths.cacheRoot,
       sourcePackageDirectory: path.join(projectRoot, "scripts", "release", "runtime-package"),
       installationRoot: paths.runtimeDependenciesRoot,
     }),

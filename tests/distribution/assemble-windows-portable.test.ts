@@ -50,6 +50,7 @@ async function packageFixture() {
   return {
     root,
     source,
+    controlledRoot: path.dirname(packageRoot),
     packageRoot,
     bundlePath,
     nodeExecutablePath,
@@ -207,4 +208,35 @@ test("retains the previous package backup when rollback restoration fails", asyn
   )
 
   assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+})
+
+test("rejects package output outside the explicit controlled root before mutation", async (context) => {
+  const fixture = await packageFixture()
+  context.after(() => rm(fixture.root, { recursive: true }))
+  const outsidePackageRoot = path.join(fixture.root, "outside", path.basename(fixture.packageRoot))
+  let renamed = false
+  let callbackInvoked = false
+
+  await assert.rejects(
+    assembleWindowsPortable({
+      ...fixture,
+      packageRoot: outsidePackageRoot,
+      dependencies: {
+        token: () => {
+          callbackInvoked = true
+          return "outside"
+        },
+        delay: async () => {},
+        renamePath: async (source, destination) => {
+          renamed = true
+          await rename(source, destination)
+        },
+      },
+    }),
+    /controlled root/i,
+  )
+
+  assert.equal(renamed, false)
+  assert.equal(callbackInvoked, false)
+  await assert.rejects(readFile(path.join(outsidePackageRoot, "app.mjs")), /ENOENT/)
 })

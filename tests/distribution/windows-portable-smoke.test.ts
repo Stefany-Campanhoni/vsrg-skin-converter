@@ -64,10 +64,12 @@ test("runs the real portable package from an external cwd and a path containing 
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
   const bundlePath = path.join(temporaryRoot, "bundle", "app.mjs")
   const nodeExecutablePath = await acquireNodeRuntime({
+    controlledRoot: releasePaths.cacheRoot,
     archivePath: releasePaths.nodeArchivePath,
     extractionRoot: releasePaths.nodeRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
+    controlledRoot: temporaryRoot,
     sourcePackageDirectory: path.join(projectRoot, "scripts", "release", "runtime-package"),
     installationRoot: path.join(temporaryRoot, "runtime dependencies"),
   })
@@ -76,6 +78,7 @@ test("runs the real portable package from an external cwd and a path containing 
     outputFile: bundlePath,
   })
   const portable = await assembleWindowsPortable({
+    controlledRoot: temporaryRoot,
     packageRoot,
     bundlePath,
     nodeExecutablePath,
