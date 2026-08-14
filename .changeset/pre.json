@@ -1,0 +1,8 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "vsrg-skin-converter": "0.1.0-beta.1"
+  },
+  "changesets": []
+}

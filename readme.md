@@ -70,6 +70,38 @@ ZIP only after independent extraction and full verification. `release:windows` r
 quality gate, rebuilds the package, and transactionally writes the ZIP and checksum under
 `release`. These generated roots and `.cache/release` are ignored.
 
+## Automated Versions and Draft Releases
+
+Changesets owns application versions and `CHANGELOG.md`. Every pull request must add a
+document under `.changeset`: run `npm run changeset` and choose `patch`, `minor`, or `major`
+for a public change, or run `npm run changeset -- --empty` for maintenance work that should
+not produce an application release. Do not edit the package version or changelog manually.
+
+Every push to `main` runs the pinned Changesets Action. It combines pending changesets and
+maintains one `chore(release): version packages` Release PR containing the resulting
+`package.json`, `package-lock.json`, and changelog updates. Merging that PR is the human
+release approval. The following `main` push validates the version increase and changelog,
+runs `npm run release:windows`, creates the matching `v<version>` tag, and uploads the ZIP and
+SHA-256 to a GitHub draft release. A version containing a prerelease suffix is also marked as
+a GitHub prerelease; the draft must still be reviewed and published manually.
+
+The Changesets workflow requires a repository secret named `CHANGESETS_TOKEN`. Configure a
+fine-grained personal access token with read/write access to repository contents and pull
+requests so the Action-created Release PR triggers the normal protected-branch checks. The
+project is private to npm and the workflow never invokes `changeset publish` or `npm publish`.
+
+The current release train is in Changesets `beta` prerelease mode. Maintainers can start a
+future beta train or return to stable versions through a reviewed PR:
+
+```sh
+npm run changeset:pre -- enter beta
+npm run changeset:pre -- exit
+```
+
+While prerelease mode is active, accumulated changesets produce `-beta.N` versions. Exiting
+the mode makes the next Release PR remove the prerelease suffix. Only one release train is
+maintained on `main` at a time.
+
 The pinned Node archive metadata lives in `scripts/release/release-config.ts`. To update it,
 select a supported Node 22 LTS Windows x64 patch, replace the exact version, archive name,
 official URL, and SHA-256 together, regenerate and inspect the runtime package lock when

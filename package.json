@@ -1,6 +1,7 @@
 {
   "name": "vsrg-skin-converter",
   "version": "0.1.0-beta.1",
+  "private": true,
   "main": "src/cli.ts",
   "scripts": {
     "build": "node scripts/release/build-application.ts",
@@ -9,6 +10,10 @@
     "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node scripts/release/create-windows-release.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
+    "changeset": "changeset",
+    "changeset:status": "changeset status",
+    "changeset:version": "changeset version",
+    "changeset:pre": "changeset pre",
     "prepare": "husky",
     "check": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "check:staged": "npm run lint && npm run typecheck && git diff --cached --check",
@@ -42,10 +47,16 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
+    "@changesets/changelog-github": "0.7.0",
+    "@changesets/cli": "2.31.1",
+    "@commitlint/cli": "21.2.2",
+    "@commitlint/config-conventional": "21.2.2",
     "@types/luaparse": "^0.2.13",
     "@types/node": "^26.2.0",
+    "@types/semver": "7.8.0",
     "esbuild": "0.28.2",
     "husky": "9.1.7",
+    "semver": "7.8.5",
     "typescript": "^7.0.2"
   },
   "dependencies": {

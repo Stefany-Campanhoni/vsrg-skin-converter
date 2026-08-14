@@ -38,6 +38,34 @@ jobs:
       - name: Run quality gate
         run: npm run check
 
+      - name: Validate pull request title and commits
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if ($env:EVENT_NAME -eq "pull_request") {
+            $env:PR_TITLE | npx commitlint --verbose
+          }
+          if ($env:BASE_SHA -and $env:BASE_SHA -notmatch '^0+$') {
+            npx commitlint --from $env:BASE_SHA --to $env:HEAD_SHA --verbose
+          }
+
+      - name: Validate pull request Changeset
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          node scripts/quality/assert-pr-changeset.ts $env:BASE_SHA $env:HEAD_SHA $env:HEAD_REF
+          if ($env:HEAD_REF -ne "changeset-release/main") {
+            npx changeset status --since $env:BASE_SHA
+          }
+
       - name: Check committed whitespace errors
         shell: pwsh
         env:

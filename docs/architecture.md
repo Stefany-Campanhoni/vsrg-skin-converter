@@ -157,6 +157,26 @@ publication uses a temporary archive and checksum, validates SHA-256, extracts i
 repeats the full verifier, and only then replaces the previous release pair. The experimental
 Node SEA workstream remains unmerged and is not part of this architecture.
 
+## Version and Public Release Flow
+
+Changesets is repository infrastructure rather than application or conversion code. Feature
+branches add release-intent documents under `.changeset`; the pinned Changesets Action
+combines them into one protected Release PR that updates the package manifests and
+`CHANGELOG.md`. The application is private to npm, so Changesets versions it without tagging
+or publishing it.
+
+Merging the Release PR produces a `main` push with a coherent version change. The
+draft-release workflow compares that commit with the previous `main` SHA, requires matching
+package and lockfile versions plus an exact changelog heading, and treats all other pushes as
+no-ops. A verified release runs the existing Windows distribution pipeline, then creates the
+`v<version>` tag and a GitHub draft containing the ZIP and SHA-256. Prerelease SemVer values
+are marked as prereleases, but no draft is publicly published without a second human action.
+
+Conventional Commit checks are orthogonal to SemVer calculation: Husky and CI enforce clean
+history, while Changesets files remain the sole source of release impact. The dedicated
+`CHANGESETS_TOKEN` allows the automation-owned PR to trigger ordinary checks without giving
+the Windows release job broader credentials; only that job receives `contents: write`.
+
 ## Dependency Rules
 
 Production dependencies must follow these directions:

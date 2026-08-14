@@ -77,9 +77,16 @@ Keep each pull request focused on one coherent outcome. Describe:
 Do not include generated `build`, `release`, cache, local game, or output files. Sanitize logs
 and paths so they do not disclose credentials or unrelated personal information.
 
-The project follows Conventional Commit-style titles such as `feat:`, `fix:`, `docs:`,
-`test:`, `refactor:`, `build:`, and `chore:`. Maintainers may squash a pull request, so its
-title must describe the resulting commit accurately.
+All commits and pull request titles must follow Conventional Commits. Supported types are
+`feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`, and
+`deps`; a scope is optional. Husky validates local commits, and CI validates every pull
+request commit plus the title that becomes the squash commit.
+
+Every non-release pull request must also add a new `.changeset/*.md` file. Run
+`npm run changeset` for a public change and choose its `patch`, `minor`, or `major` impact.
+For documentation, tests, CI, or other maintenance that needs no application version, run
+`npm run changeset -- --empty`. The automated `changeset-release/main` Release PR is the only
+exception because it consumes the pending files.
 
 ## Assets and Templates
 
@@ -92,7 +99,26 @@ For concerns about bundled templates or assets, contact `scampanhoni@gmail.com`.
 
 ## Versions and Releases
 
-The committed `package.json` version is the single application-version source. Use SemVer and
-prereleases such as `0.1.0-beta.2`; Git tags add the `v` prefix. Contributors must not create
-tags or publish releases from feature branches. Release preparation and publication are
-maintainer responsibilities after all required checks pass.
+Changesets is the only owner of version planning and changelog entries. Contributors declare
+release intent in their pull requests; they must not edit `package.json` versions,
+`package-lock.json` versions, or `CHANGELOG.md` release sections manually.
+
+After changes land on `main`, the Changesets Action maintains one Release PR. Its merge is the
+human approval for the calculated SemVer version. A separate workflow verifies that exact
+bump, builds the supported Windows ZIP, creates `v<version>`, and attaches the ZIP and
+SHA-256 to a draft release. Maintainers review and publish the draft manually. The workflow
+does not publish this private package to npm.
+
+The repository secret `CHANGESETS_TOKEN` must contain a fine-grained token with read/write
+contents and pull-request access. Without it, the Action cannot maintain a Release PR whose
+updates trigger all required checks.
+
+Beta trains use Changesets prerelease mode and must enter or exit through a reviewed pull
+request:
+
+```powershell
+npm run changeset:pre -- enter beta
+npm run changeset:pre -- exit
+```
+
+Contributors must not create tags, releases, or prerelease state from feature branches.

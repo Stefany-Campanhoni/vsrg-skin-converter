@@ -66,6 +66,14 @@ regressions.
 
 - State whether the change affects the supported Windows x64 ZIP or an experiment. Do not
   merge SEA prototype work into the maintained release without an explicit decision.
+- Require a Conventional Commit title and a new Changeset for every ordinary pull request.
+  Use an empty Changeset only when the change has no public release impact; never edit the
+  package version or generated changelog section in a feature branch.
+- Treat Changesets as the version planner and the draft-release workflow as the only owner of
+  public `v<version>` tags, ZIP/SHA-256 attachments, and draft releases. Preserve the
+  `CHANGESETS_TOKEN` boundary and never add npm publication to this private package.
+- When changing beta behavior, state whether `.changeset/pre.json` remains in prerelease mode
+  or is exiting. Never enter or exit prerelease mode implicitly inside a feature task.
 - Preserve pinned Node version/URL/SHA-256 as one reviewed unit and never bypass cache hash
   verification. Pin and verify the extracted `node.exe` SHA-256 as well; require an exact
   cache stamp plus a successful matching `node --version` before reusing an extraction.
