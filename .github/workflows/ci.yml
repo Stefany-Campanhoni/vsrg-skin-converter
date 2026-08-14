@@ -61,7 +61,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
         run: |
-          node scripts/quality/assert-pr-changeset.ts $env:BASE_SHA $env:HEAD_SHA $env:HEAD_REF
+          node .ci/quality/assert-pr-changeset.ts $env:BASE_SHA $env:HEAD_SHA $env:HEAD_REF
           if ($env:HEAD_REF -ne "changeset-release/main") {
             npx changeset status --since $env:BASE_SHA
           }

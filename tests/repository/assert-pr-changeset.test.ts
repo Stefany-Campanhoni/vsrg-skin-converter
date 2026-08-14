@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { assertPullRequestHasChangeset } from "../../scripts/quality/assert-pr-changeset.ts"
+import { assertPullRequestHasChangeset } from "../../.ci/quality/assert-pr-changeset.ts"
 
 test("accepts a Changesets release pull request after source changesets are consumed", () => {
   assert.doesNotThrow(() =>

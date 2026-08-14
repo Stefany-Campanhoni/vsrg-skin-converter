@@ -44,7 +44,7 @@ jobs:
         env:
           PREVIOUS_SHA: ${{ github.event.before }}
         run: |
-          $decision = node scripts/release/detect-version-release.ts $env:PREVIOUS_SHA | ConvertFrom-Json
+          $decision = node .ci/release/detect-version-release.ts $env:PREVIOUS_SHA | ConvertFrom-Json
           "should-release=$($decision.shouldRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           if ($decision.shouldRelease) {
             "version=$($decision.version)" >> $env:GITHUB_OUTPUT

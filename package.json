@@ -4,10 +4,10 @@
   "private": true,
   "main": "src/cli.ts",
   "scripts": {
-    "build": "node scripts/release/build-application.ts",
-    "build:windows": "node scripts/release/assemble-windows-portable.ts",
-    "test:distribution": "node --test tests/distribution/*.test.ts && node scripts/release/create-windows-release.ts",
-    "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node scripts/release/create-windows-release.ts",
+    "build": "node .ci/release/build-application.ts",
+    "build:windows": "node .ci/release/assemble-windows-portable.ts",
+    "test:distribution": "node --test tests/distribution/*.test.ts && node .ci/release/create-windows-release.ts",
+    "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node .ci/release/create-windows-release.ts",
     "dev": "node --watch src/cli.ts",
     "start": "node src/cli.ts",
     "changeset": "changeset",
@@ -20,8 +20,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test src/**/*.test.ts tests/**/*.test.ts",
     "test:architecture": "node --test tests/architecture/*.test.ts",
-    "lint": "npx @biomejs/biome check src tests scripts",
-    "format": "npx @biomejs/biome format --write src tests scripts"
+    "lint": "npx @biomejs/biome check .ci src tests",
+    "format": "npx @biomejs/biome format --write .ci src tests"
   },
   "keywords": [
     "etterna",

@@ -128,9 +128,37 @@ internal build-only sources after every output task succeeds. `templates/etterna
 and `templates/etterna/profile` are independent bundles used by the reverse installer; the
 profile writer relocates `playerConfig.lua` below the active theme settings directory.
 
+## Current Conversion Calibrations
+
+The maintained Etterna-to-osu! coordinate and width formulas are:
+
+```text
+HitPosition   = round(438 + NoteFieldY) + 1
+ComboPosition = round(230 + ComboY) - 1
+ScorePosition = round(240 + JudgmentY)
+ColumnWidth   = round(62 + (ReceptorSize - 100))
+```
+
+The reverse route uses their calibrated inverses after replacing `ColumnWidth` with the
+rounded arithmetic mean of all four 4K columns:
+
+```text
+NoteFieldY   = round(HitPosition) - 439
+ComboY       = round(ComboPosition) - 229
+JudgmentY    = round(ScorePosition) - 240
+ReceptorSize = round(arithmeticMean(ColumnWidth) + 38)
+```
+
+Etterna `ComboZoom` is preserved as the neutral combo scale. `JudgmentZoom` becomes
+`1 + (JudgmentZoom - 1) * 0.5`; output dimensions are rounded and clamped to at least one
+pixel. The osu! receptor canvas changes by two pixels for each hit-position point relative
+to `438`. Receptor vertical scaling maps column width `46` to `1` and width `62` to
+`196 / 146`, uses a logical playfield height of `480`, and applies a logical vertical offset
+of `23`. These empirical values belong to the osu! target calibration module.
+
 ## Windows Portable Distribution
 
-The maintained distribution pipeline is owned by `scripts/release`; it does not belong to a
+The maintained distribution pipeline is owned by `.ci/release`; it does not belong to a
 conversion adapter. esbuild bundles `src/cli.ts` as Node-targeted ESM while keeping `sharp`
 external. `src/application-root.ts` derives resources from `import.meta.url`, so the same
 invariant resolves `src/templates` during source execution and sibling `templates` beside
@@ -176,6 +204,10 @@ Conventional Commit checks are orthogonal to SemVer calculation: Husky and CI en
 history, while Changesets files remain the sole source of release impact. The dedicated
 `CHANGESETS_TOKEN` allows the automation-owned PR to trigger ordinary checks without giving
 the Windows release job broader credentials; only that job receives `contents: write`.
+
+Repository validation, build, and release programs live under `.ci`, grouped into `quality`
+and `release` responsibilities. Contributors invoke the supported release programs through
+npm scripts; placing them under `.ci` makes their repository-automation ownership explicit.
 
 ## Dependency Rules
 

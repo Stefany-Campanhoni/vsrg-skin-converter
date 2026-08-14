@@ -29,6 +29,7 @@ particular:
 - keep cross-game equivalences in the applicable conversion module;
 - keep generic filesystem and image mechanisms in infrastructure;
 - keep CLI interaction separate from conversion and installation behavior;
+- keep repository quality and release automation under the applicable `.ci` subdirectory;
 - preserve contextual errors, async quiescence, path validation, and transactional output;
 - write technical identifiers, diagnostics, comments, and documentation in English.
 

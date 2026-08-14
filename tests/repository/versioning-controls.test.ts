@@ -76,10 +76,28 @@ test("enforces conventional commits locally and in pull requests", async () => {
 test("requires a Changeset on every non-release pull request", async () => {
   const quality = await read(".github/workflows/ci.yml")
 
+  assert.match(packageJson.scripts.lint, /\.ci/)
+  assert.match(packageJson.scripts.format, /\.ci/)
   assert.match(quality, /Validate pull request Changeset/)
   assert.match(quality, /changeset-release\/main/)
-  assert.match(quality, /scripts\/quality\/assert-pr-changeset\.ts/)
+  assert.match(quality, /\.ci\/quality\/assert-pr-changeset\.ts/)
   assert.match(quality, /changeset status --since/)
+})
+
+test("keeps agent guidance as links to canonical project documentation", async () => {
+  const agents = await read("AGENTS.md")
+
+  for (const document of [
+    "readme.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/architecture.md",
+    "docs/development-standards.md",
+    "docs/agent-prompt-guidelines.md",
+  ]) {
+    assert.match(agents, new RegExp(document.replaceAll(".", "\\.")))
+  }
+  assert.match(agents, /canonical/i)
 })
 
 test("maintains one Changesets release pull request from main", async () => {

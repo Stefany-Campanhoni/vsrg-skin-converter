@@ -19,7 +19,7 @@ updates:
           - "patch"
 
   - package-ecosystem: "npm"
-    directory: "/scripts/release/runtime-package"
+    directory: "/.ci/release/runtime-package"
     schedule:
       interval: "weekly"
       day: "monday"

@@ -15,7 +15,7 @@ Place code with the responsibility that owns it:
 - technical filesystem, image, or language mechanisms: `src/infrastructure`;
 - runtime defaults and composition paths: `src/config`;
 - command-line interaction and wiring: `src/cli`;
-- maintained release configuration, assembly, and verification: `scripts/release`;
+- CI and release automation: `.ci`;
 - cross-layer integration tests: `tests/integration`;
 - portable artifact tests and real Windows smoke checks: `tests/distribution`;
 - dependency enforcement: `tests/architecture`.
@@ -153,6 +153,11 @@ GitHub prerelease flag automatically.
 Changesets prerelease mode is a repository state, not a local convenience. Enter or exit
 `beta` only through a reviewed pull request. While `.changeset/pre.json` is active, `main`
 has one beta release train and stable publication waits until the exit PR is merged.
+
+Place repository validation, build, and release automation under `.ci`, grouped by purpose.
+The programs in `.ci/release` remain supported for local execution through npm scripts.
+Tests may import pure functions from `.ci`, but production modules must not depend on that
+directory.
 
 For receptor rendering, tests must preserve this processing order: extract the selected
 frame, rotate it, normalize its size, apply target-specific vertical scaling, trim trailing

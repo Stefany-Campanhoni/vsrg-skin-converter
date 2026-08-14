@@ -176,7 +176,7 @@ async function main(): Promise<void> {
   console.log(
     await installRuntimeDependencies({
       controlledRoot: paths.cacheRoot,
-      sourcePackageDirectory: path.join(projectRoot, "scripts", "release", "runtime-package"),
+      sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
       installationRoot: paths.runtimeDependenciesRoot,
     }),
   )

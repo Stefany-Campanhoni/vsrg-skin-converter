@@ -67,6 +67,7 @@ regressions.
 - State whether the change affects the supported Windows x64 ZIP or an experiment. Do not
   merge SEA prototype work into the maintained release without an explicit decision.
 - Require a Conventional Commit title and a new Changeset for every ordinary pull request.
+- Put repository quality and release automation in the applicable `.ci` subdirectory.
   Use an empty Changeset only when the change has no public release impact; never edit the
   package version or generated changelog section in a feature branch.
 - Treat Changesets as the version planner and the draft-release workflow as the only owner of
