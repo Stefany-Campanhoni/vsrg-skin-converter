@@ -15,7 +15,7 @@ Place code with the responsibility that owns it:
 - technical filesystem, image, or language mechanisms: `src/infrastructure`;
 - runtime defaults and composition paths: `src/config`;
 - command-line interaction and wiring: `src/cli`;
-- maintained release configuration, assembly, and verification: `scripts/release`;
+- CI and release automation: `.ci`;
 - cross-layer integration tests: `tests/integration`;
 - portable artifact tests and real Windows smoke checks: `tests/distribution`;
 - dependency enforcement: `tests/architecture`.
@@ -123,6 +123,41 @@ the applicable real skins under `tmp`.
 Changes to either route require its integration test. Changes to shared domain,
 infrastructure, CLI dispatch, or installation discovery require both direction integration
 tests so the Etterna-to-osu! route cannot regress while the reverse route evolves.
+
+## Versioning and Release Automation
+
+Changesets owns SemVer intent and `CHANGELOG.md`. Every ordinary pull request adds one new
+`.changeset/*.md` document. Use a real `patch`, `minor`, or `major` entry for a public change
+and `npm run changeset -- --empty` for maintenance-only work. Only the automated
+`changeset-release/main` branch may omit a new changeset because its job is to consume the
+pending set.
+
+All commits and pull request titles follow the configured Conventional Commit types. The
+local `commit-msg` hook gives immediate feedback, while CI remains authoritative and checks
+the complete pull request range plus the squash title. Do not weaken either check for bots;
+configure automated dependency commit prefixes to use an allowed type instead.
+
+The Changesets Action is pinned by full SHA and receives only the dedicated
+`CHANGESETS_TOKEN`. That fine-grained token requires read/write contents and pull-request
+access. It may maintain the Release PR but must never publish the npm package, create release
+tags, or bypass protected-branch review. Keep `package.json` private and
+`privatePackages.version` enabled with `privatePackages.tag` disabled.
+
+The draft release workflow may publish only when `package.json` and the lockfile contain the
+same valid SemVer, that version is greater than the previous `main` version, and
+`CHANGELOG.md` contains its exact release heading. Ordinary pushes are successful no-ops.
+The release job runs the complete Windows release gate before creating a new immutable-name
+tag and draft; it must refuse to overwrite an existing tag. Prerelease SemVer values add the
+GitHub prerelease flag automatically.
+
+Changesets prerelease mode is a repository state, not a local convenience. Enter or exit
+`beta` only through a reviewed pull request. While `.changeset/pre.json` is active, `main`
+has one beta release train and stable publication waits until the exit PR is merged.
+
+Place repository validation, build, and release automation under `.ci`, grouped by purpose.
+The programs in `.ci/release` remain supported for local execution through npm scripts.
+Tests may import pure functions from `.ci`, but production modules must not depend on that
+directory.
 
 For receptor rendering, tests must preserve this processing order: extract the selected
 frame, rotate it, normalize its size, apply target-specific vertical scaling, trim trailing

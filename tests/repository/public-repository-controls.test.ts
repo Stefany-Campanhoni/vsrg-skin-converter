@@ -73,7 +73,7 @@ test("dependency updates cover both npm locks and GitHub Actions", async () => {
 
   assert.match(dependabot, /package-ecosystem:\s+["']npm["']/)
   assert.match(dependabot, /directory:\s+["']\/["']/)
-  assert.match(dependabot, /directory:\s+["']\/scripts\/release\/runtime-package["']/)
+  assert.match(dependabot, /directory:\s+["']\/\.ci\/release\/runtime-package["']/)
   assert.match(dependabot, /package-ecosystem:\s+["']github-actions["']/)
   assert.match(dependabot, /interval:\s+["']weekly["']/)
 })

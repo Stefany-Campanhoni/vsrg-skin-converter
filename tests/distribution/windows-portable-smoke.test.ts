@@ -5,13 +5,13 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { fileURLToPath } from "node:url"
+import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
+import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
+import { buildApplication } from "../../.ci/release/build-application.ts"
+import { installRuntimeDependencies } from "../../.ci/release/install-runtime-dependencies.ts"
+import { getReleasePaths } from "../../.ci/release/release-config.ts"
+import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
 import packageJson from "../../package.json" with { type: "json" }
-import { acquireNodeRuntime } from "../../scripts/release/acquire-node-runtime.ts"
-import { assembleWindowsPortable } from "../../scripts/release/assemble-windows-portable.ts"
-import { buildApplication } from "../../scripts/release/build-application.ts"
-import { installRuntimeDependencies } from "../../scripts/release/install-runtime-dependencies.ts"
-import { getReleasePaths } from "../../scripts/release/release-config.ts"
-import { verifyWindowsPortable } from "../../scripts/release/verify-windows-portable.ts"
 
 interface LauncherResult {
   readonly stdout: string
@@ -71,7 +71,7 @@ test("runs the real portable package from an external cwd and a path containing 
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
     controlledRoot: temporaryRoot,
-    sourcePackageDirectory: path.join(projectRoot, "scripts", "release", "runtime-package"),
+    sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
     installationRoot: path.join(temporaryRoot, "runtime dependencies"),
   })
   await buildApplication({

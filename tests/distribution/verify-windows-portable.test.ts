@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:f
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
-import { createWindowsRelease } from "../../scripts/release/create-windows-release.ts"
-import { verifyWindowsPortable } from "../../scripts/release/verify-windows-portable.ts"
+import { createWindowsRelease } from "../../.ci/release/create-windows-release.ts"
+import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
 
 async function writeFixture(file: string, value = file): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true })
