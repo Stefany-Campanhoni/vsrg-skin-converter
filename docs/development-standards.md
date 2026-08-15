@@ -137,11 +137,13 @@ local `commit-msg` hook gives immediate feedback, while CI remains authoritative
 the complete pull request range plus the squash title. Do not weaken either check for bots;
 configure automated dependency commit prefixes to use an allowed type instead.
 
-The Changesets Action is pinned by full SHA and receives only the dedicated
-`CHANGESETS_TOKEN`. That fine-grained token requires read/write contents and pull-request
-access. It may maintain the Release PR but must never publish the npm package, create release
-tags, or bypass protected-branch review. Keep `package.json` private and
-`privatePackages.version` enabled with `privatePackages.tag` disabled.
+The Changesets Action is pinned by full SHA and its major version must remain compatible
+with the installed Changesets CLI major. It receives only the dedicated `CHANGESETS_TOKEN`
+through the action's `github-token` input. That fine-grained token requires read/write
+contents and pull-request access. The action may maintain the Release PR but must never
+publish the npm package, create release tags, or bypass protected-branch review. Keep
+`package.json` private and `privatePackages.version` enabled with `privatePackages.tag`
+disabled.
 
 The draft release workflow may publish only when `package.json` and the lockfile contain the
 same valid SemVer, that version is greater than the previous `main` version, and
@@ -152,7 +154,9 @@ GitHub prerelease flag automatically.
 
 Changesets prerelease mode is a repository state, not a local convenience. Enter or exit
 `beta` only through a reviewed pull request. While `.changeset/pre.json` is active, `main`
-has one beta release train and stable publication waits until the exit PR is merged.
+has one beta release train and stable publication waits until the exit PR is merged. With
+Changesets CLI v3, `pre.json` contains only the mode and tag; already-versioned prerelease
+entries belong under `.changeset/pre` and must not be reconstructed in the root state file.
 
 Place repository validation, build, and release automation under `.ci`, grouped by purpose.
 The programs in `.ci/release` remain supported for local execution through npm scripts.

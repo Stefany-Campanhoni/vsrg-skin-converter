@@ -28,13 +28,19 @@ test("configures Changesets for a private single-package application", async () 
     changelog?: unknown
     privatePackages?: { version?: boolean; tag?: boolean }
   }
+  const prerelease = JSON.parse(await read(".changeset/pre.json")) as Record<string, unknown>
+  const lockfile = JSON.parse(await read("package-lock.json")) as {
+    packages?: Record<string, { devDependencies?: Record<string, string>; version?: string }>
+  }
 
   assert.equal(manifest.private, true)
   assert.equal(manifest.scripts.changeset, "changeset")
   assert.equal(manifest.scripts["changeset:status"], "changeset status")
   assert.equal(manifest.scripts["changeset:version"], "changeset version")
   assert.equal(manifest.scripts["changeset:pre"], "changeset pre")
-  assert.ok(manifest.devDependencies["@changesets/cli"])
+  assert.match(manifest.devDependencies["@changesets/cli"], /^3\./)
+  assert.match(lockfile.packages?.[""]?.devDependencies?.["@changesets/cli"] ?? "", /^3\./)
+  assert.match(lockfile.packages?.["node_modules/@changesets/cli"]?.version ?? "", /^3\./)
   assert.ok(manifest.devDependencies["@changesets/changelog-github"])
   assert.equal(config.baseBranch, "main")
   assert.deepEqual(config.changelog, [
@@ -42,6 +48,7 @@ test("configures Changesets for a private single-package application", async () 
     { repo: "Stefany-Campanhoni/vsrg-skin-converter" },
   ])
   assert.deepEqual(config.privatePackages, { version: true, tag: false })
+  assert.deepEqual(prerelease, { mode: "pre", tag: "beta" })
 })
 
 test("enforces conventional commits locally and in pull requests", async () => {
@@ -106,11 +113,16 @@ test("maintains one Changesets release pull request from main", async () => {
   assert.match(workflow, /push:\s*\r?\n\s+branches:\s*\r?\n\s+- main/)
   assert.match(workflow, /contents:\s+write/)
   assert.match(workflow, /pull-requests:\s+write/)
-  assert.match(workflow, /secrets\.CHANGESETS_TOKEN/)
-  assert.match(workflow, /version:\s+npm run changeset:version/)
-  assert.match(workflow, /commit:\s+["']chore\(release\): version packages["']/)
-  assert.match(workflow, /title:\s+["']chore\(release\): version packages["']/)
-  assert.doesNotMatch(workflow, /publish:/)
+  assert.match(workflow, /uses:\s+changesets\/action@[0-9a-f]{40}\s+# v2\./)
+  assert.match(workflow, /github-token:\s+\$\{\{ secrets\.CHANGESETS_TOKEN \}\}/)
+  assert.match(workflow, /version-script:\s+npm run changeset:version/)
+  assert.match(workflow, /commit-message:\s+["']chore\(release\): version packages["']/)
+  assert.match(workflow, /pr-title:\s+["']chore\(release\): version packages["']/)
+  assert.match(workflow, /create-github-releases:\s+false/)
+  assert.match(workflow, /push-git-tags:\s+false/)
+  assert.doesNotMatch(workflow, /^\s+GITHUB_TOKEN:/m)
+  assert.doesNotMatch(workflow, /^\s+(?:version|commit|title|commitMode):/m)
+  assert.doesNotMatch(workflow, /^\s+(?:publish|publish-script):/m)
   assertActionsArePinned(workflow)
 })
 
