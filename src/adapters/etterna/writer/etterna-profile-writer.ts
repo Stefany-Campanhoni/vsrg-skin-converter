@@ -34,6 +34,7 @@ export class EtternaProfileWriter {
       comboPosition: skin.playfield.comboPosition,
       judgementPosition: skin.playfield.judgementPosition,
       receptorSize: skin.playfield.columnWidth,
+      comboScale: skin.playfield.comboScale,
     })
   }
 }

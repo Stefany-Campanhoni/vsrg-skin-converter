@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { parseOsuSkinIni, readOsuMania4kDefinition, readOsuSkinName } from "./osu-skin-ini.ts"
+import {
+  parseOsuSkinIni,
+  readOsuComboPrefix,
+  readOsuMania4kDefinition,
+  readOsuSkinName,
+} from "./osu-skin-ini.ts"
 
 const filePath = "C:/osu!/Skins/Test/skin.ini"
 
@@ -120,6 +125,33 @@ test("reads a mixed-case General Name property", () => {
   const sections = parseOsuSkinIni("[gEnErAl]\nnAmE: Mixed Case Name", filePath)
 
   assert.equal(readOsuSkinName(sections, filePath), "Mixed Case Name")
+})
+
+test("reads the combo font prefix and uses the osu score default when it is absent", () => {
+  assert.equal(
+    readOsuComboPrefix(
+      parseOsuSkinIni("[Fonts]\nComboPrefix: custom/fonts/combo", filePath),
+      filePath,
+    ),
+    "custom/fonts/combo",
+  )
+  assert.equal(
+    readOsuComboPrefix(parseOsuSkinIni("[General]\nName: Fixture", filePath), filePath),
+    "score",
+  )
+  assert.equal(
+    readOsuComboPrefix(parseOsuSkinIni("[Fonts]\nComboPrefix:", filePath), filePath),
+    "score",
+  )
+})
+
+test("rejects ambiguous Fonts sections instead of selecting one combo prefix", () => {
+  const sections = parseOsuSkinIni(
+    "[Fonts]\nComboPrefix: first\n[fOnTs]\nComboPrefix: second",
+    filePath,
+  )
+
+  assert.throws(() => readOsuComboPrefix(sections, filePath), /Fonts section.*skin\.ini/i)
 })
 
 test("rejects duplicate case-insensitive General sections instead of selecting one name", () => {

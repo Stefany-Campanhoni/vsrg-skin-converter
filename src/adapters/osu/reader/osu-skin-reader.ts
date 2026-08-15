@@ -14,6 +14,7 @@ import {
   type ResolveOsuPngAssetOptions,
   resolveOsuPngAsset,
 } from "../assets/resolve-osu-png-asset.ts"
+import { type ReadOsuComboScaleOptions, readOsuComboScale } from "../fonts/read-osu-combo-scale.ts"
 import { osuJudgementDefinitions } from "../judgements/osu-judgement-definitions.ts"
 import {
   type ResolveOsuJudgementAssetOptions,
@@ -22,6 +23,7 @@ import {
 import {
   type OsuMania4kDefinition,
   parseOsuSkinIni,
+  readOsuComboPrefix,
   readOsuMania4kDefinition,
   readOsuSkinName,
 } from "../skin-ini/osu-skin-ini.ts"
@@ -39,12 +41,14 @@ export interface OsuSkinReaderDependencies {
   readSkinIni(skinDirectory: string): Promise<OsuSkinIniSource>
   resolveAsset(options: ResolveOsuPngAssetOptions): Promise<ImageAsset>
   resolveJudgementAsset(options: ResolveOsuJudgementAssetOptions): Promise<ImageAsset>
+  readComboScale(options: ReadOsuComboScaleOptions): Promise<number>
 }
 
 const defaultDependencies: OsuSkinReaderDependencies = {
   readSkinIni,
   resolveAsset: resolveOsuPngAsset,
   resolveJudgementAsset: resolveOsuJudgementAsset,
+  readComboScale: readOsuComboScale,
 }
 
 export class OsuSkinReader implements SkinReader {
@@ -67,10 +71,12 @@ export class OsuSkinReader implements SkinReader {
 
     const ini = await this.#dependencies.readSkinIni(reference.sourcePath)
     let name: string
+    let comboPrefix: string
     let mania: OsuMania4kDefinition
     try {
       const sections = parseOsuSkinIni(ini.source, ini.filePath)
       name = readOsuSkinName(sections, ini.filePath)
+      comboPrefix = readOsuComboPrefix(sections, ini.filePath)
       mania = readOsuMania4kDefinition(sections, ini.filePath)
     } catch (cause) {
       throw new Error(`Could not parse osu skin.ini ${ini.filePath}`, { cause })
@@ -91,7 +97,7 @@ export class OsuSkinReader implements SkinReader {
         logicalPath: tupleValue(mania.tapNotes, index),
       })),
     )
-    const assets = await settleAll([
+    const assetTasks = [
       ...references.map(({ property, logicalPath }) =>
         invokeAsPromise(async () => {
           try {
@@ -124,6 +130,16 @@ export class OsuSkinReader implements SkinReader {
               { cause },
             )
           }
+        }),
+      ),
+    ]
+    const [assets, comboScale] = await settleAll([
+      settleAll(assetTasks),
+      invokeAsPromise(() =>
+        this.#dependencies.readComboScale({
+          skinDirectory: reference.sourcePath,
+          comboPrefix,
+          useDoubleResolutionAssets: this.#useDoubleResolutionAssets,
         }),
       ),
     ])
@@ -160,7 +176,7 @@ export class OsuSkinReader implements SkinReader {
         judgementPosition: mania.judgementPosition,
         columnWidth:
           mania.columnWidths.reduce((total, width) => total + width, 0) / mania.columnWidths.length,
-        comboScale: 1,
+        comboScale,
         judgementScale: 1,
       },
       assets: {

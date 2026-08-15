@@ -44,8 +44,9 @@ Translates external game formats to and from the neutral model.
   output filenames and dimensions, renders the Etterna templates, allocates profile identity,
   composes the judgement sheet, preserves the active theme asset configuration, and
   coordinates installation.
-- `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections, and
-  resolves case-insensitive PNG references with explicit density. As a target, it renders
+- `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections,
+  resolves combo-font digits and their density-relative scale, and resolves case-insensitive
+  PNG references with explicit density. As a target, it renders
   `skin.ini` and writes image assets using osu! naming and layout conventions. Its receptor
   calibration converts the target column width into a vertical-only image scale before
   composition. As a source, its reader projects the four 4K column widths to their arithmetic
@@ -83,10 +84,13 @@ these coordinates, the osu! writer only serializes already-converted target valu
 conversion does not parse Lua, process pixels, write files, or interact with the user.
 
 The osu!-to-Etterna conversion owns the inverse position formulas and maps the scalar osu!
-column width supplied by the reader into Etterna `ReceptorSize` units. It preserves the four
-normal receptors, four pressed receptors, and four tap notes while deliberately leaving
-fonts, long notes, and zoom migration out of the reverse scope. Judgements pass through the
-neutral model without coordinate or scale conversion.
+column width supplied by the reader into Etterna `ReceptorSize` units. The osu! reader maps
+the selected combo digits onto a scale where the template's 42 logical pixel height is `1`;
+the conversion preserves that scale and the Etterna profile writer renders it as
+`ComboZoom`. It preserves the four normal receptors, four pressed receptors, and four tap
+notes while deliberately leaving font artwork, long notes, and judgement zoom migration
+out of the reverse scope. Judgements pass through the neutral model without coordinate or
+scale conversion.
 
 ### `infrastructure`
 

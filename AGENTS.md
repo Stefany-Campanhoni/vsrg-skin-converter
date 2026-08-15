@@ -11,5 +11,9 @@ change affects their contract.
 - [Prompt and review guidelines for agent-authored work](docs/agent-prompt-guidelines.md)
 - [Security policy and private reporting](SECURITY.md)
 
+Every development task intended for a pull request must add a new `.changeset/*.md` release
+intent artifact for the Changesets deployment Release PR. Use an empty Changeset only for
+maintenance with no public release impact.
+
 Keep `AGENTS.md` as an index. Project rules and technical detail belong in the canonical
 documents above, not in duplicated instructions here.

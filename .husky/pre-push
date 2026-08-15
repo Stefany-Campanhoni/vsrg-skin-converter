@@ -1,1 +1,5 @@
+base_sha="$(git rev-parse origin/main)"
+head_sha="$(git rev-parse HEAD)"
+head_ref="$(git branch --show-current)"
+node .ci/quality/assert-pr-changeset.ts "$base_sha" "$head_sha" "$head_ref"
 npm run check

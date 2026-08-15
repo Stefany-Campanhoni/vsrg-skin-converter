@@ -220,6 +220,14 @@ filenames or dimensions. Keep inverse osu!-to-Etterna coordinate/width formulas 
 Etterna filenames, dimensions, fallback policy, and future output calibrations in
 `adapters/etterna`, and multi-target publication in filesystem infrastructure.
 
+Reverse combo zoom uses the `[Fonts].ComboPrefix` osu! default of `score` and resolves all
+ten selected-density digit PNGs. The canonical osu! template digit height is 42 logical
+pixels, so 42px SD and 84px double-density both map to `comboScale = 1`. Use the median of
+the ten height ratios and allow at most one selected-density pixel of variation. If any
+selected digit is absent, fall back silently to `1`; do not reinterpret unsafe paths,
+unreadable images, or inconsistent heights as a missing font. The Etterna profile writer
+must render the resulting positive finite scale as `ComboZoom`.
+
 The reverse target contract is fixed: notes use the four direction-specific ` (res 64x64)`
 names at exactly 150x150, and normal/pressed receptors use the eight direction/state-specific
 ` (res 64x64)` names at exactly 146x146. Receptor processing order is vertical transparent-row
