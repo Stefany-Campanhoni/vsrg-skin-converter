@@ -16,9 +16,9 @@ the supported values, and publishes a complete target skin without modifying the
 | Source | Target | Current scope |
 | --- | --- | --- |
 | Etterna | osu!mania | Notes, receptors, judgements, positions, column width, combo assets, and template-provided long notes |
-| osu!mania 4K | Etterna | Notes, normal and pressed receptors, judgements, positions, receptor size, NoteSkin, and a new local profile |
+| osu!mania 4K | Etterna | Notes, normal and pressed receptors, judgements, positions, receptor size, relative combo zoom, NoteSkin, and a new local profile |
 
-The osu!mania to Etterna route does not yet migrate long notes, fonts, or judgement/combo
+The osu!mania to Etterna route does not yet migrate long notes, font artwork, or judgement
 zoom. Unsupported values remain owned by the Etterna template.
 
 ## Download and run
@@ -56,6 +56,12 @@ offers a native folder picker when a default installation cannot be found.
 Existing target skins require explicit overwrite confirmation. Output is staged and promoted
 transactionally, so a failed conversion preserves the previous target and removes incomplete
 files.
+
+For combo zoom, the osu! reader resolves `[Fonts].ComboPrefix` digits `0` through `9` at the
+selected asset density. A 42-pixel SD or 84-pixel `@2x` digit height maps to Etterna
+`ComboZoom = 1`; the converter uses the median height ratio and tolerates one selected-density
+pixel of variation. An incomplete combo font falls back silently to `ComboZoom = 1`, while
+unsafe paths, unreadable images, and inconsistent heights remain fatal.
 
 ## Run from source
 

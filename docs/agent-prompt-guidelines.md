@@ -14,6 +14,9 @@ regressions.
   implementation location.
 - State whether existing uncommitted changes must be preserved.
 - State explicitly whether staging, committing, or publishing is allowed.
+- Require every development task intended for a pull request to add a new `.changeset/*.md`
+  release intent artifact for the Changesets deployment Release PR. Use an empty Changeset
+  only when the task has no public release impact.
 
 ### Observable behavior
 
@@ -66,7 +69,7 @@ regressions.
 
 - State whether the change affects the supported Windows x64 ZIP or an experiment. Do not
   merge SEA prototype work into the maintained release without an explicit decision.
-- Require a Conventional Commit title and a new Changeset for every ordinary pull request.
+- Require a Conventional Commit title for every ordinary pull request.
 - Put repository quality and release automation in the applicable `.ci` subdirectory.
   Use an empty Changeset only when the change has no public release impact; never edit the
   package version or generated changelog section in a feature branch.
@@ -109,8 +112,9 @@ regressions.
   geometry, but judgement density selects standard versus `(Doubleres)` sheet naming.
 - Specify the exact NoteSkin, profile, judgement, and asset-configuration destinations and
   the expected profile-ID/GUID behavior.
-- Keep judgement/combo zoom, fonts, and long notes excluded unless the prompt explicitly
-  expands scope; judgement images are part of the supported reverse route.
+- Keep judgement zoom, font artwork, and long notes excluded unless the prompt explicitly
+  expands scope. Judgement images and density-normalized combo zoom are part of the
+  supported reverse route.
 - Require the inverse formulas and rounding behavior. Name all four fixed ` (res 64x64)` tap
   note outputs at exactly 150x150 and all eight fixed normal/pressed receptor outputs at
   exactly 146x146.
