@@ -4,6 +4,7 @@ import { getEtternaComboPosition } from "./convert-combo-position.ts"
 import { getEtternaHitPosition } from "./convert-hit-position.ts"
 import { getEtternaJudgementPosition } from "./convert-judgement-position.ts"
 import { getEtternaReceptorSize } from "./convert-receptor-size.ts"
+import { getEtternaCmod } from "./convert-scroll-speed.ts"
 
 export class OsuToEtternaConversion implements SkinConversion {
   readonly source = "osu"
@@ -16,6 +17,8 @@ export class OsuToEtternaConversion implements SkinConversion {
 
     assertCompletePlayfield(source)
 
+    const receptorSize = getEtternaReceptorSize(source.playfield.columnWidth)
+
     return {
       ...source,
       game: this.target,
@@ -24,7 +27,8 @@ export class OsuToEtternaConversion implements SkinConversion {
         hitPosition: getEtternaHitPosition(source.playfield.hitPosition),
         judgementPosition: getEtternaJudgementPosition(source.playfield.judgementPosition),
         comboPosition: getEtternaComboPosition(source.playfield.comboPosition),
-        columnWidth: getEtternaReceptorSize(source.playfield.columnWidth),
+        columnWidth: receptorSize,
+        scrollSpeed: getEtternaCmod(source.playfield.scrollSpeed, receptorSize),
       },
     }
   }
@@ -36,6 +40,7 @@ function assertCompletePlayfield(source: SkinModel): void {
     judgementPosition: source.playfield?.judgementPosition,
     comboPosition: source.playfield?.comboPosition,
     columnWidth: source.playfield?.columnWidth,
+    scrollSpeed: source.playfield?.scrollSpeed,
   })) {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`osu to Etterna conversion requires a finite ${property}`)
