@@ -22,7 +22,9 @@
 <TotalHands>0</TotalHands>
 <TotalLifts>0</TotalLifts>
 <PlayerRating>0.000000</PlayerRating>
-<DefaultModifiers/>
+<DefaultModifiers>
+<dance>C${cmod}, ${is_downscroll} Overhead, ${skin_name}</dance>
+</DefaultModifiers>
 <PlayerSkillsets>
 <Overall>0.000000</Overall>
 <Stream>0.000000</Stream>

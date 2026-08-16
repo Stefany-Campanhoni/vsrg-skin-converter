@@ -30,6 +30,9 @@ export class EtternaProfileWriter {
     await renderEtternaProfileTemplates(workspace, configuration.theme, {
       profileName: configuration.profileName,
       guid: configuration.guid,
+      cmod: skin.playfield.scrollSpeed,
+      isDownscroll: skin.playfield.isDownscroll ?? false,
+      skinName: skin.metadata.name,
       hitPosition: skin.playfield.hitPosition + noteFieldPositionCalibration,
       comboPosition: skin.playfield.comboPosition,
       judgementPosition: skin.playfield.judgementPosition,

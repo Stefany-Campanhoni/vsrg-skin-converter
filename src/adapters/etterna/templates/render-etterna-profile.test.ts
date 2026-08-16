@@ -38,7 +38,7 @@ test("renders each profile value for its target syntax and relocates playerConfi
     )
     assert.equal(
       await readFile(path.join(root, "Etterna.xml"), "utf8"),
-      "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n",
+      "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n",
     )
     assert.equal(
       await readFile(path.join(root, "Type.ini"), "utf8"),
@@ -68,10 +68,44 @@ test("preserves String.replace metacharacters literally in INI and escaped XML t
     )
     assert.equal(
       await readFile(path.join(root, "Etterna.xml"), "utf8"),
-      "<DisplayName>A$$|$&amp;|$&apos;|$`|A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n",
+      "<DisplayName>A$$|$&amp;|$&apos;|$`|A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n",
     )
   })
 })
+
+test("renders downscroll CMod modifiers without Reverse", async () => {
+  await withProfileTemplate(async (root) => {
+    await renderEtternaProfileTemplates(root, "Rebirth", {
+      ...validValues,
+      isDownscroll: true,
+      skinName: "Down NoteSkin",
+    })
+
+    assert.doesNotMatch(await readFile(path.join(root, "Etterna.xml"), "utf8"), /Reverse/)
+  })
+})
+
+for (const cmod of [0, -1, 888.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+  test(`rejects an invalid CMod ${String(cmod)}`, async () => {
+    await withProfileTemplate(async (root) => {
+      await assert.rejects(
+        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, cmod }),
+        /positive integer CMod/i,
+      )
+    })
+  })
+}
+
+for (const skinName of ["Pink\nBlue", "Pink\rBlue"]) {
+  test("rejects a skin name containing a line break", async () => {
+    await withProfileTemplate(async (root) => {
+      await assert.rejects(
+        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, skinName }),
+        /skin name.*line break/i,
+      )
+    })
+  })
+}
 
 for (const profileName of ["A\nB", "A\rB"]) {
   test(`rejects a profile name containing ${JSON.stringify(profileName[1])}`, async () => {
@@ -133,7 +167,7 @@ test("rejects an unresolved wildcard before changing the profile", async () => {
 
     assert.equal(
       await readFile(path.join(root, "Etterna.xml"), "utf8"),
-      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n`,
+      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n<dance>C\${cmod}, \${is_downscroll} Overhead, \${skin_name}</dance>\n`,
     )
     assert.equal(
       await readFile(path.join(root, "playerConfig.lua"), "utf8"),
@@ -176,7 +210,7 @@ test("does not reinterpret wildcard-like profile text after substitution", async
     )
     assert.equal(
       await readFile(path.join(root, "Etterna.xml"), "utf8"),
-      `<DisplayName>Player \${literal_name}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n`,
+      `<DisplayName>Player \${literal_name}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n`,
     )
   })
 })
@@ -193,7 +227,7 @@ test("renders profile-name text matching a later owned wildcard in one pass", as
     )
     assert.equal(
       await readFile(path.join(root, "Etterna.xml"), "utf8"),
-      `<DisplayName>\${guid}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n`,
+      `<DisplayName>\${guid}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n`,
     )
   })
 })
@@ -311,6 +345,9 @@ test("waits for every rendered write to settle before reporting a contextual fai
 const validValues: EtternaProfileTemplateValues = {
   profileName: "A&B <Player>",
   guid: "0123456789abcdef",
+  cmod: 888,
+  isDownscroll: false,
+  skinName: "Pink & Blue",
   hitPosition: -7,
   comboPosition: -20,
   judgementPosition: 4,
@@ -322,7 +359,7 @@ function profileTemplate(fileName: string): string {
     case "Editable.ini":
       return `[Editable]\nDisplayName=\${profile_name}\n`
     case "Etterna.xml":
-      return `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n`
+      return `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n<dance>C\${cmod}, \${is_downscroll} Overhead, \${skin_name}</dance>\n`
     case "Type.ini":
       return "[ListPosition]\nPriority=1\n"
     case "playerConfig.lua":
@@ -373,7 +410,7 @@ async function writeProfileTemplate(root: string): Promise<void> {
     writeFile(path.join(root, "Editable.ini"), `[Editable]\nDisplayName=\${profile_name}\n`),
     writeFile(
       path.join(root, "Etterna.xml"),
-      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n`,
+      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n<dance>C\${cmod}, \${is_downscroll} Overhead, \${skin_name}</dance>\n`,
     ),
     writeFile(path.join(root, "Type.ini"), "[ListPosition]\nPriority=1\n"),
     writeFile(
