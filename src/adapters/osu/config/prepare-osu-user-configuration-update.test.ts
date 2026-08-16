@@ -38,6 +38,22 @@ test("ignores matching names that are not immediate regular files", async () => 
   assert.equal(update.targetPath, path.join("C:/osu!", "osu!.Stefany.cfg"))
 })
 
+test("rejects ambiguous case-insensitive regular CFG matches before opening either file", async () => {
+  await assert.rejects(
+    () =>
+      prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
+        readDirectory: async () => [
+          { name: "OSU!.Stefany.CFG", isFile: () => true },
+          { name: "osu!.Stefany.cfg", isFile: () => true },
+        ],
+        readFile: async () => {
+          throw new Error("must not read an ambiguous CFG")
+        },
+      }),
+    /exactly one osu! user configuration.*osu!\.Stefany\.cfg/i,
+  )
+})
+
 test("rejects CFGs without exactly one ManiaSpeed assignment", async () => {
   await withOsuRoot(async (osuRoot) => {
     const targetPath = path.join(osuRoot, "osu!.Stefany.cfg")
@@ -112,6 +128,38 @@ test("wraps directory-listing and CFG-reading failures with their path and cause
     (error: Error & { cause?: unknown }) => {
       assert.match(error.message, /read.*osu!\.Stefany\.cfg/i)
       assert.equal(error.cause, failure)
+      return true
+    },
+  )
+})
+
+test("wraps null and undefined filesystem failures with their path and original cause", async () => {
+  await assert.rejects(
+    () =>
+      prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
+        readDirectory: async () => {
+          throw null
+        },
+        readFile: async () => Buffer.from(""),
+      }),
+    (error: Error & { cause?: unknown }) => {
+      assert.match(error.message, /list.*C:\/osu!/i)
+      assert.equal(error.cause, null)
+      return true
+    },
+  )
+
+  await assert.rejects(
+    () =>
+      prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
+        readDirectory: async () => [{ name: "osu!.Stefany.cfg", isFile: () => true }],
+        readFile: async () => {
+          throw undefined
+        },
+      }),
+    (error: Error & { cause?: unknown }) => {
+      assert.match(error.message, /read.*osu!\.Stefany\.cfg/i)
+      assert.equal(error.cause, undefined)
       return true
     },
   )

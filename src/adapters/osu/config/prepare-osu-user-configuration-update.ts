@@ -168,5 +168,9 @@ function missingCurrentUserConfiguration(
 }
 
 function isEnoent(cause: unknown): boolean {
-  return (cause as NodeJS.ErrnoException).code === "ENOENT"
+  return (
+    typeof cause === "object" &&
+    cause !== null &&
+    (cause as NodeJS.ErrnoException).code === "ENOENT"
+  )
 }
