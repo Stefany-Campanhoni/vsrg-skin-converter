@@ -15,6 +15,7 @@ test("preserves ordered sections and projects the unique 4K Mania definition", (
   assert.equal(sections[2]?.properties.get("columnwidth"), "68,68,70,70")
   assert.equal(readOsuSkinName(sections, "skin.ini"), "Fixture Name")
   assert.deepEqual(readOsuMania4kDefinition(sections, "skin.ini"), {
+    isDownscroll: false,
     hitPosition: 432,
     comboPosition: 210,
     judgementPosition: 244,
@@ -45,6 +46,35 @@ test("expands a scalar ColumnWidth to every 4K column", () => {
   )
 
   assert.deepEqual(definition.columnWidths, [64, 64, 64, 64])
+})
+
+test("reads UpsideDown as osu direction and defaults an absent value to upscroll", () => {
+  assert.equal(
+    readOsuMania4kDefinition(parseOsuSkinIni(maniaSection("UpsideDown: 1"), "skin.ini"), "skin.ini")
+      .isDownscroll,
+    true,
+  )
+  assert.equal(
+    readOsuMania4kDefinition(parseOsuSkinIni(maniaSection("UpsideDown: 0"), "skin.ini"), "skin.ini")
+      .isDownscroll,
+    false,
+  )
+  assert.equal(
+    readOsuMania4kDefinition(parseOsuSkinIni(maniaSection(""), "skin.ini"), "skin.ini")
+      .isDownscroll,
+    false,
+  )
+})
+
+test("rejects unsupported UpsideDown values with the skin path", () => {
+  assert.throws(
+    () =>
+      readOsuMania4kDefinition(
+        parseOsuSkinIni(maniaSection("UpsideDown: 2"), "skin.ini"),
+        "skin.ini",
+      ),
+    /UpsideDown.*skin\.ini/i,
+  )
 })
 
 test("rejects absent or ambiguous 4K Mania sections", () => {
@@ -138,13 +168,14 @@ test("rejects an assignment outside a section with the file path", () => {
   assert.throws(() => parseOsuSkinIni("Name: Orphan", filePath), /C:\/osu!\/Skins\/Test\/skin\.ini/)
 })
 
-function maniaSection(columnWidth = "ColumnWidth: 64,64,64,64"): string {
+function maniaSection(extraProperty = ""): string {
   return `[Mania]
 Keys: 4
 HitPosition: 432
 ComboPosition: 210
 ScorePosition: 244
-${columnWidth}
+ColumnWidth: 64,64,64,64
+${extraProperty}
 KeyImage0: key-left
 KeyImage1: key-down
 KeyImage2: key-up

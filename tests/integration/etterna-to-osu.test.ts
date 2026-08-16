@@ -41,6 +41,7 @@ test("converts an Etterna skin into a fully replaced osu workspace", async () =>
       path.join(profileRoot, "Etterna.xml"),
       `<Stats>
         <Guid>fixtureguid</Guid>
+        <DefaultModifiers><dance>C888, Reverse</dance></DefaultModifiers>
       </Stats>`,
     )
     await writeFile(

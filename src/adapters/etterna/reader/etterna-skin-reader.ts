@@ -12,10 +12,16 @@ import {
   analyzeEtternaReceptors,
   type EtternaReceptorAnalysis,
 } from "../noteskin/receptors/analyze-receptors.ts"
+import { readEtternaCmod } from "../profile/read-etterna-cmod.ts"
 import { readEtternaProfile } from "../profile/read-etterna-profile.ts"
 
 export interface EtternaSkinReaderDependencies {
-  readProfile(gameRoot: string, profileId: string, theme: string): Promise<PlayfieldConfiguration>
+  readProfile(
+    gameRoot: string,
+    profileId: string,
+    theme: string,
+  ): Promise<Omit<PlayfieldConfiguration, "scrollSpeed" | "isDownscroll">>
+  readCmod(gameRoot: string, profileId: string): Promise<number>
   loadNoteSkinContext(skinDirectory: string): Promise<NoteSkinContext>
   analyzeReceptors(context: NoteSkinContext): Promise<EtternaReceptorAnalysis>
   analyzeNotes(context: NoteSkinContext): Promise<EtternaNoteAnalysis>
@@ -33,6 +39,7 @@ export interface EtternaSkinReaderConfiguration {
 
 const defaultDependencies: EtternaSkinReaderDependencies = {
   readProfile: readEtternaProfile,
+  readCmod: readEtternaCmod,
   loadNoteSkinContext,
   analyzeReceptors: analyzeEtternaReceptors,
   analyzeNotes: analyzeEtternaNotes,
@@ -59,10 +66,11 @@ export class EtternaSkinReader implements SkinReader {
       throw new Error(`Etterna reader cannot read a ${reference.game} skin`)
     }
 
-    const [playfield, context, judgementAnalysis] = await settleAll([
+    const [playfield, scrollSpeed, context, judgementAnalysis] = await settleAll([
       invokeAsPromise(() =>
         this.#dependencies.readProfile(reference.gameRoot, this.#profileId, this.#theme),
       ),
+      invokeAsPromise(() => this.#dependencies.readCmod(reference.gameRoot, this.#profileId)),
       invokeAsPromise(() => this.#dependencies.loadNoteSkinContext(reference.sourcePath)),
       invokeAsPromise(() =>
         this.#dependencies.analyzeJudgements(reference.gameRoot, this.#profileId, this.#theme),
@@ -81,7 +89,7 @@ export class EtternaSkinReader implements SkinReader {
     return {
       game: this.game,
       metadata: { name: reference.name },
-      playfield,
+      playfield: { ...playfield, scrollSpeed },
       assets: {
         receptors: receptorAnalysis.receptors,
         tapNotes: noteAnalysis.notes,

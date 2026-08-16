@@ -21,6 +21,8 @@ export interface PlayfieldConfiguration {
   columnWidth: number
   comboScale: number
   judgementScale: number
+  scrollSpeed: number
+  isDownscroll?: boolean
 }
 
 export interface SkinAssets {

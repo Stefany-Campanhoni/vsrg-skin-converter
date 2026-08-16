@@ -17,7 +17,7 @@ export async function readEtternaProfile(
   gameRoot: string,
   profileId: string,
   theme: string,
-): Promise<PlayfieldConfiguration> {
+): Promise<Omit<PlayfieldConfiguration, "scrollSpeed" | "isDownscroll">> {
   const profileDirectory = resolveEtternaProfileSettingsPath(gameRoot, profileId, theme)
   const entries = await readProfileEntries(profileDirectory)
   const profilePath = entries
@@ -56,7 +56,9 @@ async function readProfileSource(profilePath: string): Promise<string> {
   }
 }
 
-export function extractEtternaPlayfieldConfiguration(ast: Chunk): PlayfieldConfiguration {
+export function extractEtternaPlayfieldConfiguration(
+  ast: Chunk,
+): Omit<PlayfieldConfiguration, "scrollSpeed" | "isDownscroll"> {
   const returnStatement = ast.body.find((statement) => statement.type === "ReturnStatement")
 
   if (!returnStatement) {

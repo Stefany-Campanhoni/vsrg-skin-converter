@@ -28,6 +28,7 @@ import {
 
 export interface OsuSkinReaderConfiguration {
   readonly useDoubleResolutionAssets: boolean
+  readonly scrollSpeed: number
 }
 
 export interface OsuSkinIniSource {
@@ -50,6 +51,7 @@ const defaultDependencies: OsuSkinReaderDependencies = {
 export class OsuSkinReader implements SkinReader {
   readonly game = "osu"
   readonly #useDoubleResolutionAssets: boolean
+  readonly #scrollSpeed: number
   readonly #dependencies: OsuSkinReaderDependencies
 
   constructor(
@@ -57,6 +59,7 @@ export class OsuSkinReader implements SkinReader {
     dependencies: OsuSkinReaderDependencies = defaultDependencies,
   ) {
     this.#useDoubleResolutionAssets = configuration.useDoubleResolutionAssets
+    this.#scrollSpeed = configuration.scrollSpeed
     this.#dependencies = dependencies
   }
 
@@ -162,6 +165,8 @@ export class OsuSkinReader implements SkinReader {
           mania.columnWidths.reduce((total, width) => total + width, 0) / mania.columnWidths.length,
         comboScale: 1,
         judgementScale: 1,
+        scrollSpeed: this.#scrollSpeed,
+        isDownscroll: mania.isDownscroll,
       },
       assets: {
         receptors: {

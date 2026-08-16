@@ -28,6 +28,7 @@ const etternaSkin: SkinModel = {
     columnWidth: 108,
     comboScale: 1,
     judgementScale: 1,
+    scrollSpeed: 1,
   },
   assets: {
     judgements: {

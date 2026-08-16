@@ -13,6 +13,7 @@ const etternaSkin = {
     columnWidth: 100,
     comboScale: 0.6,
     judgementScale: 0.675,
+    scrollSpeed: 1,
   },
   assets: {},
   diagnostics: [

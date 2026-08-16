@@ -305,6 +305,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
       createReader: (configuration) => {
         reader = new OsuSkinReader({
           useDoubleResolutionAssets: configuration.useDoubleResolutionAssets,
+          scrollSpeed: configuration.maniaSpeed,
         })
         return reader
       },
@@ -431,7 +432,7 @@ async function createFixture(): Promise<Fixture> {
   await mkdir(path.dirname(assetsConfigPath), { recursive: true })
   await writeFile(
     path.join(osuRoot, "osu!.Alice.cfg"),
-    "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\n",
+    "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\nManiaSpeed = 29\n",
   )
   await writeFile(assetsConfigPath, originalAssetsConfig)
   await writeFile(path.join(skinDirectory, "skin.ini"), skinIni(skinName))
@@ -512,6 +513,7 @@ async function convertFixture(
           "osu",
           new OsuSkinReader({
             useDoubleResolutionAssets: configuration.useDoubleResolutionAssets,
+            scrollSpeed: configuration.maniaSpeed,
           }),
         ],
       ]),

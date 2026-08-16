@@ -13,6 +13,7 @@ const osuSkin = {
     columnWidth: 68.5,
     comboScale: 1,
     judgementScale: 1,
+    scrollSpeed: 1,
   },
   assets: {
     receptors: {
@@ -52,6 +53,7 @@ test("converts an osu playfield while preserving source-owned data", async () =>
     columnWidth: 107,
     comboScale: 1,
     judgementScale: 1,
+    scrollSpeed: 1,
   })
   assert.equal(result.assets, osuSkin.assets)
   assert.equal(result.diagnostics, osuSkin.diagnostics)
