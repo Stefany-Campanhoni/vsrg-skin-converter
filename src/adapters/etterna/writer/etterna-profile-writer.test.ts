@@ -32,7 +32,7 @@ test("copies and renders the profile template with only playerConfig below the a
     )
     assert.equal(
       await readFile(path.join(workspace, "Etterna.xml"), "utf8"),
-      "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n",
+      "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Converted NoteSkin</dance>\n",
     )
     assert.equal(await readFile(path.join(workspace, "Type.ini"), "utf8"), "profile type")
     assert.equal(
@@ -81,6 +81,7 @@ const etternaSkin: SkinModel = {
     columnWidth: 107,
     comboScale: 0.5,
     judgementScale: 1,
+    scrollSpeed: 888,
   },
   assets: {},
   diagnostics: [],
@@ -92,7 +93,7 @@ async function writeProfileTemplate(templates: string): Promise<void> {
     writeFile(path.join(templates, "Editable.ini"), `[Editable]\nDisplayName=\${profile_name}\n`),
     writeFile(
       path.join(templates, "Etterna.xml"),
-      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n`,
+      `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n<dance>C\${cmod}, \${is_downscroll} Overhead, \${skin_name}</dance>\n`,
     ),
     writeFile(path.join(templates, "Type.ini"), "profile type"),
     writeFile(

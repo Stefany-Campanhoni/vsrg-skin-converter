@@ -7,6 +7,7 @@ export interface OsuIniSection {
 }
 
 export interface OsuMania4kDefinition {
+  readonly isDownscroll: boolean
   readonly hitPosition: number
   readonly comboPosition: number
   readonly judgementPosition: number
@@ -84,6 +85,7 @@ export function readOsuMania4kDefinition(
   }
 
   return {
+    isDownscroll: readIsDownscroll(properties, filePath),
     hitPosition: readNumber(properties, "hitposition", filePath),
     comboPosition: readNumber(properties, "comboposition", filePath),
     judgementPosition: readNumber(properties, "scoreposition", filePath),
@@ -98,6 +100,13 @@ export function readOsuMania4kDefinition(
       ]),
     ) as Record<JudgementGrade, string | undefined>,
   }
+}
+
+function readIsDownscroll(properties: ReadonlyMap<string, string>, filePath: string): boolean {
+  const value = properties.get("upsidedown")
+  if (value === undefined || value === "0") return false
+  if (value === "1") return true
+  throw invalidProperty("UpsideDown", filePath)
 }
 
 function readNumber(

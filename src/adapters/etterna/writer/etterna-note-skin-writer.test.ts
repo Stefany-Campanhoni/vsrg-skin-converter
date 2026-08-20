@@ -194,6 +194,7 @@ function etternaSkin(source: string): SkinModel {
       columnWidth: 100,
       comboScale: 1,
       judgementScale: 1,
+      scrollSpeed: 1,
     },
     assets: { receptors, tapNotes },
     diagnostics: [],

@@ -12,7 +12,8 @@ Fullscreen = 1
 Width = 1280
 Height = 720
 WidthFullscreen = 1920
-HeightFullscreen = 1080`,
+HeightFullscreen = 1080
+ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
@@ -28,7 +29,8 @@ test("uses the windowed resolution when fullscreen is disabled", () => {
 fullscreen = 0
 width = 1024
 height = 768
-Width = 1280`,
+Width = 1280
+ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
@@ -43,11 +45,34 @@ test("keeps exactly 1280x720 at standard resolution", () => {
     `Username = Alice
 Fullscreen = 0
 Width = 1280
-Height = 720`,
+Height = 720
+ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
   assert.equal(result.useDoubleResolutionAssets, false)
+})
+
+test("reads the positive integer ManiaSpeed from the selected osu configuration", () => {
+  const result = parseOsuUserConfiguration(
+    "Username = Alice\nFullscreen = 0\nWidth = 1280\nHeight = 720\nManiaSpeed = 29",
+    "C:/osu!/osu!.Alice.cfg",
+  )
+
+  assert.equal(result.maniaSpeed, 29)
+})
+
+test("rejects missing and non-positive or non-integer ManiaSpeed values with the configuration path", () => {
+  for (const invalid of ["", "0", "29.5", "fast"]) {
+    assert.throws(
+      () =>
+        parseOsuUserConfiguration(
+          `Username = Alice\nFullscreen = 0\nWidth = 1280\nHeight = 720\nManiaSpeed = ${invalid}`,
+          "C:/osu!/osu!.Alice.cfg",
+        ),
+      /ManiaSpeed.*osu!\.Alice\.cfg/i,
+    )
+  }
 })
 
 test("marks a width-only high resolution display as double resolution", () => {
@@ -55,7 +80,8 @@ test("marks a width-only high resolution display as double resolution", () => {
     `Username = Alice
 Fullscreen = 0
 Width = 1281
-Height = 720`,
+Height = 720
+ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
@@ -67,7 +93,8 @@ test("marks a height-only high resolution display as double resolution", () => {
     `Username = Alice
 Fullscreen = 0
 Width = 1280
-Height = 721`,
+Height = 721
+ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
@@ -141,6 +168,7 @@ test("lists immediate osu user configurations by username", async (context) => {
       username: "Alice",
       width: 1280,
       height: 720,
+      maniaSpeed: 29,
       useDoubleResolutionAssets: false,
     },
     {
@@ -148,6 +176,7 @@ test("lists immediate osu user configurations by username", async (context) => {
       username: "Bob",
       width: 1280,
       height: 720,
+      maniaSpeed: 29,
       useDoubleResolutionAssets: false,
     },
   ])
@@ -166,6 +195,6 @@ test("rejects an osu root that contains no user configurations", async (context)
 async function writeConfiguration(root: string, fileName: string, username: string): Promise<void> {
   await writeFile(
     path.join(root, fileName),
-    `Username = ${username}\nFullscreen = 0\nWidth = 1280\nHeight = 720`,
+    `Username = ${username}\nFullscreen = 0\nWidth = 1280\nHeight = 720\nManiaSpeed = 29`,
   )
 }

@@ -154,6 +154,7 @@ function etternaSkin(): SkinModel {
       columnWidth: 100,
       comboScale: 1,
       judgementScale: 1,
+      scrollSpeed: 1,
     },
     assets: { judgements: { sourceDensity: 1, images } },
     diagnostics: [],

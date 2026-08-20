@@ -7,6 +7,7 @@ export interface OsuUserConfiguration {
   readonly username: string
   readonly width: number
   readonly height: number
+  readonly maniaSpeed: number
   readonly useDoubleResolutionAssets: boolean
 }
 
@@ -16,14 +17,24 @@ export function parseOsuUserConfiguration(source: string, filePath: string): Osu
   const fullscreen = readFullscreen(properties, filePath)
   const width = readDimension(properties, fullscreen ? "widthfullscreen" : "width", filePath)
   const height = readDimension(properties, fullscreen ? "heightfullscreen" : "height", filePath)
+  const maniaSpeed = readManiaSpeed(properties, filePath)
 
   return {
     filePath,
     username,
     width,
     height,
+    maniaSpeed,
     useDoubleResolutionAssets: width > 1280 || height > 720,
   }
+}
+
+function readManiaSpeed(properties: ReadonlyMap<string, string>, filePath: string): number {
+  const value = Number(requiredProperty(properties, "maniaspeed", filePath))
+  if (!Number.isInteger(value) || value <= 0) {
+    throw invalidProperty("ManiaSpeed", filePath)
+  }
+  return value
 }
 
 export async function listOsuUserConfigurations(osuRoot: string): Promise<OsuUserConfiguration[]> {

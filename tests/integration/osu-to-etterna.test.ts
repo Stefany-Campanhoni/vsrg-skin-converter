@@ -187,6 +187,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     )
     assert.match(editable, /DisplayName=Alice/)
     assert.match(xml, /<DisplayName>Alice<\/DisplayName>/)
+    assert.match(xml, /<dance>C902, Reverse, Overhead, General Name<\/dance>/)
     const guid = /<Guid>([^<]+)<\/Guid>/.exec(xml)?.[1]
     assert.match(guid ?? "", /^[0-9a-f]{16}$/)
     assert.notEqual(guid, existingGuid)
@@ -215,6 +216,23 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     ]) {
       assert.equal(assetsConfig.includes(preserved), true, preserved)
     }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("preserves downscroll by omitting Reverse from the generated Etterna profile", async () => {
+  const fixture = await createFixture({ upsideDown: 1 })
+  try {
+    await convertFixture(fixture)
+    const xml = await readFile(
+      path.join(fixture.etternaRoot, "Save", "LocalProfiles", "00000004", "Etterna.xml"),
+      "utf8",
+    )
+    const dance = /<dance>([^<]+)<\/dance>/.exec(xml)?.[1]
+
+    assert.match(dance ?? "", /^C902,\s+Overhead, General Name$/)
+    assert.doesNotMatch(dance ?? "", /\bReverse\b/)
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
   }
@@ -306,6 +324,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
       createReader: (configuration) => {
         reader = new OsuSkinReader({
           useDoubleResolutionAssets: configuration.useDoubleResolutionAssets,
+          scrollSpeed: configuration.maniaSpeed,
         })
         return reader
       },
@@ -412,7 +431,11 @@ interface Fixture {
   readonly assetsConfigPath: string
 }
 
-async function createFixture(): Promise<Fixture> {
+async function createFixture({
+  upsideDown = 0,
+}: {
+  readonly upsideDown?: 0 | 1
+} = {}): Promise<Fixture> {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-to-etterna-"))
   const osuRoot = path.join(root, "osu!")
   const etternaRoot = path.join(root, "Etterna")
@@ -432,10 +455,10 @@ async function createFixture(): Promise<Fixture> {
   await mkdir(path.dirname(assetsConfigPath), { recursive: true })
   await writeFile(
     path.join(osuRoot, "osu!.Alice.cfg"),
-    "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\n",
+    "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\nManiaSpeed = 29\n",
   )
   await writeFile(assetsConfigPath, originalAssetsConfig)
-  await writeFile(path.join(skinDirectory, "skin.ini"), skinIni(skinName))
+  await writeFile(path.join(skinDirectory, "skin.ini"), skinIni(skinName, upsideDown))
   await writeFile(path.join(etternaRoot, "Save", "Preferences.ini"), "[Options]\nTheme=Rebirth\n")
   await writeFile(
     path.join(profileDirectory, "Etterna.xml"),
@@ -522,6 +545,7 @@ async function convertFixture(
           "osu",
           new OsuSkinReader({
             useDoubleResolutionAssets: configuration.useDoubleResolutionAssets,
+            scrollSpeed: configuration.maniaSpeed,
           }),
         ],
       ]),
@@ -552,7 +576,7 @@ function createFixtureInstaller(
   })
 }
 
-function skinIni(name: string): string {
+function skinIni(name: string, upsideDown: 0 | 1): string {
   const entries = directions.flatMap((direction, index) => [
     `KeyImage${index}: ASSETS\\${direction}-release`,
     `KeyImage${index}D: Assets\\${direction}-pressed`,
@@ -571,6 +595,7 @@ function skinIni(name: string): string {
     "Keys: 3",
     "[Mania]",
     "Keys: 4",
+    `UpsideDown: ${upsideDown}`,
     "HitPosition: 436",
     "ComboPosition: 250",
     "ScorePosition: 280",

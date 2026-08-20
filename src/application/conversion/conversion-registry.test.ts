@@ -13,6 +13,7 @@ const sourceSkin = {
     columnWidth: 100,
     comboScale: 1,
     judgementScale: 1,
+    scrollSpeed: 1,
   },
   assets: {
     receptors: undefined,

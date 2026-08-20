@@ -88,9 +88,10 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     },
   })
 
-  const model = await new OsuSkinReader({ useDoubleResolutionAssets: true }, dependencies).readSkin(
-    reference,
-  )
+  const model = await new OsuSkinReader(
+    { useDoubleResolutionAssets: true, scrollSpeed: 29 },
+    dependencies,
+  ).readSkin(reference)
 
   assert.deepEqual(started, logicalPaths)
   assert.deepEqual(settled, logicalPaths)
@@ -103,6 +104,8 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     columnWidth: 69,
     comboScale: 0.5,
     judgementScale: 1,
+    scrollSpeed: 29,
+    isDownscroll: false,
   })
   assert.deepEqual(model.assets.receptors, {
     left: {
@@ -144,7 +147,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
 
 test("rejects mixed osu judgement densities", async () => {
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: true },
+    { useDoubleResolutionAssets: true, scrollSpeed: 29 },
     withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: async (options) => ({
@@ -165,7 +168,7 @@ test("resolves absent judgement properties through osu default filenames", async
     .join("\n")
   const requestedJudgements: ResolveOsuJudgementAssetOptions[] = []
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: false },
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     {
       readSkinIni: async () => ({
         source: sourceWithoutJudgements,
@@ -209,7 +212,7 @@ test("resolves absent judgement properties through osu default filenames", async
 
 test("rejects a judgement whose resolved density is missing", async () => {
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: false },
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: async (options) => ({
@@ -226,7 +229,7 @@ test("rejects a judgement whose resolved density is missing", async () => {
 test("rejects references from another game before reading inputs", async () => {
   let readStarted = false
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: false },
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     withGenericJudgementResolver({
       readSkinIni: async () => {
         readStarted = true
@@ -248,7 +251,7 @@ test("rejects references from another game before reading inputs", async () => {
 test("wraps duplicate General sections with skin reader context and preserves the parser error", async () => {
   const iniPath = "C:/osu/Skins/Fixture/skin.ini"
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: false },
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     withGenericJudgementResolver({
       readSkinIni: async () => ({
         source: `${source}\n[gEnErAl]\nName: Conflicting Name`,
@@ -279,7 +282,7 @@ test("settles all eighteen assets and reports the first input-order failure with
   const laterFailure = new Error("tap note missing")
   const comboScale = deferred<number>()
   const reader = new OsuSkinReader(
-    { useDoubleResolutionAssets: false },
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     withGenericJudgementResolver({
       readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
       resolveAsset: (options) => {

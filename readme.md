@@ -15,8 +15,8 @@ the supported values, and publishes a complete target skin without modifying the
 
 | Source | Target | Current scope |
 | --- | --- | --- |
-| Etterna | osu!mania | Notes, receptors, judgements, positions, column width, combo assets, and template-provided long notes |
-| osu!mania 4K | Etterna | Notes, normal and pressed receptors, judgements, positions, receptor size, relative combo zoom, NoteSkin, and a new local profile |
+| Etterna | osu!mania | Notes, receptors, judgements, positions, column width, CMod to scroll speed, combo assets, and template-provided long notes |
+| osu!mania 4K | Etterna | Notes, normal and pressed receptors, judgements, positions, receptor size, scroll speed and direction, relative combo zoom, NoteSkin, and a new local profile |
 
 The osu!mania to Etterna route does not yet migrate long notes, font artwork, or judgement
 zoom. Unsupported values remain owned by the Etterna template.
@@ -47,21 +47,63 @@ itself, and does not support Windows ARM64, Linux, or macOS.
 The interactive CLI asks for the source game, discovers installed profiles and skins, and
 offers a native folder picker when a default installation cannot be found.
 
-- Etterna skins are read from `NoteSkins/dance`. The converted osu! skin is installed under
-  the selected osu! `Skins` directory.
-- osu! skins are read from the selected user's configuration. The converted NoteSkin is
-  installed under `Etterna/NoteSkins/dance`, and a new numbered local profile is created
-  under `Etterna/Save/LocalProfiles`.
+- Etterna skins are read from `NoteSkins/dance`. The selected local profile supplies its
+  positive integer CMod from `Etterna.xml`. The converted osu! skin is installed under the
+  selected osu! `Skins` directory, and the target `ManiaSpeed` is written to the current
+  Windows user's `osu!.<username>.cfg`.
+- osu! skins use a source CFG selected by `Username`; that CFG supplies `ManiaSpeed`. The
+  unique 4K `[Mania]` section supplies `UpsideDown`. The converted NoteSkin is installed
+  under `Etterna/NoteSkins/dance`, and a new numbered local profile is created under
+  `Etterna/Save/LocalProfiles`.
+
+The Etterna-to-osu! route never prompts for a target CFG. It resolves the current Windows
+user's CFG case-insensitively below the osu! root. If the file is missing, start osu! at
+least once so the game creates it, then retry.
 
 Existing target skins require explicit overwrite confirmation. Output is staged and promoted
-transactionally, so a failed conversion preserves the previous target and removes incomplete
-files.
+transactionally. Etterna-to-osu! publishes the skin and guarded CFG rewrite as one output
+set; osu!mania-to-Etterna publishes its NoteSkin, profile, judgement, and profile settings
+together. A failed conversion restores previous targets and removes incomplete output.
 
-For combo zoom, the osu! reader resolves `[Fonts].ComboPrefix` digits `0` through `9` at the
-selected asset density. A 42-pixel SD or 84-pixel `@2x` digit height maps to Etterna
-`ComboZoom = 1`; the converter uses the median height ratio and tolerates one selected-density
-pixel of variation. An incomplete combo font falls back silently to `ComboZoom = 1`, while
-unsafe paths, unreadable images, and inconsistent heights remain fatal.
+### Scroll speed and direction
+
+osu!mania to Etterna first converts column width to `ReceptorSize`, then converts the selected
+source CFG's `ManiaSpeed` to an integer CMod:
+
+```text
+inaccurateFix = ReceptorSize > 100
+receptorScale = ReceptorSize / 100
+CMod = (435.59 * ManiaSpeed) / 13.72
+if inaccurateFix: CMod += 35
+result = round(CMod / receptorScale)
+```
+
+For Etterna to osu!mania, conversion uses the selected profile's source `ReceptorSize` before
+column-width conversion:
+
+```text
+candidate = roundToTwoDecimals((435 * CMod) / 13720)
+candidateCMod = osuToEtterna(candidate, ReceptorSize)
+while candidateCMod < CMod:
+    candidate += 1
+    candidateCMod = osuToEtterna(candidate, ReceptorSize)
+result = round(candidate)
+```
+
+For example, selected-profile `C888` with `ReceptorSize = 108` starts at `28.15`, reaches
+`29.15` after one increment, and writes integer `ManiaSpeed = 29`.
+
+For direction, `UpsideDown: 1` means downscroll and omits Etterna's `Reverse` modifier.
+`UpsideDown: 0` or an absent property means upscroll and emits `Reverse`. Other present values
+are invalid. Etterna scroll direction is not migrated back to osu!mania.
+
+### Combo zoom
+
+The osu! reader resolves `[Fonts].ComboPrefix` digits `0` through `9` at the selected asset
+density. A 42-pixel SD or 84-pixel `@2x` digit height maps to Etterna `ComboZoom = 1`; the
+converter uses the median height ratio and tolerates one selected-density pixel of variation.
+An incomplete combo font falls back silently to `ComboZoom = 1`, while unsafe paths,
+unreadable images, and inconsistent heights remain fatal.
 
 ## Run from source
 

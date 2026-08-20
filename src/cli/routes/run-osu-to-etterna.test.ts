@@ -16,6 +16,7 @@ const configuration: OsuUserConfiguration = {
   username: "Alice",
   width: 1920,
   height: 1080,
+  maniaSpeed: 29,
   useDoubleResolutionAssets: true,
 }
 const skin: SkinReference = {
@@ -79,7 +80,9 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
     },
     askConfirm: async () => assert.fail("absent NoteSkin must not prompt for overwrite"),
     createReader: (selectedConfiguration) => {
-      events.push(`reader:${selectedConfiguration.useDoubleResolutionAssets}`)
+      events.push(
+        `reader:${selectedConfiguration.useDoubleResolutionAssets}:${selectedConfiguration.maniaSpeed}`,
+      )
       readerConfiguration = selectedConfiguration
       return {} as SkinReader
     },
@@ -128,7 +131,7 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
     "theme:C:/Games/Etterna",
     "noteskin-path:C:/Games/Etterna:General Name",
     "noteskin-exists:C:/Games/Etterna/NoteSkins/dance/General Name",
-    "reader:true",
+    "reader:true:29",
     "installer:Alice:Til Death",
     "convert-install",
     "warn:WARNING receptor [right]: Fallback",

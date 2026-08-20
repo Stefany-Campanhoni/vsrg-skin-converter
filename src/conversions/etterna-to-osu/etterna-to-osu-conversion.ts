@@ -4,6 +4,7 @@ import { getColumnWidth } from "./convert-column-width.ts"
 import { getComboPosition } from "./convert-combo-position.ts"
 import { getHitPosition } from "./convert-hit-position.ts"
 import { getJudgementPosition } from "./convert-judgement-position.ts"
+import { getOsuManiaSpeed } from "./convert-scroll-speed.ts"
 
 export class EtternaToOsuConversion implements SkinConversion {
   readonly source = "etterna"
@@ -14,6 +15,8 @@ export class EtternaToOsuConversion implements SkinConversion {
       throw new Error(`Etterna to osu conversion cannot convert a ${source.game} skin`)
     }
 
+    const receptorSize = source.playfield.columnWidth
+
     return {
       ...source,
       game: this.target,
@@ -22,7 +25,8 @@ export class EtternaToOsuConversion implements SkinConversion {
         hitPosition: getHitPosition(source.playfield.hitPosition),
         judgementPosition: getJudgementPosition(source.playfield.judgementPosition),
         comboPosition: getComboPosition(source.playfield.comboPosition),
-        columnWidth: getColumnWidth(source.playfield.columnWidth),
+        columnWidth: getColumnWidth(receptorSize),
+        scrollSpeed: getOsuManiaSpeed(source.playfield.scrollSpeed, receptorSize),
       },
     }
   }

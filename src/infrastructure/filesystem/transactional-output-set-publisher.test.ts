@@ -1186,6 +1186,104 @@ test("validates file content expectations before backing up any target", async (
   }
 })
 
+test("preserves a SHA-256 target changed between live validation and backup", async () => {
+  const root = await makeRoot()
+  const skin = target(root, "skin", "replace-existing", async (workspace) => {
+    await writeFile(path.join(workspace, "new.txt"), "new skin")
+  })
+  const configPath = path.join(root, "osu!.Audit.cfg")
+  const originalConfig = Buffer.from("ManiaSpeed = 10\n")
+  const concurrentConfig = "ManiaSpeed = 777\nConcurrent = keep\n"
+  let changedAfterValidation = false
+  const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
+    readFile: async (candidate) => {
+      const content = await readFile(candidate)
+      if (!changedAfterValidation && candidate === configPath) {
+        changedAfterValidation = true
+        await writeFile(configPath, concurrentConfig)
+      }
+      return content
+    },
+  }
+
+  try {
+    await mkdir(skin.targetPath)
+    await writeFile(path.join(skin.targetPath, "old.txt"), "old skin")
+    await writeFile(configPath, originalConfig)
+    const config = fileTarget(
+      root,
+      "osu!.Audit.cfg",
+      "replace-existing",
+      async (stagingFile) => writeFile(stagingFile, "ManiaSpeed = 29\n"),
+      {
+        state: "sha256",
+        sha256: createHash("sha256").update(originalConfig).digest("hex"),
+      },
+    )
+
+    await assert.rejects(
+      () => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]),
+      /content.*changed|expectation|sha-?256/i,
+    )
+
+    assert.equal(changedAfterValidation, true)
+    assert.equal(await readFile(configPath, "utf8"), concurrentConfig)
+    assert.deepEqual(await readdir(skin.targetPath), ["old.txt"])
+    assert.equal(await readFile(path.join(skin.targetPath, "old.txt"), "utf8"), "old skin")
+    await assertOnlyTargets(root, ["skin", "osu!.Audit.cfg"])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test("preserves a missing-expected file created between live validation and backup", async () => {
+  const root = await makeRoot()
+  const skin = target(root, "skin", "replace-existing", async (workspace) => {
+    await writeFile(path.join(workspace, "new.txt"), "new skin")
+  })
+  const configPath = path.join(root, "osu!.Audit.cfg")
+  const concurrentConfig = "ManiaSpeed = 777\nConcurrent = keep\n"
+  let createdAfterValidation = false
+  const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
+    access: async (candidate) => {
+      try {
+        await access(candidate)
+      } catch (cause) {
+        if (!createdAfterValidation && candidate === configPath) {
+          createdAfterValidation = true
+          await writeFile(configPath, concurrentConfig)
+        }
+        throw cause
+      }
+    },
+  }
+
+  try {
+    await mkdir(skin.targetPath)
+    await writeFile(path.join(skin.targetPath, "old.txt"), "old skin")
+    const config = fileTarget(
+      root,
+      "osu!.Audit.cfg",
+      "replace-existing",
+      async (stagingFile) => writeFile(stagingFile, "ManiaSpeed = 29\n"),
+      { state: "missing" },
+    )
+
+    await assert.rejects(
+      () => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]),
+      /expected.*missing|content expectation/i,
+    )
+
+    assert.equal(createdAfterValidation, true)
+    assert.equal(await readFile(configPath, "utf8"), concurrentConfig)
+    assert.deepEqual(await readdir(skin.targetPath), ["old.txt"])
+    assert.equal(await readFile(path.join(skin.targetPath, "old.txt"), "utf8"), "old skin")
+    await assertOnlyTargets(root, ["skin", "osu!.Audit.cfg"])
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 test("rejects file builders that do not create one regular staging file", async () => {
   const root = await makeRoot()
   try {

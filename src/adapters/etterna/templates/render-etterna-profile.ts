@@ -10,6 +10,9 @@ import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle
 export interface EtternaProfileTemplateValues {
   readonly profileName: string
   readonly guid: string
+  readonly cmod: number
+  readonly isDownscroll: boolean
+  readonly skinName: string
   readonly hitPosition: number
   readonly comboPosition: number
   readonly judgementPosition: number
@@ -70,6 +73,9 @@ export async function renderEtternaProfileTemplates(
   const xml = renderOwnedTemplate("Etterna.xml", xmlTemplate, {
     profile_name: escapeXmlText(values.profileName),
     guid: values.guid,
+    cmod: values.cmod,
+    is_downscroll: values.isDownscroll ? "" : "Reverse,",
+    skin_name: escapeXmlText(values.skinName),
   })
   renderOwnedTemplate("Type.ini", typeTemplate, {})
   const playerConfig = renderOwnedTemplate("playerConfig.lua", playerConfigTemplate, {
@@ -119,10 +125,16 @@ function validateValues(theme: string, values: EtternaProfileTemplateValues): vo
   if (/[\r\n]/.test(values.profileName)) {
     throw new Error("Etterna profile name cannot contain a line break")
   }
+  if (/[\r\n]/.test(values.skinName)) {
+    throw new Error("Etterna skin name cannot contain a line break")
+  }
   if (!/^[0-9a-f]{16}$/.test(values.guid)) {
     throw new Error("Etterna GUID must contain exactly 16 lowercase hexadecimal characters")
   }
   assertSafeTheme(theme)
+  if (!Number.isInteger(values.cmod) || values.cmod <= 0) {
+    throw new Error("Etterna profile requires a positive integer CMod")
+  }
   for (const [field, value] of Object.entries({
     hitPosition: values.hitPosition,
     comboPosition: values.comboPosition,

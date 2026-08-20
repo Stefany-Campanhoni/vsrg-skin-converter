@@ -39,6 +39,7 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
   const seenContexts: NoteSkinContext[] = []
   const sequence: string[] = []
   let judgementGameRoot: string | undefined
+  let cmodGameRoot: string | undefined
   let profileGameRoot: string | undefined
   let profileId: string | undefined
   let profileTheme: string | undefined
@@ -82,6 +83,11 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
           comboScale: 1,
           judgementScale: 1,
         }
+      },
+      readCmod: async (gameRoot, receivedProfileId) => {
+        cmodGameRoot = gameRoot
+        assert.equal(receivedProfileId, "selected-profile")
+        return 888
       },
       loadNoteSkinContext: async () => {
         contextLoads += 1
@@ -133,6 +139,7 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
   const skinPromise = reader.readSkin(reference)
 
   assert.equal(judgementGameRoot, reference.gameRoot)
+  assert.equal(cmodGameRoot, reference.gameRoot)
   assert.equal(profileGameRoot, reference.gameRoot)
   assert.equal(profileId, "selected-profile")
   assert.equal(profileTheme, "Rebirth")
@@ -160,6 +167,7 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
   assert.equal(skin.playfield.columnWidth, 100)
   assert.equal(skin.playfield.comboScale, 1)
   assert.equal(skin.playfield.judgementScale, 1)
+  assert.equal(skin.playfield.scrollSpeed, 888)
   assert.equal(skin.assets.receptors, receptors)
   assert.equal(skin.assets.tapNotes, tapNotes)
   assert.equal(skin.assets.judgements, judgements)
@@ -202,6 +210,7 @@ test("starts and settles every initial reader dependency after a synchronous fai
     { profileId: "selected-profile", theme: "Rebirth" },
     {
       readProfile: () => profile.promise,
+      readCmod: async () => 888,
       loadNoteSkinContext: () => {
         throw failure
       },
@@ -250,6 +259,7 @@ test("settles both NoteSkin analyses after a synchronous failure", async () => {
         comboScale: 1,
         judgementScale: 1,
       }),
+      readCmod: async () => 888,
       loadNoteSkinContext: async () => ({ filePath: "NoteSkin.lua" }) as NoteSkinContext,
       analyzeJudgements: async () => ({ judgements, diagnostics: [] }),
       analyzeReceptors: () => receptorAnalysis.promise,
@@ -285,6 +295,9 @@ test("rejects references from another game", async () => {
     { profileId: "selected-profile", theme: "Rebirth" },
     {
       readProfile: async () => {
+        throw new Error("should not run")
+      },
+      readCmod: async () => {
         throw new Error("should not run")
       },
       loadNoteSkinContext: async () => {

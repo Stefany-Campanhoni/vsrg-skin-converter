@@ -10,9 +10,10 @@ const etternaSkin = {
     hitPosition: -6.6,
     judgementPosition: 4,
     comboPosition: -20,
-    columnWidth: 100,
+    columnWidth: 108,
     comboScale: 0.6,
     judgementScale: 0.675,
+    scrollSpeed: 888,
   },
   assets: {},
   diagnostics: [
@@ -34,7 +35,8 @@ test("converts Etterna playfield coordinates into an osu skin model", async () =
   assert.equal(result.playfield.hitPosition, 432)
   assert.equal(result.playfield.judgementPosition, 244)
   assert.equal(result.playfield.comboPosition, 209)
-  assert.equal(result.playfield.columnWidth, 62)
+  assert.equal(result.playfield.columnWidth, 70)
+  assert.equal(result.playfield.scrollSpeed, 29)
   assert.equal(result.playfield.comboScale, 0.6)
   assert.equal(result.playfield.judgementScale, 0.675)
   assert.equal(result.assets, etternaSkin.assets)

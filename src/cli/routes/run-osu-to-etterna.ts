@@ -93,7 +93,10 @@ const defaultDependencies: OsuToEtternaRouteDependencies = {
   noteSkinExists: directoryExists,
   askConfirm,
   createReader: (configuration) =>
-    new OsuSkinReader({ useDoubleResolutionAssets: configuration.useDoubleResolutionAssets }),
+    new OsuSkinReader({
+      useDoubleResolutionAssets: configuration.useDoubleResolutionAssets,
+      scrollSpeed: configuration.maniaSpeed,
+    }),
   createInstaller: createDefaultEtternaInstaller,
   convertAndInstallSkin: (request) =>
     convertAndInstallSkin(request, {

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { EtternaProfile } from "../../adapters/etterna/profile/etterna-profile-catalog.ts"
+import type { ConvertAndInstallSkinRequest } from "../../application/conversion/convert-and-install-skin.ts"
 import type { ConvertSkinRequest } from "../../application/conversion/convert-skin.ts"
+import type { SkinInstaller } from "../../application/ports/skin-installer.ts"
 import type { SkinReference } from "../../domain/skin.ts"
 import {
   type EtternaToOsuRouteDependencies,
@@ -17,13 +19,24 @@ const skin: SkinReference = {
   gameRoot: "C:/Games/Etterna",
 }
 
-test("preserves the Etterna to osu route order, prompts, output path, and diagnostics", async () => {
+test("installs the Etterna skin with the selected target and formats diagnostics", async () => {
   const events: string[] = []
-  let conversionRequest: ConvertSkinRequest | undefined
+  let installConfiguration:
+    | {
+        gameRoot: string
+        windowsUsername: string | undefined
+        expectedSkinName: string
+        skinTarget: string
+      }
+    | undefined
+  let conversionRequest: ConvertAndInstallSkinRequest | undefined
   let selectedOptions: { value: string; label: string }[] | undefined
-  const dependencies: EtternaToOsuRouteDependencies = {
+  const dependencies: EtternaToOsuRouteDependencies & {
+    convertSkin(request: ConvertSkinRequest): Promise<{ diagnostics: [] }>
+  } = {
     etternaDefaultLocation: "C:/Games/Etterna",
     localAppData: "C:/Users/Alice/AppData/Local",
+    windowsUsername: "Stefany",
     resolveInstallationDirectory: async (defaultDirectory, prompt) => {
       events.push(`resolve:${defaultDirectory}:${prompt}`)
       return defaultDirectory?.includes("Etterna") ? "C:/Games/Etterna" : "C:/Users/Alice/osu!"
@@ -57,8 +70,13 @@ test("preserves the Etterna to osu route order, prompts, output path, and diagno
       events.push(`output:${skinName}:${gameRoot}`)
       return "C:/Users/Alice/osu!/Skins/Diamond"
     },
-    convertSkin: async (request) => {
-      events.push("convert")
+    createInstaller: (configuration) => {
+      events.push("installer")
+      installConfiguration = configuration
+      return {} as SkinInstaller
+    },
+    convertAndInstallSkin: async (request) => {
+      events.push("convert-install")
       conversionRequest = request
       return {
         diagnostics: [
@@ -72,17 +90,20 @@ test("preserves the Etterna to osu route order, prompts, output path, and diagno
         ],
       }
     },
+    convertSkin: async () => assert.fail("route must use convertAndInstallSkin"),
     warn: (message) => events.push(`warn:${message}`),
   }
 
   await runEtternaToOsuRoute(dependencies)
 
   assert.deepEqual(selectedOptions, [{ value: skin.sourcePath, label: "Diamond" }])
-  assert.deepEqual(conversionRequest, {
-    reference: skin,
-    targetGame: "osu",
-    outputDirectory: "C:/Users/Alice/osu!/Skins/Diamond",
+  assert.deepEqual(installConfiguration, {
+    gameRoot: "C:/Users/Alice/osu!",
+    windowsUsername: "Stefany",
+    expectedSkinName: "Diamond",
+    skinTarget: "C:/Users/Alice/osu!/Skins/Diamond",
   })
+  assert.deepEqual(conversionRequest, { reference: skin, targetGame: "osu" })
   assert.deepEqual(events, [
     "resolve:C:/Games/Etterna:Etterna was not found. Press any key to select its installation folder.",
     "profiles:C:/Games/Etterna",
@@ -93,7 +114,8 @@ test("preserves the Etterna to osu route order, prompts, output path, and diagno
     "osu-default:C:/Users/Alice/AppData/Local",
     "resolve:C:/Users/Alice/osu!:osu! was not found. Press any key to select its installation folder.",
     "output:Diamond:C:/Users/Alice/osu!",
-    "convert",
+    "installer",
+    "convert-install",
     "warn:WARNING receptor [left]: Used fallback",
   ])
 })
@@ -106,6 +128,7 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
     const dependencies: EtternaToOsuRouteDependencies = {
       etternaDefaultLocation: "C:/Games/Etterna",
       localAppData: undefined,
+      windowsUsername: "Stefany",
       resolveInstallationDirectory: async (defaultDirectory) => {
         if (cancellationPoint === "source-location" && defaultDirectory === "C:/Games/Etterna") {
           return undefined
@@ -122,7 +145,8 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
       selectSkin: async () => (cancellationPoint === "skin" ? undefined : skin.sourcePath),
       resolveDefaultOsuInstallationDirectory: () => "C:/osu!",
       resolveOsuSkinOutputPath: () => "C:/osu!/Skins/Diamond",
-      convertSkin: async () => {
+      createInstaller: () => ({}) as SkinInstaller,
+      convertAndInstallSkin: async () => {
         converted = true
         return { diagnostics: [] }
       },
