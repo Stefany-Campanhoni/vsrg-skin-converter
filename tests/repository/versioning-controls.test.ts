@@ -91,8 +91,8 @@ test("requires a Changeset on every non-release pull request", async () => {
   assert.match(quality, /changeset status --since/)
 })
 
-test("keeps agent guidance as links to canonical project documentation", async () => {
-  const agents = await read("AGENTS.md")
+test("keeps agent guidance consolidated with a thin Claude pointer", async () => {
+  const [agents, claude] = await Promise.all([read("AGENTS.md"), read("CLAUDE.md")])
 
   for (const document of [
     "readme.md",
@@ -100,11 +100,15 @@ test("keeps agent guidance as links to canonical project documentation", async (
     "SECURITY.md",
     "docs/architecture.md",
     "docs/development-standards.md",
-    "docs/agent-prompt-guidelines.md",
   ]) {
     assert.match(agents, new RegExp(document.replaceAll(".", "\\.")))
   }
   assert.match(agents, /canonical/i)
+  assert.match(agents, /smallest solution/i)
+  assert.match(agents, /never use TypeScript `any`/i)
+  assert.match(agents, /`unknown`/)
+  assert.match(agents, /authorization/i)
+  assert.equal(claude.trim(), "@AGENTS.md")
 })
 
 test("maintains one Changesets release pull request from main", async () => {
@@ -145,11 +149,11 @@ test("creates a versioned Windows draft release only after a verified bump", asy
 })
 
 test("documents contributor and maintainer versioning responsibilities", async () => {
-  const [readme, contributing, standards, agents, pullRequest] = await Promise.all([
+  const [readme, contributing, standards, agentGuidance, pullRequest] = await Promise.all([
     read("readme.md"),
     read("CONTRIBUTING.md"),
     read("docs/development-standards.md"),
-    read("docs/agent-prompt-guidelines.md"),
+    read("AGENTS.md"),
     read(".github/PULL_REQUEST_TEMPLATE.md"),
   ])
 
@@ -160,8 +164,8 @@ test("documents contributor and maintainer versioning responsibilities", async (
   }
   assert.match(contributing, /npm run changeset -- --empty/)
   assert.match(contributing, /npm run changeset:pre -- (?:enter beta| exit)/)
-  assert.match(agents, /Changeset/i)
-  assert.match(agents, /Conventional Commit/i)
+  assert.match(agentGuidance, /Changeset/i)
+  assert.match(agentGuidance, /Conventional\s+Commit/i)
   assert.match(pullRequest, /\.changeset\/.*\.md/)
   assert.match(pullRequest, /Conventional Commit/i)
 })

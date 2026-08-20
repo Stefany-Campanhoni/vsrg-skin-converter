@@ -8,7 +8,7 @@
 
 **Tech Stack:** GitHub Actions, Node.js 22.23.2, npm, CodeQL, TruffleHog, Dependabot, Node test runner, actionlint
 
-**Spec:** `docs/superpowers/specs/2026-08-13-public-repository-governance-design.md`
+**Historical spec:** Retired from the repository after implementation.
 
 ## Global Constraints
 

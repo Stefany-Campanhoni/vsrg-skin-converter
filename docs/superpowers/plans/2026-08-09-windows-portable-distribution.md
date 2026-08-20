@@ -672,7 +672,6 @@ git commit -m "docs: document Windows portable releases"
 
 - [ ] **Step 5: Request final code review without committing generated artifacts**
 
-Review the full change range against
-`docs/superpowers/specs/2026-08-09-windows-portable-distribution-design.md`. Fix every critical
-or important finding, repeat Step 2, and leave the verified source branch ready for user
-review.
+Review the full change range against `docs/architecture.md`,
+`docs/development-standards.md`, and the documented behavior contract. Fix every critical or
+important finding, repeat Step 2, and leave the verified source branch ready for user review.

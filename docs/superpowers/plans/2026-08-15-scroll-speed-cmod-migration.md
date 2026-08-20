@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript ESM, Node.js 22 test runner, filesystem promises, existing ports and adapters, `TransactionalOutputSetPublisher`.
 
-**Spec:** `docs/superpowers/specs/2026-08-15-scroll-speed-cmod-migration-design.md`
+**Historical spec:** Retired from the repository after implementation.
 
 ## Global Constraints
 
