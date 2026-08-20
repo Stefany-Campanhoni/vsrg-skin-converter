@@ -1,8 +1,21 @@
-# VSRG Skin Converter
+# 🎹 VSRG Skin Converter
 
-[![Quality](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/ci.yml/badge.svg)](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/codeql.yml/badge.svg)](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/codeql.yml)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+<p align="center"><em>A tiny wardrobe wizard for your rhythm-game skins. 🪄✨</em></p>
+
+<p align="center">
+  <a href="https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/ci.yml">
+    <img alt="Quality" src="https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <a href="https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/codeql.yml">
+    <img alt="CodeQL" src="https://github.com/Stefany-Campanhoni/vsrg-skin-converter/actions/workflows/codeql.yml/badge.svg">
+  </a>
+  <a href="LICENSE">
+    <img alt="License: GPL v3" src="https://img.shields.io/badge/License-GPLv3-blue.svg">
+  </a>
+  <a href="https://buymeacoffee.com/tefyyay">
+    <img alt="Buy Me a Coffee" src="https://img.shields.io/badge/Buy_Me_a_Coffee-support_tefyyay-FFDD00?logo=buy-me-a-coffee&amp;logoColor=000000">
+  </a>
+</p>
 
 VSRG Skin Converter is a TypeScript CLI that migrates vertical-scrolling rhythm-game skins
 between Etterna and osu!mania. It reads each game's native configuration and assets, converts
@@ -10,6 +23,19 @@ the supported values, and publishes a complete target skin without modifying the
 
 > The project is currently in beta. The supported portable build targets Windows x64, and
 > osu!mania to Etterna conversion currently supports 4K skins only.
+
+## Table of contents
+
+- 🎮 [Supported conversions](#supported-conversions)
+- 📦 [Download and run](#download-and-run)
+- 🪄 [How it works](#how-it-works)
+  - [Scroll speed and direction](#scroll-speed-and-direction)
+  - [Combo zoom](#combo-zoom)
+- 🧑‍💻 [Run from source](#run-from-source)
+- 🧰 [Development](#development)
+- 🚀 [Releases](#releases)
+- 📚 [Documentation](#documentation)
+- 📜 [License and template assets](#license-and-template-assets)
 
 ## Supported conversions
 
@@ -166,11 +192,9 @@ workflow does not run `npm publish`.
   transactional publication
 - [Development standards](docs/development-standards.md) — placement, tests, errors, safety,
   and release rules
-- [Agent prompt guidelines](docs/agent-prompt-guidelines.md) — requirements for future
-  agent-authored changes and reviews
 - [Security policy](SECURITY.md) — private vulnerability reporting
 
-`AGENTS.md` is a lightweight entry point to these canonical documents.
+`AGENTS.md` is the entry point and working agreement for agent-authored changes.
 
 ## License and template assets
 
