@@ -39,17 +39,22 @@ depends only on the domain.
 Translates external game formats to and from the neutral model.
 
 - `adapters/etterna` discovers skins, statically reads gameplay positions, `ReceptorSize`,
-  `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, performs static NoteSkin analysis,
-  and resolves Etterna assets. As a target, it validates NoteSkin/profile paths, owns fixed
-  output filenames and dimensions, renders the Etterna templates, allocates profile identity,
-  composes the judgement sheet, preserves the active theme asset configuration, and
-  coordinates installation.
+  `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, and reads the selected profile's
+  positive integer CMod from `<DefaultModifiers>/<dance>` in `Etterna.xml`. It performs
+  static NoteSkin analysis and resolves Etterna assets. As a target, it validates
+  NoteSkin/profile paths, owns fixed output filenames and dimensions, renders the converted
+  CMod and scroll direction into the Etterna templates, allocates profile identity, composes
+  the judgement sheet, preserves the active theme asset configuration, and coordinates
+  installation.
 - `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections, and
-  resolves case-insensitive PNG references with explicit density. As a target, it renders
-  `skin.ini` and writes image assets using osu! naming and layout conventions. Its receptor
-  calibration converts the target column width into a vertical-only image scale before
-  composition. As a source, its reader projects the four 4K column widths to their arithmetic
-  mean before exposing the scalar through the neutral model.
+  resolves case-insensitive PNG references with explicit density. The selected source CFG
+  supplies `ManiaSpeed`, while the unique 4K Mania section supplies `UpsideDown` (`1` is
+  downscroll; `0` or absence is upscroll). As a target, it renders `skin.ini`, writes image
+  assets using osu! naming and layout conventions, and prepares a guarded update of the
+  current Windows user's CFG. Its receptor calibration converts the target column width into
+  a vertical-only image scale before composition. As a source, its reader projects the four
+  4K column widths to their arithmetic mean before exposing the scalar through the neutral
+  model.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -59,6 +64,13 @@ The CLI discovers Etterna local profiles and selects one before constructing the
 reader. The Etterna adapter resolves the active theme from `Preferences.ini` and uses one
 named reader configuration for both playfield and judgement reads. A central Etterna path
 module validates profile IDs and theme names before composing settings paths.
+
+In the opposite route, one discovered osu! source CFG is selected automatically and multiple
+CFGs are presented by their `Username`; the selected CFG supplies `ManiaSpeed`. Etterna to
+osu! never prompts for a target CFG. The CLI supplies the current Windows username, and the
+osu! installer resolves the immediate case-insensitive filename
+`osu!.<Windows username>.cfg` below the selected osu! root. A missing target fails with
+guidance to start osu! at least once.
 
 Etterna asset adapters resolve the selected profile's judgement and playfield configuration,
 then convert Etterna sheet coordinates into a semantic `JudgementSet`. The conversion
@@ -87,6 +99,34 @@ column width supplied by the reader into Etterna `ReceptorSize` units. It preser
 normal receptors, four pressed receptors, and four tap notes while deliberately leaving
 fonts, long notes, and zoom migration out of the reverse scope. Judgements pass through the
 neutral model without coordinate or scale conversion.
+
+Scroll-speed conversion is also pair-specific. osu!mania to Etterna first converts column
+width to `ReceptorSize`, then calculates a positive integer CMod:
+
+```text
+inaccurateFix = receptorSize > 100
+receptorScale = receptorSize / 100
+cmod = (435.59 * maniaSpeed) / 13.72
+if inaccurateFix: cmod += 35
+result = round(cmod / receptorScale)
+```
+
+Etterna to osu!mania uses the selected profile's source `ReceptorSize` before converting
+that size to column width:
+
+```text
+candidate = roundToTwoDecimals((435 * cmod) / 13720)
+candidateCmod = osuToEtterna(candidate, receptorSize)
+while candidateCmod < cmod:
+    candidate += 1
+    candidateCmod = osuToEtterna(candidate, receptorSize)
+result = round(candidate)
+```
+
+Thus selected-profile `C888` with `ReceptorSize = 108` produces candidate `29.16` and the
+integer `ManiaSpeed = 29`. osu! `UpsideDown: 1` is rendered without Etterna `Reverse`;
+`UpsideDown: 0` or absence renders `Reverse`. Etterna scroll direction is not migrated back
+to osu!mania.
 
 ### `infrastructure`
 
@@ -179,7 +219,8 @@ Dependencies within the same layer are allowed. Production dependency cycles are
 `SkinModel` is the only data exchanged between a reader, conversion, and writer. It contains:
 
 - neutral metadata and playfield configuration, including column width in the current model
-  game's units and neutral combo and judgement image scale factors;
+  game's units, scroll speed in the current model game's integer unit, optional osu!
+  downscroll direction, and neutral combo and judgement image scale factors;
 - direction-keyed normal and pressed receptors;
 - direction-keyed tap notes;
 - typed diagnostics accumulated during static analysis.
@@ -212,11 +253,13 @@ of the neutral domain.
 
 ## Transactional Publication
 
-The single-target output publisher builds the entire result in a temporary sibling of the selected
-`<resolved osu! installation>/Skins/<skin name>` directory.
-After a successful build, it moves the previous output to a temporary backup and promotes
-the staged result. If promotion fails, it restores the backup. A build failure removes only
-staging and preserves the previously published output.
+Etterna-to-osu! uses the multi-target publisher for the selected
+`<resolved osu! installation>/Skins/<skin name>` directory and the current Windows user's
+CFG. Both targets are fully staged before publication. The installer records the CFG's
+original SHA-256 and verifies it again before promotion, preventing a concurrent edit from
+being overwritten. The previous skin and CFG move to sibling backups, and any build or
+promotion failure restores both as one output set. A successful commit removes the backups
+and preserves unrelated CFG content.
 
 Runtime-path configuration derives the default osu! installation from an absolute
 `LOCALAPPDATA` root when available. If either default installation is missing, the CLI can

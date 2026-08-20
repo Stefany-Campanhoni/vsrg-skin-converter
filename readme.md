@@ -96,20 +96,30 @@ selection ends the operation without publishing.
 For Etterna sources, the CLI checks `C:/Games/Etterna`, discovers local profiles under
 `Save/LocalProfiles`, and discovers skins under `NoteSkins/dance`. The active theme comes
 from `Save/Preferences.ini`, so playfield and judgement settings use the selected profile
-and theme.
+and theme. The selected profile also supplies its positive integer CMod from the `<dance>`
+modifier below `<DefaultModifiers>` in `Etterna.xml`.
 
 Before publication, the CLI checks the default osu! installation at
 `%LOCALAPPDATA%/osu!` and offers the same folder-picker recovery when unavailable. The
-complete skin is written to `<resolved osu! installation>/Skins/<skin name>`. A successful
-run transactionally replaces only the named skin, while a failed run preserves its previous
-version and every other installed skin.
+complete skin is written to `<resolved osu! installation>/Skins/<skin name>`. The target CFG
+is not prompted for: the installer derives `osu!.<current Windows username>.cfg` directly
+below the resolved osu! root, case-insensitively. If that file does not exist, start osu! at
+least once so it creates the current user's CFG, then retry. The generated skin and updated
+CFG are staged and published atomically. A failed run restores both previous targets and
+preserves every other installed skin; unrelated CFG properties are retained.
 
 For osu! sources, the CLI discovers `osu!.*.cfg` files in the installation root. A single
 configuration is automatic; multiple configurations are selected by their `Username`.
+The selected source CFG supplies its positive integer `ManiaSpeed`; this existing selection
+is separate from the current-Windows-user target lookup used in the opposite direction.
 `Fullscreen` chooses either `WidthFullscreen`/`HeightFullscreen` or `Width`/`Height`.
 Resolutions wider than `1280` or taller than `720` use implicit `@2x` assets; exactly
 `1280x720` is standard density. An explicit `@2x` reference always uses that file, and the
 resolver never falls back between densities. Only PNG assets are supported.
+
+The selected skin must have exactly one 4K `[Mania]` section. Its `UpsideDown: 1` value
+means downscroll and omits Etterna's `Reverse` modifier; `UpsideDown: 0` or an absent value
+means upscroll and emits `Reverse`. Any other present value is invalid.
 
 The reverse route reads exactly one 4K `[Mania]` section and installs:
 
@@ -232,6 +242,33 @@ above the hit-position line after osu! scales the key image.
 Etterna `ReceptorSize` is read from the active profile's `playerConfig.lua`. It maps to osu!
 with `ColumnWidth = round(ReceptorSize - 38)`, so the Etterna default `100` becomes osu!
 `62`.
+
+Scroll speed conversion uses receptor size before serializing a positive integer target
+value. For osu!mania to Etterna, the converter first derives the target `ReceptorSize`, then
+applies:
+
+```text
+inaccurateFix = ReceptorSize > 100
+receptorScale = ReceptorSize / 100
+CMod = (435.59 * ManiaSpeed) / 13.72
+if inaccurateFix: CMod += 35
+result = round(CMod / receptorScale)
+```
+
+For Etterna to osu!mania, the selected profile's source `ReceptorSize` is used before column
+width conversion:
+
+```text
+candidate = roundToTwoDecimals((435 * CMod) / 13720)
+candidateCMod = osuToEtterna(candidate, ReceptorSize)
+while candidateCMod < CMod:
+    candidate += 1
+    candidateCMod = osuToEtterna(candidate, ReceptorSize)
+result = round(candidate)
+```
+
+For example, selected-profile `C888` with `ReceptorSize = 108` produces candidate `29.16`
+and writes the integer `ManiaSpeed = 29` to the current Windows user's CFG.
 
 The visible receptor layer is stretched vertically according to column width while its width
 remains unchanged. The empirical calibration maps osu! column width `46` to no stretch and
