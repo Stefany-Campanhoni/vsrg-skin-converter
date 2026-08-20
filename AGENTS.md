@@ -17,6 +17,8 @@ the detailed project rules.
   architecture. Do not introduce speculative abstractions or opportunistic refactors.
 - Never use TypeScript `any`, including in tests. Use explicit types or `unknown` with proper
   narrowing.
+- Follow test-driven development for production changes: write a failing test first, make the
+  smallest change that passes, then refactor while keeping the test suite green.
 - Make behavior, boundaries, failures, authorization, and required evidence explicit.
 - Respect the ownership, dependency, transactional, concurrency, and verification rules in
   the canonical architecture and development standards documents.
