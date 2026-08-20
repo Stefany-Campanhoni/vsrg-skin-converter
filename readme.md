@@ -267,8 +267,9 @@ while candidateCMod < CMod:
 result = round(candidate)
 ```
 
-For example, selected-profile `C888` with `ReceptorSize = 108` produces candidate `29.16`
-and writes the integer `ManiaSpeed = 29` to the current Windows user's CFG.
+For example, selected-profile `C888` with `ReceptorSize = 108` starts with candidate `28.15`,
+reaches `29.15` after one increment, and writes the integer `ManiaSpeed = 29` to the current
+Windows user's CFG.
 
 The visible receptor layer is stretched vertically according to column width while its width
 remains unchanged. The empirical calibration maps osu! column width `46` to no stretch and

@@ -123,10 +123,10 @@ while candidateCmod < cmod:
 result = round(candidate)
 ```
 
-Thus selected-profile `C888` with `ReceptorSize = 108` produces candidate `29.16` and the
-integer `ManiaSpeed = 29`. osu! `UpsideDown: 1` is rendered without Etterna `Reverse`;
-`UpsideDown: 0` or absence renders `Reverse`. Etterna scroll direction is not migrated back
-to osu!mania.
+Thus selected-profile `C888` with `ReceptorSize = 108` starts with candidate `28.15`, reaches
+`29.15` after one increment, and produces integer `ManiaSpeed = 29`. osu! `UpsideDown: 1`
+is rendered without Etterna `Reverse`; `UpsideDown: 0` or absence renders `Reverse`. Etterna
+scroll direction is not migrated back to osu!mania.
 
 ### `infrastructure`
 

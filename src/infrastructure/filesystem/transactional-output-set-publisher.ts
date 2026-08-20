@@ -280,6 +280,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
   async #publishAll(targets: readonly PublicationTarget[]): Promise<void> {
     try {
       await this.#backUpReplaceableTargets(targets)
+      await this.#validateBackedUpExpectedContents(targets)
 
       for (const target of targets) {
         if (target.definition.policy === "must-not-exist") {
@@ -323,6 +324,48 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
         this.#fileSystem.rename(target.targetPath, target.backupPath),
       )
       target.backupCreated = true
+    }
+  }
+
+  async #validateBackedUpExpectedContents(targets: readonly PublicationTarget[]): Promise<void> {
+    for (const target of targets) {
+      if (
+        target.definition.kind !== "file" ||
+        target.definition.policy !== "replace-existing" ||
+        !target.definition.expectedContent
+      ) {
+        continue
+      }
+      const expectation = target.definition.expectedContent
+      if (!target.backupCreated) {
+        if (expectation.state === "sha256") {
+          throw new Error(
+            `Output target "${target.targetPath}" changed after preparation: it was missing when backed up`,
+          )
+        }
+        continue
+      }
+      if (expectation.state === "missing") {
+        throw new Error(
+          `Output target "${target.targetPath}" violated its content expectation: expected it to be missing when backed up`,
+        )
+      }
+
+      let content: Buffer
+      try {
+        content = await this.#fileSystem.readFile(target.backupPath)
+      } catch (cause) {
+        throw new Error(
+          `Output target "${target.targetPath}" changed after preparation: could not verify its backed-up SHA-256 content expectation`,
+          { cause },
+        )
+      }
+      const actualHash = createHash("sha256").update(content).digest("hex")
+      if (actualHash !== expectation.sha256) {
+        throw new Error(
+          `Output target "${target.targetPath}" content changed after preparation and no longer matches its backed-up SHA-256 expectation`,
+        )
+      }
     }
   }
 
