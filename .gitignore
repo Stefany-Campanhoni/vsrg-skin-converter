@@ -1,5 +1,6 @@
 node_modules/
 .worktrees/
+/docs/superpowers/
 output_folder/
 tmp/
 /.tmp/
