@@ -5,15 +5,27 @@ import {
 } from "../../adapters/etterna/profile/etterna-profile-catalog.ts"
 import { EtternaSkinReader } from "../../adapters/etterna/reader/etterna-skin-reader.ts"
 import { readEtternaTheme } from "../../adapters/etterna/theme/read-etterna-theme.ts"
+import {
+  prepareOsuUserConfigurationUpdate,
+  writeOsuUserConfigurationUpdate,
+} from "../../adapters/osu/config/prepare-osu-user-configuration-update.ts"
+import {
+  OsuSkinInstaller,
+  type OsuSkinInstallerConfiguration,
+} from "../../adapters/osu/install/osu-skin-installer.ts"
 import { OsuSkinWriter } from "../../adapters/osu/writer/osu-skin-writer.ts"
 import { ConversionRegistry } from "../../application/conversion/conversion-registry.ts"
-import { type ConvertSkinRequest, convertSkin } from "../../application/conversion/convert-skin.ts"
+import {
+  type ConvertAndInstallSkinRequest,
+  convertAndInstallSkin,
+} from "../../application/conversion/convert-and-install-skin.ts"
+import type { SkinInstaller } from "../../application/ports/skin-installer.ts"
 import { gameDefaults } from "../../config/game-defaults.ts"
 import { resolveDefaultOsuInstallationDirectory } from "../../config/osu-installation.ts"
 import { osuTemplatesPath, resolveOsuSkinOutputPath } from "../../config/paths.ts"
 import { EtternaToOsuConversion } from "../../conversions/etterna-to-osu/etterna-to-osu-conversion.ts"
 import type { SkinReference } from "../../domain/skin.ts"
-import { TransactionalOutputPublisher } from "../../infrastructure/filesystem/transactional-output-publisher.ts"
+import { TransactionalOutputSetPublisher } from "../../infrastructure/filesystem/transactional-output-set-publisher.ts"
 import { pickDirectory } from "../folder-picker.ts"
 import {
   directoryExists,
@@ -24,9 +36,12 @@ import { askSelect, type SelectOption, waitForAnyKey } from "../prompts.ts"
 
 type SelectProfile = (message: string, options: SelectOption[]) => Promise<string | undefined>
 
+export type OsuInstallerRouteConfiguration = OsuSkinInstallerConfiguration
+
 export interface EtternaToOsuRouteDependencies {
   readonly etternaDefaultLocation: string
   readonly localAppData: string | undefined
+  readonly windowsUsername: string | undefined
   resolveInstallationDirectory(
     defaultDirectory: string | undefined,
     prompt: string,
@@ -38,7 +53,10 @@ export interface EtternaToOsuRouteDependencies {
   selectSkin(message: string, options: SelectOption[]): Promise<string | undefined>
   resolveDefaultOsuInstallationDirectory(localAppData: string | undefined): string | undefined
   resolveOsuSkinOutputPath(skinName: string, osuInstallationDirectory: string): string
-  convertSkin(request: ConvertSkinRequest): ReturnType<typeof convertSkin>
+  createInstaller(configuration: OsuInstallerRouteConfiguration): SkinInstaller
+  convertAndInstallSkin(
+    request: ConvertAndInstallSkinRequest,
+  ): ReturnType<typeof convertAndInstallSkin>
   warn(message: string): void
 }
 
@@ -48,9 +66,10 @@ const installationDirectoryDependencies: InstallationDirectoryDependencies = {
   pickDirectory,
 }
 
-const defaultDependencies: Omit<EtternaToOsuRouteDependencies, "convertSkin"> = {
+const defaultDependencies: Omit<EtternaToOsuRouteDependencies, "convertAndInstallSkin"> = {
   etternaDefaultLocation: gameDefaults.etterna.location,
   localAppData: process.env.LOCALAPPDATA,
+  windowsUsername: process.env.USERNAME,
   resolveInstallationDirectory: (defaultDirectory, prompt) =>
     resolveInstallationDirectory(defaultDirectory, prompt, installationDirectoryDependencies),
   listEtternaProfiles,
@@ -60,7 +79,21 @@ const defaultDependencies: Omit<EtternaToOsuRouteDependencies, "convertSkin"> = 
   selectSkin: askSelect,
   resolveDefaultOsuInstallationDirectory,
   resolveOsuSkinOutputPath,
+  createInstaller: createDefaultOsuInstaller,
   warn: console.warn,
+}
+
+export function createDefaultOsuInstaller(
+  configuration: OsuInstallerRouteConfiguration,
+): OsuSkinInstaller {
+  return new OsuSkinInstaller(configuration, {
+    skinWriter: new OsuSkinWriter(osuTemplatesPath),
+    configWriter: {
+      prepareUpdate: prepareOsuUserConfigurationUpdate,
+      writeUpdate: writeOsuUserConfigurationUpdate,
+    },
+    publisher: new TransactionalOutputSetPublisher(),
+  })
 }
 
 export async function runEtternaToOsuRoute(
@@ -93,13 +126,18 @@ export async function runEtternaToOsuRoute(
   )
   if (!osuLocation) return
 
+  const installer = resolved.createInstaller({
+    gameRoot: osuLocation,
+    windowsUsername: resolved.windowsUsername,
+    expectedSkinName: reference.name,
+    skinTarget: resolved.resolveOsuSkinOutputPath(reference.name, osuLocation),
+  })
   const result = await convertEtternaSkin(
     reference,
     selectedProfile,
     theme,
-    osuLocation,
-    dependencies.convertSkin,
-    resolved.resolveOsuSkinOutputPath,
+    installer,
+    dependencies.convertAndInstallSkin,
   )
   for (const diagnostic of result.diagnostics) {
     const direction = diagnostic.direction ? ` [${diagnostic.direction}]` : ""
@@ -113,21 +151,15 @@ async function convertEtternaSkin(
   reference: SkinReference,
   profileId: string,
   theme: string,
-  osuLocation: string,
-  injectedConvertSkin: EtternaToOsuRouteDependencies["convertSkin"] | undefined,
-  resolveOutputPath: EtternaToOsuRouteDependencies["resolveOsuSkinOutputPath"],
+  installer: SkinInstaller,
+  injectedConvertAndInstallSkin: EtternaToOsuRouteDependencies["convertAndInstallSkin"] | undefined,
 ) {
-  const request = {
-    reference,
-    targetGame: "osu",
-    outputDirectory: resolveOutputPath(reference.name, osuLocation),
-  } as const
-  if (injectedConvertSkin) return injectedConvertSkin(request)
-  return convertSkin(request, {
+  const request = { reference, targetGame: "osu" } as const
+  if (injectedConvertAndInstallSkin) return injectedConvertAndInstallSkin(request)
+  return convertAndInstallSkin(request, {
     readers: new Map([["etterna", new EtternaSkinReader({ profileId, theme })]]),
-    writers: new Map([["osu", new OsuSkinWriter(osuTemplatesPath)]]),
+    installers: new Map([["osu", installer]]),
     conversions: new ConversionRegistry([new EtternaToOsuConversion()]),
-    publisher: new TransactionalOutputPublisher(),
   })
 }
 
