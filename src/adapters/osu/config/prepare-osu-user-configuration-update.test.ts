@@ -26,6 +26,14 @@ test("finds the current user's mixed-case CFG and replaces its only ManiaSpeed w
   })
 })
 
+test("preserves horizontal whitespace after the ManiaSpeed value", async () => {
+  await withOsuRoot(async (osuRoot) => {
+    const update = await prepareFromSource(osuRoot, "ManiaSpeed = 10   \r\n")
+
+    assert.equal(update.content, "ManiaSpeed = 29   \r\n")
+  })
+})
+
 test("ignores matching names that are not immediate regular files", async () => {
   const update = await prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
     readDirectory: async () => [

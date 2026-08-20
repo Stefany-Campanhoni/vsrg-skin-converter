@@ -22,16 +22,19 @@ export function extractEtternaCmod(source: string, profilePath: string): number 
   if (danceMatches.length !== 1) {
     throw new Error(`Expected exactly one <dance> in <DefaultModifiers> in ${profilePath}`)
   }
-  const cmods = readXmlText(danceMatches[0])
+  const cmodCandidates = readXmlText(danceMatches[0])
     .split(",")
     .map((modifier) => modifier.trim())
-    .filter((modifier) => /^C\d+$/i.test(modifier))
-  if (cmods.length !== 1) {
+    .filter((modifier) => /^C(?=[+-]?(?:\d|\.\d))/i.test(modifier))
+  if (cmodCandidates.length !== 1) {
     throw new Error(`Expected exactly one CMod in ${profilePath}`)
   }
-  const cmod = Number(cmods[0]?.slice(1))
-  if (!Number.isInteger(cmod) || cmod <= 0) {
-    throw new Error(`Expected a positive integer CMod in ${profilePath}`)
+  const match = /^C(\d+)$/i.exec(cmodCandidates[0] ?? "")
+  const cmod = Number(match?.[1])
+  if (!Number.isSafeInteger(cmod) || cmod <= 0) {
+    throw new Error(
+      `Expected a positive integer CMod within the safe-integer range in ${profilePath}`,
+    )
   }
   return cmod
 }

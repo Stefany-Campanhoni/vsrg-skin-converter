@@ -28,7 +28,7 @@ const defaultPrepareDependencies: PrepareOsuUserConfigurationUpdateDependencies 
   readFile,
 }
 const defaultWriteDependencies: WriteOsuUserConfigurationUpdateDependencies = { writeFile }
-const maniaSpeedPattern = /^([ \t]*ManiaSpeed[ \t]*=[ \t]*)([^\r\n]*)(\r?)$/gim
+const maniaSpeedPattern = /^([ \t]*ManiaSpeed[ \t]*=[ \t]*)([^\r\n]*?)([ \t]*)(\r?)$/gim
 
 export async function prepareOsuUserConfigurationUpdate(
   osuRoot: string,
@@ -59,8 +59,8 @@ export async function prepareOsuUserConfigurationUpdate(
   }
   const content = source.replace(
     maniaSpeedPattern,
-    (_line, prefix: string, _value: string, carriageReturn: string) =>
-      `${prefix}${maniaSpeed}${carriageReturn}`,
+    (_line, prefix: string, _value: string, suffix: string, carriageReturn: string) =>
+      `${prefix}${maniaSpeed}${suffix}${carriageReturn}`,
   )
 
   return {

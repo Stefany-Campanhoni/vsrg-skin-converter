@@ -30,6 +30,28 @@ test("rejects missing, duplicated, fractional, zero, and negative dance CMods wi
   }
 })
 
+test("rejects a valid CMod mixed with a malformed CMod candidate", () => {
+  assert.throws(
+    () =>
+      extractEtternaCmod(
+        "<Stats><DefaultModifiers><dance>C888, C29.5, Reverse</dance></DefaultModifiers></Stats>",
+        profilePath,
+      ),
+    /CMod.*Etterna\.xml/i,
+  )
+})
+
+test("rejects a CMod outside the safe-integer range with the profile path", () => {
+  assert.throws(
+    () =>
+      extractEtternaCmod(
+        "<Stats><DefaultModifiers><dance>C9007199254740992, Reverse</dance></DefaultModifiers></Stats>",
+        profilePath,
+      ),
+    /positive integer CMod.*safe-integer.*Etterna\.xml/i,
+  )
+})
+
 test("rejects nested DefaultModifiers and dance elements with the profile path", () => {
   for (const source of [
     "<Stats><DefaultModifiers><DefaultModifiers><dance>C888</dance></DefaultModifiers></DefaultModifiers></Stats>",
