@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { renameWithTransientRetry } from "../../scripts/release/rename-with-transient-retry.ts"
+import { renameWithTransientRetry } from "../../.ci/release/rename-with-transient-retry.ts"
 
 function fileSystemError(code: string, message: string): NodeJS.ErrnoException {
   const error = new Error(message) as NodeJS.ErrnoException

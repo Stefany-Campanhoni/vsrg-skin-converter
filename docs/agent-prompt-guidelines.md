@@ -14,6 +14,9 @@ regressions.
   implementation location.
 - State whether existing uncommitted changes must be preserved.
 - State explicitly whether staging, committing, or publishing is allowed.
+- Require every development task intended for a pull request to add a new `.changeset/*.md`
+  release intent artifact for the Changesets deployment Release PR. Use an empty Changeset
+  only when the task has no public release impact.
 
 ### Observable behavior
 
@@ -66,6 +69,15 @@ regressions.
 
 - State whether the change affects the supported Windows x64 ZIP or an experiment. Do not
   merge SEA prototype work into the maintained release without an explicit decision.
+- Require a Conventional Commit title for every ordinary pull request.
+- Put repository quality and release automation in the applicable `.ci` subdirectory.
+  Use an empty Changeset only when the change has no public release impact; never edit the
+  package version or generated changelog section in a feature branch.
+- Treat Changesets as the version planner and the draft-release workflow as the only owner of
+  public `v<version>` tags, ZIP/SHA-256 attachments, and draft releases. Preserve the
+  `CHANGESETS_TOKEN` boundary and never add npm publication to this private package.
+- When changing beta behavior, state whether `.changeset/pre.json` remains in prerelease mode
+  or is exiting. Never enter or exit prerelease mode implicitly inside a feature task.
 - Preserve pinned Node version/URL/SHA-256 as one reviewed unit and never bypass cache hash
   verification. Pin and verify the extracted `node.exe` SHA-256 as well; require an exact
   cache stamp plus a successful matching `node --version` before reusing an extraction.
@@ -100,8 +112,9 @@ regressions.
   geometry, but judgement density selects standard versus `(Doubleres)` sheet naming.
 - Specify the exact NoteSkin, profile, judgement, and asset-configuration destinations and
   the expected profile-ID/GUID behavior.
-- Keep judgement/combo zoom, fonts, and long notes excluded unless the prompt explicitly
-  expands scope; judgement images are part of the supported reverse route.
+- Keep judgement zoom, font artwork, and long notes excluded unless the prompt explicitly
+  expands scope. Judgement images and density-normalized combo zoom are part of the
+  supported reverse route.
 - Require the inverse formulas and rounding behavior. Name all four fixed ` (res 64x64)` tap
   note outputs at exactly 150x150 and all eight fixed normal/pressed receptor outputs at
   exactly 146x146.

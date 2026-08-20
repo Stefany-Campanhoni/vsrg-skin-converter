@@ -17,6 +17,7 @@ export interface EtternaProfileTemplateValues {
   readonly comboPosition: number
   readonly judgementPosition: number
   readonly receptorSize: number
+  readonly comboScale: number
 }
 
 export interface EtternaProfileTemplateRendererDependencies {
@@ -82,6 +83,7 @@ export async function renderEtternaProfileTemplates(
     combo_position: values.comboPosition,
     judgement_position: values.judgementPosition,
     receptor_size: values.receptorSize,
+    combo_zoom: values.comboScale,
   })
 
   await settleAll([
@@ -138,10 +140,14 @@ function validateValues(theme: string, values: EtternaProfileTemplateValues): vo
     comboPosition: values.comboPosition,
     judgementPosition: values.judgementPosition,
     receptorSize: values.receptorSize,
+    comboScale: values.comboScale,
   })) {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`Etterna profile requires a finite ${field}`)
     }
+  }
+  if (values.comboScale <= 0) {
+    throw new Error("Etterna profile requires a positive comboScale")
   }
 }
 

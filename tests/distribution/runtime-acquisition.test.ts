@@ -3,12 +3,12 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promise
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
-import { acquireNodeRuntime } from "../../scripts/release/acquire-node-runtime.ts"
+import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
 import {
   installRuntimeDependencies,
   runRuntimeCommand,
-} from "../../scripts/release/install-runtime-dependencies.ts"
-import { nodeRuntime } from "../../scripts/release/release-config.ts"
+} from "../../.ci/release/install-runtime-dependencies.ts"
+import { nodeRuntime } from "../../.ci/release/release-config.ts"
 
 async function runtimeFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-test-"))

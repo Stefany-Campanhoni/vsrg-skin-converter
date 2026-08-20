@@ -22,7 +22,7 @@ test("the production profile template makes receptor size renderable", async () 
 
   assert.match(template, /ReceptorSize= \$\{receptor_size\}/)
   assert.match(template, /JudgmentZoom= 0\.35/)
-  assert.match(template, /ComboZoom= 0\.6/)
+  assert.match(template, /ComboZoom= \$\{combo_zoom\}/)
 })
 
 test("renders each profile value for its target syntax and relocates playerConfig", async () => {
@@ -46,7 +46,7 @@ test("renders each profile value for its target syntax and relocates playerConfi
     )
     assert.equal(
       await readFile(path.join(root, "Rebirth_settings", "playerConfig.lua"), "utf8"),
-      "return { ReceptorSize= 107, NoteFieldY= -7, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n",
+      "return { ReceptorSize= 107, NoteFieldY= -7, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.5 }\n",
     )
     await assert.rejects(() => readFile(path.join(root, "playerConfig.lua"), "utf8"), {
       code: "ENOENT",
@@ -145,12 +145,24 @@ for (const [field, value] of [
   ["comboPosition", Number.POSITIVE_INFINITY],
   ["judgementPosition", Number.NEGATIVE_INFINITY],
   ["receptorSize", Number.NaN],
+  ["comboScale", Number.POSITIVE_INFINITY],
 ] as const) {
   test(`rejects a non-finite ${field}`, async () => {
     await withProfileTemplate(async (root) => {
       await assert.rejects(
         () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, [field]: value }),
         new RegExp(`finite.*${field}`, "i"),
+      )
+    })
+  })
+}
+
+for (const comboScale of [0, -0.1]) {
+  test(`rejects a non-positive comboScale ${comboScale}`, async () => {
+    await withProfileTemplate(async (root) => {
+      await assert.rejects(
+        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, comboScale }),
+        /positive.*comboScale/i,
       )
     })
   })
@@ -171,7 +183,7 @@ test("rejects an unresolved wildcard before changing the profile", async () => {
     )
     assert.equal(
       await readFile(path.join(root, "playerConfig.lua"), "utf8"),
-      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n`,
+      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= \${combo_zoom} }\n`,
     )
   })
 })
@@ -352,6 +364,7 @@ const validValues: EtternaProfileTemplateValues = {
   comboPosition: -20,
   judgementPosition: 4,
   receptorSize: 107,
+  comboScale: 0.5,
 }
 
 function profileTemplate(fileName: string): string {
@@ -363,7 +376,7 @@ function profileTemplate(fileName: string): string {
     case "Type.ini":
       return "[ListPosition]\nPriority=1\n"
     case "playerConfig.lua":
-      return `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n`
+      return `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= \${combo_zoom} }\n`
     default:
       throw new Error(`Unexpected profile template ${fileName}`)
   }
@@ -415,7 +428,7 @@ async function writeProfileTemplate(root: string): Promise<void> {
     writeFile(path.join(root, "Type.ini"), "[ListPosition]\nPriority=1\n"),
     writeFile(
       path.join(root, "playerConfig.lua"),
-      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n`,
+      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= \${combo_zoom} }\n`,
     ),
   ])
 }

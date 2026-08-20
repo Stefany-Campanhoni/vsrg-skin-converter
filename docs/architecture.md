@@ -42,19 +42,19 @@ Translates external game formats to and from the neutral model.
   `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, and reads the selected profile's
   positive integer CMod from `<DefaultModifiers>/<dance>` in `Etterna.xml`. It performs
   static NoteSkin analysis and resolves Etterna assets. As a target, it validates
-  NoteSkin/profile paths, owns fixed output filenames and dimensions, renders the converted
-  CMod and scroll direction into the Etterna templates, allocates profile identity, composes
-  the judgement sheet, preserves the active theme asset configuration, and coordinates
-  installation.
-- `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections, and
-  resolves case-insensitive PNG references with explicit density. The selected source CFG
-  supplies `ManiaSpeed`, while the unique 4K Mania section supplies `UpsideDown` (`1` is
-  downscroll; `0` or absence is upscroll). As a target, it renders `skin.ini`, writes image
-  assets using osu! naming and layout conventions, and prepares a guarded update of the
-  current Windows user's CFG. Its receptor calibration converts the target column width into
-  a vertical-only image scale before composition. As a source, its reader projects the four
-  4K column widths to their arithmetic mean before exposing the scalar through the neutral
-  model.
+  NoteSkin/profile paths, owns fixed output filenames and dimensions, renders converted
+  CMod, scroll direction, and combo zoom into the Etterna templates, allocates profile
+  identity, composes the judgement sheet, preserves the active theme asset configuration,
+  and coordinates installation.
+- `adapters/osu` discovers user CFGs and skins, parses repeated `skin.ini` sections, resolves
+  combo-font digits and their density-relative scale, and resolves case-insensitive PNG
+  references with explicit density. The selected source CFG supplies `ManiaSpeed`, while the
+  unique 4K Mania section supplies `UpsideDown` (`1` is downscroll; `0` or absence is
+  upscroll). As a target, it renders `skin.ini`, writes image assets using osu! naming and
+  layout conventions, and prepares a guarded update of the current Windows user's CFG. Its
+  receptor calibration converts the target column width into a vertical-only image scale
+  before composition. As a source, its reader projects the four 4K column widths to their
+  arithmetic mean before exposing the scalar through the neutral model.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -95,10 +95,13 @@ these coordinates, the osu! writer only serializes already-converted target valu
 conversion does not parse Lua, process pixels, write files, or interact with the user.
 
 The osu!-to-Etterna conversion owns the inverse position formulas and maps the scalar osu!
-column width supplied by the reader into Etterna `ReceptorSize` units. It preserves the four
-normal receptors, four pressed receptors, and four tap notes while deliberately leaving
-fonts, long notes, and zoom migration out of the reverse scope. Judgements pass through the
-neutral model without coordinate or scale conversion.
+column width supplied by the reader into Etterna `ReceptorSize` units. The osu! reader maps
+the selected combo digits onto a scale where the template's 42 logical pixel height is `1`;
+the conversion preserves that scale and the Etterna profile writer renders it as
+`ComboZoom`. It preserves the four normal receptors, four pressed receptors, and four tap
+notes while deliberately leaving font artwork, long notes, and judgement zoom migration
+out of the reverse scope. Judgements pass through the neutral model without coordinate or
+scale conversion.
 
 Scroll-speed conversion is also pair-specific. osu!mania to Etterna first converts column
 width to `ReceptorSize`, then calculates a positive integer CMod:
@@ -168,9 +171,37 @@ internal build-only sources after every output task succeeds. `templates/etterna
 and `templates/etterna/profile` are independent bundles used by the reverse installer; the
 profile writer relocates `playerConfig.lua` below the active theme settings directory.
 
+## Current Conversion Calibrations
+
+The maintained Etterna-to-osu! coordinate and width formulas are:
+
+```text
+HitPosition   = round(438 + NoteFieldY) + 1
+ComboPosition = round(230 + ComboY) - 1
+ScorePosition = round(240 + JudgmentY)
+ColumnWidth   = round(62 + (ReceptorSize - 100))
+```
+
+The reverse route uses their calibrated inverses after replacing `ColumnWidth` with the
+rounded arithmetic mean of all four 4K columns:
+
+```text
+NoteFieldY   = round(HitPosition) - 439
+ComboY       = round(ComboPosition) - 229
+JudgmentY    = round(ScorePosition) - 240
+ReceptorSize = round(arithmeticMean(ColumnWidth) + 38)
+```
+
+Etterna `ComboZoom` is preserved as the neutral combo scale. `JudgmentZoom` becomes
+`1 + (JudgmentZoom - 1) * 0.5`; output dimensions are rounded and clamped to at least one
+pixel. The osu! receptor canvas changes by two pixels for each hit-position point relative
+to `438`. Receptor vertical scaling maps column width `46` to `1` and width `62` to
+`196 / 146`, uses a logical playfield height of `480`, and applies a logical vertical offset
+of `23`. These empirical values belong to the osu! target calibration module.
+
 ## Windows Portable Distribution
 
-The maintained distribution pipeline is owned by `scripts/release`; it does not belong to a
+The maintained distribution pipeline is owned by `.ci/release`; it does not belong to a
 conversion adapter. esbuild bundles `src/cli.ts` as Node-targeted ESM while keeping `sharp`
 external. `src/application-root.ts` derives resources from `import.meta.url`, so the same
 invariant resolves `src/templates` during source execution and sibling `templates` beside
@@ -196,6 +227,30 @@ performs a real Sharp resize with the included runtime, and reads both template 
 publication uses a temporary archive and checksum, validates SHA-256, extracts independently,
 repeats the full verifier, and only then replaces the previous release pair. The experimental
 Node SEA workstream remains unmerged and is not part of this architecture.
+
+## Version and Public Release Flow
+
+Changesets is repository infrastructure rather than application or conversion code. Feature
+branches add release-intent documents under `.changeset`; the pinned Changesets Action
+combines them into one protected Release PR that updates the package manifests and
+`CHANGELOG.md`. The application is private to npm, so Changesets versions it without tagging
+or publishing it.
+
+Merging the Release PR produces a `main` push with a coherent version change. The
+draft-release workflow compares that commit with the previous `main` SHA, requires matching
+package and lockfile versions plus an exact changelog heading, and treats all other pushes as
+no-ops. A verified release runs the existing Windows distribution pipeline, then creates the
+`v<version>` tag and a GitHub draft containing the ZIP and SHA-256. Prerelease SemVer values
+are marked as prereleases, but no draft is publicly published without a second human action.
+
+Conventional Commit checks are orthogonal to SemVer calculation: Husky and CI enforce clean
+history, while Changesets files remain the sole source of release impact. The dedicated
+`CHANGESETS_TOKEN` allows the automation-owned PR to trigger ordinary checks without giving
+the Windows release job broader credentials; only that job receives `contents: write`.
+
+Repository validation, build, and release programs live under `.ci`, grouped into `quality`
+and `release` responsibilities. Contributors invoke the supported release programs through
+npm scripts; placing them under `.ci` makes their repository-automation ownership explicit.
 
 ## Dependency Rules
 

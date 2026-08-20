@@ -1,0 +1,115 @@
+name: Draft release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: draft-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    name: Detect version release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      should-release: ${{ steps.version.outputs.should-release }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.23.2"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Detect release version
+        id: version
+        shell: pwsh
+        env:
+          PREVIOUS_SHA: ${{ github.event.before }}
+        run: |
+          $decision = node .ci/release/detect-version-release.ts $env:PREVIOUS_SHA | ConvertFrom-Json
+          "should-release=$($decision.shouldRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if ($decision.shouldRelease) {
+            "version=$($decision.version)" >> $env:GITHUB_OUTPUT
+            "tag=$($decision.tag)" >> $env:GITHUB_OUTPUT
+            "prerelease=$($decision.prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          }
+
+  release:
+    name: Build draft release
+    if: needs.detect.outputs.should-release == 'true'
+    needs: detect
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.23.2"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify Windows release
+        run: npm run release:windows
+
+      - name: Create draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.detect.outputs.version }}
+          RELEASE_TAG: ${{ needs.detect.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.detect.outputs.prerelease }}
+        run: |
+          $zip = "release/vsrg-skin-converter-v$env:RELEASE_VERSION-win-x64.zip"
+          $checksum = "$zip.sha256"
+
+          git ls-remote --exit-code --tags origin "refs/tags/$env:RELEASE_TAG" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Tag $env:RELEASE_TAG already exists; refusing to replace it."
+          }
+          if ($LASTEXITCODE -ne 2) {
+            throw "Could not verify whether tag $env:RELEASE_TAG exists."
+          }
+
+          gh release view $env:RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "Release $env:RELEASE_TAG already exists; refusing to replace it."
+          }
+
+          if ($env:IS_PRERELEASE -eq "true") {
+            gh release create $env:RELEASE_TAG $zip $checksum `
+              --draft --prerelease --target $env:GITHUB_SHA `
+              --title $env:RELEASE_TAG --generate-notes
+          } else {
+            gh release create $env:RELEASE_TAG $zip $checksum `
+              --draft --target $env:GITHUB_SHA `
+              --title $env:RELEASE_TAG --generate-notes
+          }

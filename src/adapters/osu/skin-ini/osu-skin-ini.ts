@@ -61,6 +61,14 @@ export function readOsuSkinName(sections: readonly OsuIniSection[], filePath: st
   return name
 }
 
+export function readOsuComboPrefix(sections: readonly OsuIniSection[], filePath: string): string {
+  const fontSections = sections.filter((section) => section.name.toLowerCase() === "fonts")
+  if (fontSections.length > 1) {
+    throw new Error(`Expected at most one Fonts section in osu! skin ${filePath}`)
+  }
+  return fontSections[0]?.properties.get("comboprefix") || "score"
+}
+
 export function readOsuMania4kDefinition(
   sections: readonly OsuIniSection[],
   filePath: string,

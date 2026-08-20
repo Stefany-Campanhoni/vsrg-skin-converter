@@ -195,6 +195,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     assert.match(playerConfig, /ComboY= 21(?:,|\s)/)
     assert.match(playerConfig, /JudgmentY= 40(?:,|\s)/)
     assert.match(playerConfig, /ReceptorSize= 106(?:,|\s)/)
+    assert.match(playerConfig, /ComboZoom= 0\.5(?:,|\s)/)
     assert.ok(guid)
     const judgementFilename = `${fixture.skinName} - ${guid} 1x6 (Doubleres).png`
     const judgementDirectory = path.join(fixture.etternaRoot, "Assets", "Judgments")
@@ -494,6 +495,15 @@ async function createFixture({
     await writeSolidPng(doubleResolutionPath, fixture.width, fixture.height, fixture.color)
   }
 
+  for (let digit = 0; digit <= 9; digit += 1) {
+    await writeSolidPng(
+      path.join(assetsDirectory, `combo-${digit}@2x.png`),
+      29,
+      42,
+      [255, 255, 255, 255],
+    )
+  }
+
   return {
     root,
     osuRoot,
@@ -575,6 +585,8 @@ function skinIni(name: string, upsideDown: 0 | 1): string {
   return [
     "[General]",
     `Name: ${name}`,
+    "[Fonts]",
+    "ComboPrefix: assets\\combo",
     "[Mania]",
     "Keys: 1",
     "[Mania]",

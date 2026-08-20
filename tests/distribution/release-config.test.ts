@@ -5,9 +5,9 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import { promisify } from "node:util"
+import { buildApplication } from "../../.ci/release/build-application.ts"
+import { getReleasePaths, nodeRuntime } from "../../.ci/release/release-config.ts"
 import packageJson from "../../package.json" with { type: "json" }
-import { buildApplication } from "../../scripts/release/build-application.ts"
-import { getReleasePaths, nodeRuntime } from "../../scripts/release/release-config.ts"
 
 const execFileAsync = promisify(execFile)
 

@@ -22,6 +22,14 @@ Describe the user-visible outcome and why this change is needed.
 
 List the exact additional checks and compatibility corpus used:
 
+## Versioning
+
+- [ ] The pull request title and every commit follow Conventional Commits
+- [ ] I added a new `.changeset/<name>.md`, or this is the automated Release PR
+- [ ] The Changeset uses the correct `patch`, `minor`, or `major` impact
+- [ ] I used an empty Changeset only because this has no public release impact
+- [ ] I did not edit the package version, generated changelog section, tag, or release manually
+
 ## Safety and maintenance
 
 - [ ] Path validation and transactional rollback remain intact or are covered by tests

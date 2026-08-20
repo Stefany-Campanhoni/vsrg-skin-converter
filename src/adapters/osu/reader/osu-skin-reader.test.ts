@@ -8,6 +8,9 @@ import { OsuSkinReader, type OsuSkinReaderDependencies } from "./osu-skin-reader
 const source = `[General]
 Name: Parsed Fixture
 
+[Fonts]
+ComboPrefix: fonts/combo
+
 [Mania]
 Keys: 4
 HitPosition: 436
@@ -75,6 +78,14 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
         pixelDensity: "double",
       }
     },
+    readComboScale: async (options) => {
+      assert.deepEqual(options, {
+        skinDirectory: reference.sourcePath,
+        comboPrefix: "fonts/combo",
+        useDoubleResolutionAssets: true,
+      })
+      return 0.5
+    },
   })
 
   const model = await new OsuSkinReader(
@@ -91,7 +102,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     comboPosition: 250,
     judgementPosition: 280,
     columnWidth: 69,
-    comboScale: 1,
+    comboScale: 0.5,
     judgementScale: 1,
     scrollSpeed: 29,
     isDownscroll: false,
@@ -176,6 +187,7 @@ test("resolves absent judgement properties through osu default filenames", async
           pixelDensity: "standard",
         }
       },
+      readComboScale: async () => 1,
     },
   )
 
@@ -268,6 +280,7 @@ test("settles all eighteen assets and reports the first input-order failure with
   const started: string[] = []
   const firstFailure = new Error("pressed receptor missing")
   const laterFailure = new Error("tap note missing")
+  const comboScale = deferred<number>()
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false, scrollSpeed: 29 },
     withGenericJudgementResolver({
@@ -278,6 +291,7 @@ test("settles all eighteen assets and reports the first input-order failure with
         pending.set(options.logicalPath, task)
         return task.promise
       },
+      readComboScale: () => comboScale.promise,
     }),
   )
 
@@ -305,6 +319,9 @@ test("settles all eighteen assets and reports the first input-order failure with
   assert.equal(readingSettled, false)
 
   pending.get("note-right")?.resolve({ filePath: "note-right.png", rotation: 0 })
+  await Promise.resolve()
+  assert.equal(readingSettled, false)
+  comboScale.resolve(1)
 
   await assert.rejects(reading, (error) => {
     assert.match(String(error), /receptors\.left\.pressed/)
@@ -331,10 +348,12 @@ interface Deferred<T> {
 }
 
 function withGenericJudgementResolver(
-  dependencies: Omit<OsuSkinReaderDependencies, "resolveJudgementAsset">,
+  dependencies: Omit<OsuSkinReaderDependencies, "resolveJudgementAsset" | "readComboScale"> &
+    Partial<Pick<OsuSkinReaderDependencies, "readComboScale">>,
 ): OsuSkinReaderDependencies {
   return {
     ...dependencies,
+    readComboScale: dependencies.readComboScale ?? (async () => 1),
     resolveJudgementAsset: (options) =>
       dependencies.resolveAsset({
         skinDirectory: options.skinDirectory,

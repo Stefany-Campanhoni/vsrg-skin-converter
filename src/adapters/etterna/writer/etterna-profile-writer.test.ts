@@ -37,7 +37,7 @@ test("copies and renders the profile template with only playerConfig below the a
     assert.equal(await readFile(path.join(workspace, "Type.ini"), "utf8"), "profile type")
     assert.equal(
       await readFile(path.join(workspace, "Rebirth_settings", "playerConfig.lua"), "utf8"),
-      "return { ReceptorSize= 107, NoteFieldY= -6, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n",
+      "return { ReceptorSize= 107, NoteFieldY= -6, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.5 }\n",
     )
     await assert.rejects(() => access(path.join(workspace, "assetsConfig.lua")), { code: "ENOENT" })
   } finally {
@@ -79,7 +79,7 @@ const etternaSkin: SkinModel = {
     judgementPosition: 4,
     comboPosition: -20,
     columnWidth: 107,
-    comboScale: 1,
+    comboScale: 0.5,
     judgementScale: 1,
     scrollSpeed: 888,
   },
@@ -98,7 +98,7 @@ async function writeProfileTemplate(templates: string): Promise<void> {
     writeFile(path.join(templates, "Type.ini"), "profile type"),
     writeFile(
       path.join(templates, "playerConfig.lua"),
-      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= 0.6 }\n`,
+      `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= \${combo_zoom} }\n`,
     ),
   ])
 }
