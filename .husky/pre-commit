@@ -1,1 +1,4 @@
-npm run check:staged
+if ! npm run check:staged; then
+  node .ci/quality/git-hook-feedback.ts pre-commit
+  exit 1
+fi
