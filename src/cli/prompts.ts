@@ -3,6 +3,7 @@ import { cancel, confirm, isCancel, select } from "@clack/prompts"
 export interface SelectOption {
   value: string
   label: string
+  hint?: string
 }
 
 export interface ConfirmPromptDependencies {
