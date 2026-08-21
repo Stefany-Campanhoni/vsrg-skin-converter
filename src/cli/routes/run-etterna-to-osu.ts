@@ -170,7 +170,11 @@ export async function selectEtternaProfile(
   if (profiles.length === 1) return profiles[0]?.id
   const selectedProfileId = await selectProfile(
     "Select the Etterna profile:",
-    profiles.map((profile) => ({ value: profile.id, label: profile.displayName })),
+    profiles.map((profile) => ({
+      value: profile.id,
+      label: profile.displayName,
+      hint: profile.id,
+    })),
   )
   if (!selectedProfileId) return undefined
   const selectedProfile = profiles.find((profile) => profile.id === selectedProfileId)

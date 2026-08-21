@@ -169,6 +169,26 @@ test("selects the only Etterna profile without prompting", async () => {
   assert.equal(prompted, false)
 })
 
+test("shows the exact Etterna profile id as the selection hint", async () => {
+  let offeredOptions: unknown
+  const selected = await selectEtternaProfile(
+    [
+      { id: "00000000", displayName: "Alice" },
+      { id: "00000001", displayName: "Bob" },
+    ],
+    async (_message, options) => {
+      offeredOptions = options
+      return "00000001"
+    },
+  )
+
+  assert.equal(selected, "00000001")
+  assert.deepEqual(offeredOptions, [
+    { value: "00000000", label: "Alice", hint: "00000000" },
+    { value: "00000001", label: "Bob", hint: "00000001" },
+  ])
+})
+
 test("rejects an Etterna profile selection outside the discovered catalog", async () => {
   await assert.rejects(
     () =>
