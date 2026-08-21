@@ -7,6 +7,12 @@ runCliCommand(process.argv.slice(2), {
   writeLine: console.log,
   runInteractiveCli: runCli,
 }).catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error))
+  console.error(
+    process.env.npm_lifecycle_event === "dev"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : String(error),
+  )
   process.exitCode = 1
 })
