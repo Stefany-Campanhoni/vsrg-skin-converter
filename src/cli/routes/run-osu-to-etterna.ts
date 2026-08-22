@@ -117,7 +117,9 @@ export function createDefaultEtternaInstaller(
     allocateProfileIdentity: dependencies.allocateProfileIdentity,
     noteSkinWriter: new EtternaNoteSkinWriter(path.join(etternaTemplatesPath, "noteskin")),
     profileWriter: new EtternaProfileWriter(path.join(etternaTemplatesPath, "profile")),
-    judgementWriter: new EtternaJudgementWriter(),
+    judgementWriter: new EtternaJudgementWriter(
+      path.join(etternaTemplatesPath, "judgement", "osu!mania-default 1x6.png"),
+    ),
     assetsConfigWriter: {
       prepareUpdate: prepareEtternaAssetsConfigUpdate,
       writeUpdate: writeEtternaAssetsConfigUpdate,

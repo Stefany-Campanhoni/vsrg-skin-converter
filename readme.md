@@ -135,6 +135,11 @@ converter uses the median height ratio and tolerates one selected-density pixel 
 An incomplete combo font falls back silently to `ComboZoom = 1`, while unsafe paths,
 unreadable images, and inconsistent heights remain fatal.
 
+Missing osu!mania judgement images use the bundled osu!mania default when converting to
+Etterna. Each missing grade is extracted from the default 1x6 sheet and mixed with the custom
+grades that exist. For an `@2x` source configuration, default frames are doubled before the
+complete Etterna sheet is composed.
+
 ## Run from source
 
 Requirements:
@@ -204,6 +209,9 @@ workflow does not run `npm publish`.
 
 VSRG Skin Converter is licensed under the [GNU General Public License v3.0](LICENSE)
 (`GPL-3.0-only`). Bundled templates are distributed with permission.
+
+The bundled osu!mania default judgement sheet is derived from the osu! legacy skin assets
+by ppy Pty Ltd, distributed under [CC BY-NC 4.0](https://github.com/ppy/osu-resources/blob/master/LICENCE.md).
 
 For concerns about the licensing, attribution, or ownership of a bundled template or asset,
 contact [scampanhoni@gmail.com](mailto:scampanhoni@gmail.com).

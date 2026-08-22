@@ -56,7 +56,8 @@ Translates external game formats to and from the neutral model.
   current Windows user's CFG. Its receptor calibration converts the target column width into
   a vertical-only image scale before composition. As a source, its reader projects the four
   4K column widths to their arithmetic mean before exposing the scalar through the neutral
-  model.
+  model. Missing judgement PNGs remain absent in the neutral set so the Etterna target can
+  apply its bundled fallback without hiding unsafe paths or unreadable custom assets.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -169,9 +170,11 @@ output skeleton copied into the staging workspace before target-specific renderi
 bundle includes `skin.ini`, internal receptor and long-note sources, global
 cursor/countdown/sound assets, fixed score and ranking glyphs, and the SD and `@2x` combo
 glyphs. Target writers transform only the assets they own, and the finalizer removes
-internal build-only sources after every output task succeeds. `templates/etterna/noteskin`
-and `templates/etterna/profile` are independent bundles used by the reverse installer; the
-profile writer relocates `playerConfig.lua` below the active theme settings directory.
+internal build-only sources after every output task succeeds. `templates/etterna/noteskin`,
+`templates/etterna/profile`, and `templates/etterna/judgement` are independent bundles used
+by the reverse installer. The profile writer relocates `playerConfig.lua` below the active
+theme settings directory, while the judgement bundle provides the 1x6 osu!mania default
+used only for missing source grades.
 
 ## Current Conversion Calibrations
 
@@ -290,6 +293,10 @@ note density selects only the input file; judgement density also selects Etterna
 or `(Doubleres)` sheet name. The judgement source resolver owns `Hit*` references, directory
 references, missing-property `mania-hit*` defaults, and `-0` frame precedence; the shared PNG
 resolver remains responsible for case-insensitive, density-specific, skin-contained file access.
+When a selected-density judgement candidate is absent, the reader preserves the other grades
+and the target writer extracts the missing grade from the bundled default sheet. Default
+frames are rendered at standard density or doubled for an `@2x` source before all six frames
+are centered and composed.
 The target adapter always writes four
 150x150 tap notes and eight 146x146 receptors using the fixed ` (res 64x64)` filename
 decoration. Receptors are vertically trimmed, made into a source-width square, and then

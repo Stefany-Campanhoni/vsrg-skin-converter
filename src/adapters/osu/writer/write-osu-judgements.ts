@@ -26,15 +26,18 @@ export interface WriteOsuJudgementsOptions {
 export async function writeOsuJudgements(options: WriteOsuJudgementsOptions): Promise<void> {
   const render = options.render ?? renderJudgementImageVariants
   const write = options.write ?? writeFile
+  const completeJudgements = judgementGrades.map((grade) => {
+    const image = options.judgements.images[grade]
+    if (!image) {
+      throw new Error(`Missing ${grade} judgement required for osu output`)
+    }
+    return { grade, image }
+  })
   const prepared = await settleAll(
-    judgementGrades.map((grade) =>
+    completeJudgements.map(({ grade, image }) =>
       invokeAsPromise(async () => ({
         grade,
-        variants: await render(
-          options.judgements.images[grade],
-          options.judgements.sourceDensity,
-          options.scale,
-        ),
+        variants: await render(image, options.judgements.sourceDensity, options.scale),
       })),
     ),
   )
