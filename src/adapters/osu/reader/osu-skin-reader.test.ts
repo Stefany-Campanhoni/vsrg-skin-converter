@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
+import { OsuPngAssetNotFoundError } from "../assets/resolve-osu-png-asset.ts"
 import type { ResolveOsuJudgementAssetOptions } from "../judgements/resolve-osu-judgement-asset.ts"
 import { OsuSkinReader, type OsuSkinReaderDependencies } from "./osu-skin-reader.ts"
 
@@ -161,6 +162,31 @@ test("rejects mixed osu judgement densities", async () => {
   await assert.rejects(() => reader.readSkin(reference), /mixed.*judgement.*densit/i)
 })
 
+test("uses explicitly referenced @2x judgements when standard density is configured", async () => {
+  const sourceWithExplicitDoubleJudgements = source.replace(
+    /^(Hit(?:300g|300|200|100|50|0): .+)$/gm,
+    "$1@2x",
+  )
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
+    withGenericJudgementResolver({
+      readSkinIni: async () => ({
+        source: sourceWithExplicitDoubleJudgements,
+        filePath: "C:/osu/Skins/Fixture/skin.ini",
+      }),
+      resolveAsset: async (options) => ({
+        filePath: `${options.logicalPath}.png`,
+        rotation: 0,
+        pixelDensity: options.logicalPath.endsWith("@2x") ? "double" : "standard",
+      }),
+    }),
+  )
+
+  const model = await reader.readSkin(reference)
+
+  assert.equal(model.assets.judgements?.sourceDensity, 2)
+})
+
 test("resolves absent judgement properties through osu default filenames", async () => {
   const sourceWithoutJudgements = source
     .split("\n")
@@ -207,7 +233,90 @@ test("resolves absent judgement properties through osu default filenames", async
       { logicalPath: undefined, defaultFileName: "mania-hit0" },
     ],
   )
-  assert.equal(model.assets.judgements?.images.miss.filePath, "mania-hit0.png")
+  assert.equal(model.assets.judgements?.images.miss?.filePath, "mania-hit0.png")
+})
+
+test("keeps an empty custom judgement set when every selected-density asset is absent", async () => {
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: true, scrollSpeed: 29 },
+    {
+      ...withGenericJudgementResolver({
+        readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
+        resolveAsset: async (options) => asset(options.logicalPath),
+      }),
+      resolveJudgementAsset: async () => {
+        throw new OsuPngAssetNotFoundError("selected judgement is absent")
+      },
+    },
+  )
+
+  const model = await reader.readSkin(reference)
+
+  assert.deepEqual(model.assets.judgements, { sourceDensity: 2, images: {} })
+})
+
+test("preserves found custom judgements and leaves only absent grades for target fallback", async () => {
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
+    {
+      ...withGenericJudgementResolver({
+        readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
+        resolveAsset: async (options) => ({
+          filePath: `${options.logicalPath}.png`,
+          rotation: 0,
+          pixelDensity: "standard",
+        }),
+      }),
+      resolveJudgementAsset: async (options) => {
+        if (options.logicalPath === "judgement-perfect") {
+          return {
+            filePath: "judgement-perfect.png",
+            rotation: 0,
+            pixelDensity: "standard",
+          }
+        }
+        throw new OsuPngAssetNotFoundError("selected judgement is absent")
+      },
+    },
+  )
+
+  const model = await reader.readSkin(reference)
+
+  assert.deepEqual(model.assets.judgements, {
+    sourceDensity: 1,
+    images: {
+      perfect: {
+        filePath: "judgement-perfect.png",
+        rotation: 0,
+        pixelDensity: "standard",
+      },
+    },
+  })
+})
+
+test("does not reinterpret unsafe judgement resolution failures as missing assets", async () => {
+  const unsafePathFailure = new Error("traversal is not allowed")
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: false, scrollSpeed: 29 },
+    {
+      ...withGenericJudgementResolver({
+        readSkinIni: async () => ({ source, filePath: "C:/osu/Skins/Fixture/skin.ini" }),
+        resolveAsset: async (options) => ({
+          filePath: `${options.logicalPath}.png`,
+          rotation: 0,
+          pixelDensity: "standard",
+        }),
+      }),
+      resolveJudgementAsset: async () => {
+        throw unsafePathFailure
+      },
+    },
+  )
+
+  await assert.rejects(
+    () => reader.readSkin(reference),
+    (error) => error instanceof Error && error.cause === unsafePathFailure,
+  )
 })
 
 test("rejects a judgement whose resolved density is missing", async () => {

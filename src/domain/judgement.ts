@@ -6,5 +6,5 @@ export type JudgementGrade = (typeof judgementGrades)[number]
 
 export interface JudgementSet {
   sourceDensity: 1 | 2
-  images: Record<JudgementGrade, ImageAsset>
+  images: Partial<Record<JudgementGrade, ImageAsset>>
 }
