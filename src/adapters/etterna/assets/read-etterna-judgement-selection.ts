@@ -78,7 +78,7 @@ function extractConfiguredPaths(source: string, guid: string, configPath: string
 function parseAssetConfig(source: string, configPath: string): Chunk {
   try {
     return luaparse.parse(source, {
-      encodingMode: "pseudo-latin1",
+      encodingMode: "none",
       luaVersion: "5.3",
     })
   } catch (cause) {
