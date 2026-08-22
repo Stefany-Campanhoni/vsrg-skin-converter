@@ -52,6 +52,69 @@ test("selects the GUID-specific judgement file", async (context) => {
   assert.deepEqual(result.diagnostics, [])
 })
 
+test("ignores Unicode in unselected judgement mappings", async (context) => {
+  const fixture = await createSelectionFixture(
+    `
+    return {
+      judgment = {
+        fixtureguid = "Assets/Judgments/selected 1x6.png",
+        otherguid = "Assets/Judgments/陽気 ⌈Lite⌋ 1x6.png",
+        default = "Assets/Judgments/default 1x6.png",
+      },
+    }
+  `,
+    ["selected 1x6.png", "default 1x6.png"],
+  )
+  context.after(fixture.cleanup)
+
+  const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
+
+  assert.equal(path.basename(result.filePath), "selected 1x6.png")
+  assert.deepEqual(result.diagnostics, [])
+})
+
+test("selects a judgement whose path contains Unicode", async (context) => {
+  const filename = "陽気 ⌈Lite⌋ 1x6.png"
+  const fixture = await createSelectionFixture(
+    `
+    return {
+      judgment = {
+        fixtureguid = "Assets/Judgments/${filename}",
+        default = "Assets/Judgments/default 1x6.png",
+      },
+    }
+  `,
+    [filename, "default 1x6.png"],
+  )
+  context.after(fixture.cleanup)
+
+  const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
+
+  assert.equal(path.basename(result.filePath), filename)
+  assert.deepEqual(result.diagnostics, [])
+})
+
+test("selects a Unicode judgement encoded as hexadecimal UTF-8 bytes", async (context) => {
+  const filename = "気 1x6.png"
+  const fixture = await createSelectionFixture(
+    String.raw`
+    return {
+      judgment = {
+        fixtureguid = "Assets/Judgments/\xE6\xB0\x97 1x6.png",
+        default = "Assets/Judgments/default 1x6.png",
+      },
+    }
+  `,
+    [filename, "default 1x6.png"],
+  )
+  context.after(fixture.cleanup)
+
+  const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
+
+  assert.equal(path.basename(result.filePath), filename)
+  assert.deepEqual(result.diagnostics, [])
+})
+
 test("reads judgement configuration from the selected theme settings", async (context) => {
   const fixture = await createSelectionFixture(
     `return { judgment = { default = "Assets/Judgments/default 1x6.png" } }`,
