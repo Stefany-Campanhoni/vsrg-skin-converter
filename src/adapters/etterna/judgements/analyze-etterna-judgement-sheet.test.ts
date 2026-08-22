@@ -51,14 +51,14 @@ test("analyzes supported judgement layouts and rejects invalid sheets", async (t
   const oneColumn = await analyzeEtternaJudgementSheet(oneBySixPath)
   assert.equal(oneColumn.sourceDensity, 1)
   assert.deepEqual(
-    judgementGrades.map((grade) => oneColumn.images[grade].frame?.index),
+    judgementGrades.map((grade) => oneColumn.images[grade]?.frame?.index),
     [0, 1, 2, 3, 4, 5],
   )
 
   const twoColumns = await analyzeEtternaJudgementSheet(twoBySixDoubleresPath)
   assert.equal(twoColumns.sourceDensity, 2)
   assert.deepEqual(
-    judgementGrades.map((grade) => twoColumns.images[grade].frame?.index),
+    judgementGrades.map((grade) => twoColumns.images[grade]?.frame?.index),
     [0, 2, 4, 6, 8, 10],
   )
 

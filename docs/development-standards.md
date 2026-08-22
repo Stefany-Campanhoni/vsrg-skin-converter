@@ -237,10 +237,13 @@ the same direction. Integration tests must assert the exact inventories, dimensi
 lane/state source pixels, and every route asset change must run both direction integration
 tests.
 
-Reverse judgement migration must resolve all six Mania grades at one common source density
-and preserve this row order: marvelous, perfect, great, good, bad, miss. Do not resize,
-trim, crop, or rotate these images. Center unequal images in transparent maximum-size cells;
-standard density names the result `1x6.png`, while double density uses
+Reverse judgement migration must preserve this row order: marvelous, perfect, great, good,
+bad, miss. Do not resize, trim, crop, or rotate custom images. A selected-density PNG that
+is genuinely absent may use the corresponding frame from the bundled standard-density
+osu!mania default; unsafe paths, unreadable files, and invalid images remain fatal. Extract
+fallback frames through the shared judgement renderer and double them for an `@2x` source.
+Center the resulting custom and fallback images in transparent maximum-size cells; standard
+density names the result `1x6.png`, while double density uses
 `1x6 (Doubleres).png`. Treat the generated PNG and active-theme `assetsConfig.lua` update as
 members of the same mixed file/directory transaction as the NoteSkin and profile. Preserve
 unrelated Lua tokens and guard replacement with the exact original-content SHA-256.

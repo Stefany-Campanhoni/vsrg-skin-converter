@@ -54,6 +54,39 @@ test("writes exact osu judgement filenames", async (t) => {
   assert.deepEqual(observedScales, [0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
 })
 
+test("rejects an incomplete judgement set before rendering output", async (t) => {
+  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
+  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  const incomplete: JudgementSet = {
+    sourceDensity: 1,
+    images: Object.fromEntries(
+      judgementGrades
+        .filter((grade) => grade !== "miss")
+        .map((grade) => [grade, { filePath: grade, rotation: 0 }]),
+    ),
+  }
+  let renders = 0
+
+  await assert.rejects(
+    () =>
+      writeOsuJudgements({
+        judgements: incomplete,
+        outputDirectory,
+        scale: 1,
+        render: async () => {
+          renders += 1
+          return {
+            standardResolution: Buffer.from("sd"),
+            doubleResolution: Buffer.from("hd"),
+          }
+        },
+      }),
+    /missing.*miss.*judgement/i,
+  )
+  assert.equal(renders, 0)
+  assert.deepEqual(await readdir(outputDirectory), [])
+})
+
 test("waits for all renders and writes nothing when rendering fails", async (t) => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
   t.after(() => rm(outputDirectory, { recursive: true, force: true }))

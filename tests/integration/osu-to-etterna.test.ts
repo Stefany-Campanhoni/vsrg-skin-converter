@@ -221,6 +221,44 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
   }
 })
 
+test("builds an @2x Etterna sheet entirely from the default when osu judgements are absent", async () => {
+  const fixture = await createFixture({ customJudgements: "none" })
+  try {
+    await convertFixture(fixture)
+
+    await assertFallbackJudgementSheet(
+      path.join(
+        fixture.etternaRoot,
+        "Assets",
+        "Judgments",
+        `${fixture.skinName} - ${generatedGuid} 1x6 (Doubleres).png`,
+      ),
+      new Set(),
+    )
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("mixes extracted default frames with the custom osu judgements that exist", async () => {
+  const fixture = await createFixture({ customJudgements: ["perfect"] })
+  try {
+    await convertFixture(fixture)
+
+    await assertFallbackJudgementSheet(
+      path.join(
+        fixture.etternaRoot,
+        "Assets",
+        "Judgments",
+        `${fixture.skinName} - ${generatedGuid} 1x6 (Doubleres).png`,
+      ),
+      new Set(["perfect"]),
+    )
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
 test("preserves downscroll by omitting Reverse from the generated Etterna profile", async () => {
   const fixture = await createFixture({ upsideDown: 1 })
   try {
@@ -433,8 +471,13 @@ interface Fixture {
 
 async function createFixture({
   upsideDown = 0,
+  customJudgements = "all",
 }: {
   readonly upsideDown?: 0 | 1
+  readonly customJudgements?:
+    | "all"
+    | "none"
+    | readonly (typeof judgementFixtures)[number]["grade"][]
 } = {}): Promise<Fixture> {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-to-etterna-"))
   const osuRoot = path.join(root, "osu!")
@@ -478,6 +521,12 @@ async function createFixture({
   }
 
   for (const [index, fixture] of judgementFixtures.entries()) {
+    if (
+      customJudgements === "none" ||
+      (customJudgements !== "all" && !customJudgements.includes(fixture.grade))
+    ) {
+      continue
+    }
     await writeSolidPng(path.join(assetsDirectory, `${fixture.grade}.png`), 2, 2, [
       index,
       index,
@@ -567,7 +616,9 @@ function createFixtureInstaller(
       }),
     noteSkinWriter: new EtternaNoteSkinWriter(path.join(etternaTemplatesPath, "noteskin")),
     profileWriter: new EtternaProfileWriter(path.join(etternaTemplatesPath, "profile")),
-    judgementWriter: new EtternaJudgementWriter(),
+    judgementWriter: new EtternaJudgementWriter(
+      path.join(etternaTemplatesPath, "judgement", "osu!mania-default 1x6.png"),
+    ),
     assetsConfigWriter: {
       prepareUpdate: prepareEtternaAssetsConfigUpdate,
       writeUpdate: writeEtternaAssetsConfigUpdate,
@@ -719,6 +770,72 @@ async function assertJudgementSheet(filePath: string): Promise<void> {
       }
     }
   }
+}
+
+async function assertFallbackJudgementSheet(
+  filePath: string,
+  customGrades: ReadonlySet<(typeof judgementFixtures)[number]["grade"]>,
+): Promise<void> {
+  const defaultPath = path.join(etternaTemplatesPath, "judgement", "osu!mania-default 1x6.png")
+  const defaultMetadata = await sharp(defaultPath).metadata()
+  assert.ok(defaultMetadata.width)
+  assert.ok(defaultMetadata.height)
+  assert.equal(defaultMetadata.height % judgementFixtures.length, 0)
+  const sourceCellHeight = defaultMetadata.height / judgementFixtures.length
+  const expectedWidth = defaultMetadata.width * 2
+  const expectedCellHeight = sourceCellHeight * 2
+  const output = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  assert.deepEqual(
+    { width: output.info.width, height: output.info.height },
+    { width: expectedWidth, height: expectedCellHeight * judgementFixtures.length },
+  )
+
+  for (const [row, fixture] of judgementFixtures.entries()) {
+    const actualRow = output.data.subarray(
+      row * expectedCellHeight * expectedWidth * 4,
+      (row + 1) * expectedCellHeight * expectedWidth * 4,
+    )
+    if (customGrades.has(fixture.grade)) {
+      assert.deepEqual(
+        rgbaAt(
+          actualRow,
+          expectedWidth,
+          Math.floor(expectedWidth / 2),
+          Math.floor(expectedCellHeight / 2),
+        ),
+        [...fixture.color],
+      )
+      continue
+    }
+
+    const expectedRow = await sharp(defaultPath)
+      .extract({
+        left: 0,
+        top: row * sourceCellHeight,
+        width: defaultMetadata.width,
+        height: sourceCellHeight,
+      })
+      .resize(expectedWidth, expectedCellHeight)
+      .ensureAlpha()
+      .raw()
+      .toBuffer()
+    assertBuffersNear(actualRow, expectedRow, fixture.grade)
+  }
+}
+
+function assertBuffersNear(actual: Buffer, expected: Buffer, label: string): void {
+  assert.equal(actual.length, expected.length, label)
+  let maximumChannelDifference = 0
+  for (let index = 0; index < actual.length; index += 1) {
+    maximumChannelDifference = Math.max(
+      maximumChannelDifference,
+      Math.abs((actual[index] ?? 0) - (expected[index] ?? 0)),
+    )
+  }
+  assert.ok(
+    maximumChannelDifference <= 1,
+    `${label} differs from the doubled default by ${maximumChannelDifference} channel levels`,
+  )
 }
 
 async function listFilesRecursively(directory: string): Promise<string[]> {
