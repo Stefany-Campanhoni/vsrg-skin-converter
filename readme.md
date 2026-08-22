@@ -82,6 +82,10 @@ offers a native folder picker when a default installation cannot be found.
   under `Etterna/NoteSkins/dance`, and a new numbered local profile is created under
   `Etterna/Save/LocalProfiles`.
 
+For an osu! source, `[General].Name` supplies the converted skin name when present and
+non-empty. Otherwise, the converter uses the immediate source skin directory name, allowing
+skins with a missing or misspelled name property to remain selectable and convertible.
+
 The Etterna-to-osu! route never prompts for a target CFG. It resolves the current Windows
 user's CFG case-insensitively below the osu! root. If the file is missing, start osu! at
 least once so the game creates it, then retry.

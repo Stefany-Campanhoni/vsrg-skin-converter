@@ -30,17 +30,30 @@ test("lists immediate osu skins by their General names", async (context) => {
   ])
 })
 
-test("rejects skin directories without one usable skin.ini and General Name", async (context) => {
+test("rejects skin directories without one usable skin.ini", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "invalid-osu-skin-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
   const skinsRoot = path.join(osuRoot, "Skins")
   await mkdir(path.join(skinsRoot, "Missing Ini"), { recursive: true })
 
   await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Missing Ini/)
+})
 
-  await rm(path.join(skinsRoot, "Missing Ini"), { recursive: true })
-  await writeSkin(skinsRoot, "Missing Name", "skin.ini", "")
-  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Missing Name/)
+test("uses the skin folder name when the General Name property is missing", async (context) => {
+  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "fallback-osu-skin-catalog-"))
+  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  const skinDirectory = path.join(osuRoot, "Skins", "Folder Fallback")
+  await mkdir(skinDirectory, { recursive: true })
+  await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName-General: Wrong Property")
+
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "Folder Fallback",
+      sourcePath: skinDirectory,
+      gameRoot: osuRoot,
+    },
+  ])
 })
 
 test("rejects duplicate case-insensitive skin.ini files", async (context) => {
@@ -95,7 +108,7 @@ test("wraps a duplicate General section error with skin catalog context", async 
       assert.ok(error instanceof Error)
       assert.match(error.message, /Could not read osu! skin Duplicate General/)
       assert.ok(error.cause instanceof Error)
-      assert.match(error.cause.message, /exactly one General section.*skin\.ini/i)
+      assert.match(error.cause.message, /at most one General section.*skin\.ini/i)
       return true
     },
   )
