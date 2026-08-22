@@ -50,11 +50,13 @@ Translates external game formats to and from the neutral model.
   combo-font digits and their density-relative scale, and resolves case-insensitive PNG
   references with explicit density. The selected source CFG supplies `ManiaSpeed`, while the
   unique 4K Mania section supplies `UpsideDown` (`1` is downscroll; `0` or absence is
-  upscroll). As a target, it renders `skin.ini`, writes image assets using osu! naming and
-  layout conventions, and prepares a guarded update of the current Windows user's CFG. Its
-  receptor calibration converts the target column width into a vertical-only image scale
-  before composition. As a source, its reader projects the four 4K column widths to their
-  arithmetic mean before exposing the scalar through the neutral model.
+  upscroll). Source discovery and reading prefer a non-empty `[General].Name` and otherwise
+  use the immediate skin directory name. As a target, the adapter renders `skin.ini`, writes
+  image assets using osu! naming and layout conventions, and prepares a guarded update of the
+  current Windows user's CFG. Its receptor calibration converts the target column width into
+  a vertical-only image scale before composition. As a source, its reader projects the four
+  4K column widths to their arithmetic mean before exposing the scalar through the neutral
+  model.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known

@@ -144,11 +144,10 @@ test("allows missing 4K judgement references for osu default asset fallback", ()
   }
 })
 
-test("rejects missing General names with the file path", () => {
-  assert.throws(
-    () => readOsuSkinName(parseOsuSkinIni("[General]\nAuthor: Fixture", filePath), filePath),
-    /skin\.ini/,
-  )
+test("returns undefined when the General Name property is missing", () => {
+  for (const source of ["[General]\nName-General: Fixture", "[General]\nName:", "[Fonts]"]) {
+    assert.equal(readOsuSkinName(parseOsuSkinIni(source, filePath), filePath), undefined)
+  }
 })
 
 test("reads a mixed-case General Name property", () => {
@@ -192,7 +191,7 @@ test("rejects duplicate case-insensitive General sections instead of selecting o
 
   assert.throws(
     () => readOsuSkinName(sections, filePath),
-    /exactly one General section.*C:\/osu!\/Skins\/Test\/skin\.ini/i,
+    /at most one General section.*C:\/osu!\/Skins\/Test\/skin\.ini/i,
   )
 })
 

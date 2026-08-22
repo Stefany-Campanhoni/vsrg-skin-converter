@@ -269,10 +269,27 @@ test("wraps duplicate General sections with skin reader context and preserves th
       assert.ok(error instanceof Error)
       assert.match(error.message, /Could not parse osu skin\.ini.*Fixture.*skin\.ini/i)
       assert.ok(error.cause instanceof Error)
-      assert.match(error.cause.message, /exactly one General section.*skin\.ini/i)
+      assert.match(error.cause.message, /at most one General section.*skin\.ini/i)
       return true
     },
   )
+})
+
+test("uses the skin folder name when the General Name property is missing", async () => {
+  const reader = new OsuSkinReader(
+    { useDoubleResolutionAssets: true, scrollSpeed: 29 },
+    withGenericJudgementResolver({
+      readSkinIni: async () => ({
+        source: source.replace("Name: Parsed Fixture", "Name-General: Wrong Property"),
+        filePath: "C:/osu/Skins/Fixture/skin.ini",
+      }),
+      resolveAsset: async (options) => asset(options.logicalPath),
+    }),
+  )
+
+  const model = await reader.readSkin(reference)
+
+  assert.deepEqual(model.metadata, { name: "Fixture" })
 })
 
 test("settles all eighteen assets and reports the first input-order failure with context", async () => {
