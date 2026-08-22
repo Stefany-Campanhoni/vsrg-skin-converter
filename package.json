@@ -12,7 +12,7 @@
     "start": "node src/cli.ts",
     "changeset": "changeset",
     "changeset:status": "changeset status",
-    "changeset:version": "changeset version",
+    "changeset:version": "changeset version && npm install --package-lock-only --ignore-scripts",
     "changeset:pre": "changeset pre",
     "prepare": "husky",
     "check": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters",
