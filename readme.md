@@ -21,8 +21,8 @@ VSRG Skin Converter is a TypeScript CLI that migrates vertical-scrolling rhythm-
 between Etterna and osu!mania. It reads each game's native configuration and assets, converts
 the supported values, and publishes a complete target skin without modifying the source.
 
-> The project is currently in beta. The supported portable build targets Windows x64, and
-> osu!mania to Etterna conversion currently supports 4K skins only.
+> The supported portable build targets Windows x64, and osu!mania to Etterna conversion
+> currently supports 4K skins only.
 
 ## Table of contents
 
