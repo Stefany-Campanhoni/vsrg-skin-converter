@@ -8,7 +8,7 @@ import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.
 import type { SkinModel } from "../../../domain/skin.ts"
 import { EtternaNoteSkinWriter } from "./etterna-note-skin-writer.ts"
 
-test("copies the complete static NoteSkin template and adds fixed-size generated receptors and notes", async () => {
+test("copies the complete static NoteSkin template and adds width-scaled receptors and notes", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-writer-"))
   const templates = path.join(root, "templates")
   const workspace = path.join(root, "workspace")
@@ -46,7 +46,7 @@ test("copies the complete static NoteSkin template and adds fixed-size generated
       const metadata = await sharp(path.join(workspace, "Receptors", filename)).metadata()
       assert.deepEqual(
         { width: metadata.width, height: metadata.height },
-        { width: 146, height: 146 },
+        { width: 146, height: 243 },
       )
     }
     const noteFilenames = await readdir(path.join(workspace, "Notes"))
@@ -55,7 +55,7 @@ test("copies the complete static NoteSkin template and adds fixed-size generated
       const metadata = await sharp(path.join(workspace, "Notes", filename)).metadata()
       assert.deepEqual(
         { width: metadata.width, height: metadata.height },
-        { width: 150, height: 150 },
+        { width: 150, height: 250 },
       )
     }
   } finally {

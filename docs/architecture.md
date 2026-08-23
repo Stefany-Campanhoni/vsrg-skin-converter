@@ -42,7 +42,7 @@ Translates external game formats to and from the neutral model.
   `JudgmentZoom`, and `ComboZoom` from `playerConfig.lua`, and reads the selected profile's
   positive integer CMod from `<DefaultModifiers>/<dance>` in `Etterna.xml`. It performs
   static NoteSkin analysis and resolves Etterna assets. As a target, it validates
-  NoteSkin/profile paths, owns fixed output filenames and dimensions, renders converted
+  NoteSkin/profile paths, owns proportional output filenames and target widths, renders converted
   CMod, scroll direction, and combo zoom into the Etterna templates, allocates profile
   identity, composes the judgement sheet, preserves the active theme asset configuration,
   and coordinates installation.
@@ -303,13 +303,15 @@ When a selected-density judgement candidate is absent, the reader preserves the 
 and the target writer extracts the missing grade from the bundled default sheet. Default
 frames are rendered at standard density or doubled for an `@2x` source before all six frames
 are centered and composed.
-The target adapter always writes four
-150x150 tap notes and eight 146x146 receptors using the fixed ` (res 64x64)` filename
-decoration. Receptors are vertically trimmed, made into a source-width square, and then
-resized to 146x146. A transparent normal remains transparent; a transparent pressed receptor
-falls back to the processed normal from the same direction. Any future game-specific output
-calibration belongs in the target adapter; shared image infrastructure implements only the
-game-neutral trim, square, resize, and transparency mechanisms requested by that adapter.
+The target adapter always writes four tap notes at 150 pixels wide and eight receptors at
+146 pixels wide. It scales height by the same factor as width, skips resizing when an image
+is already at its target width, and writes ` (res 64xH)` using the proportional logical
+height so Etterna preserves the rendered aspect ratio.
+Receptors are vertically trimmed before proportional scaling. A transparent normal remains
+transparent; a transparent pressed receptor falls back to the processed normal from the same
+direction. Any future game-specific output calibration belongs in the target adapter; shared
+image infrastructure implements only the game-neutral trim, proportional resize, and
+transparency mechanisms requested by that adapter.
 
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
