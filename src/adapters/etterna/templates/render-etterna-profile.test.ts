@@ -21,7 +21,7 @@ test("the production profile template makes receptor size renderable", async () 
   const template = await readFile(playerConfigTemplatePath, "utf8")
 
   assert.match(template, /ReceptorSize= \$\{receptor_size\}/)
-  assert.match(template, /JudgmentZoom= 0\.35/)
+  assert.match(template, /JudgmentZoom= 1/)
   assert.match(template, /ComboZoom= \$\{combo_zoom\}/)
 })
 

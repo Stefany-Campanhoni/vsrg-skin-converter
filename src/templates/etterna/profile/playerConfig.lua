@@ -22,7 +22,7 @@ return {
       DisplayMeanX= 1297.004608, DisplayMeanY= 835.3125, NPSDisplayX= 71.169487, 
       NPSDisplayY= 434.728912, NPSGraphX= 0, NPSGraphY= 1604.8125, NoteFieldX= 0}}, 
   GameplaySizes= {
-    ["4K"]= {JudgmentZoom= 0.35, ComboZoom= ${combo_zoom}, ErrorBarWidth= 176.210529,
+    ["4K"]= {JudgmentZoom= 1, ComboZoom= ${combo_zoom}, ErrorBarWidth= 176.210529,
       ErrorBarHeight= 6, TargetTrackerZoom= 0.4, FullProgressBarWidth= 1, 
       FullProgressBarHeight= 1, JudgeCounterHeight= 1, JudgeCounterWidth= 1, 
       JudgeCounterSpacing= 1, DisplayEWMAZoom= 1, DisplayStdDevZoom= 1, 
