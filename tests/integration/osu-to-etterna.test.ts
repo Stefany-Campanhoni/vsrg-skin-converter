@@ -74,6 +74,26 @@ const noteColors = {
   up: { r: 80, g: 120, b: 200 },
   right: { r: 120, g: 140, b: 200 },
 } as const
+const defaultReceptorColors = {
+  edge: {
+    normal: { r: 15, g: 85, b: 155 },
+    pressed: { r: 205, g: 45, b: 105 },
+  },
+  middle: {
+    normal: { r: 35, g: 105, b: 175 },
+    pressed: { r: 225, g: 65, b: 125 },
+  },
+} as const
+const defaultNoteColors = {
+  edge: { r: 25, g: 95, b: 215 },
+  middle: { r: 75, g: 145, b: 235 },
+} as const
+const defaultAssetGroupByDirection = {
+  left: "edge",
+  down: "middle",
+  up: "middle",
+  right: "edge",
+} as const
 const judgementFixtures = [
   { grade: "marvelous", width: 7, height: 3, color: [220, 20, 40, 255] },
   { grade: "perfect", width: 5, height: 4, color: [200, 80, 30, 255] },
@@ -216,6 +236,109 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     ]) {
       assert.equal(assetsConfig.includes(preserved), true, preserved)
     }
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
+for (const density of ["standard", "double"] as const) {
+  test(`uses osu 4K default notes and receptors at ${density} density`, async () => {
+    const fixture = await createFixture({
+      customJudgements: "none",
+      defaultManiaAssetDensity: density,
+    })
+    try {
+      await convertFixture(fixture)
+      const noteSkinDirectory = path.join(
+        fixture.etternaRoot,
+        "NoteSkins",
+        "dance",
+        fixture.skinName,
+      )
+
+      for (const direction of directions) {
+        const title = directionTitles[direction]
+        const assetGroup = defaultAssetGroupByDirection[direction]
+        for (const [state, prefix] of [
+          ["normal", "release"],
+          ["pressed", "pressed"],
+        ] as const) {
+          const output = await sharp(
+            path.join(noteSkinDirectory, "Receptors", `${prefix} ${title} (res 64x64).png`),
+          )
+            .raw()
+            .ensureAlpha()
+            .toBuffer({ resolveWithObject: true })
+          const expectedColor = defaultReceptorColors[assetGroup][state]
+
+          assert.deepEqual(rgbaAt(output.data, output.info.width, 73, 73), [
+            expectedColor.r,
+            expectedColor.g,
+            expectedColor.b,
+            255,
+          ])
+        }
+
+        const noteOutput = await sharp(
+          path.join(noteSkinDirectory, "Notes", `_${title} Tap Note (res 64x64).png`),
+        )
+          .raw()
+          .ensureAlpha()
+          .toBuffer({ resolveWithObject: true })
+        const expectedNoteColor = defaultNoteColors[assetGroup]
+        assert.deepEqual(rgbaAt(noteOutput.data, noteOutput.info.width, 75, 75), [
+          expectedNoteColor.r,
+          expectedNoteColor.g,
+          expectedNoteColor.b,
+          255,
+        ])
+      }
+    } finally {
+      await rm(fixture.root, { recursive: true, force: true })
+    }
+  })
+}
+
+test("fails when a required osu 4K default asset is absent", async () => {
+  const fixture = await createFixture({
+    customJudgements: "none",
+    defaultManiaAssetDensity: "double",
+  })
+  try {
+    await rm(path.join(fixture.skinDirectory, "mania-note2@2x.png"))
+
+    await assert.rejects(
+      () => convertFixture(fixture),
+      (error) => {
+        assert.ok(error instanceof Error)
+        assert.match(error.message, /tapNotes\.down.*mania-note2/i)
+        assert.ok(error.cause instanceof Error)
+        assert.match(error.cause.message, /mania-note2@2x\.png.*not found/i)
+        return true
+      },
+    )
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("does not replace a missing explicit 4K asset with an available default", async () => {
+  const fixture = await createFixture({
+    customJudgements: "none",
+    defaultManiaAssetDensity: "standard",
+    useMissingExplicitNoteReference: true,
+  })
+  try {
+    await assert.rejects(
+      () => convertFixture(fixture),
+      (error) => {
+        assert.ok(error instanceof Error)
+        assert.match(error.message, /tapNotes\.left.*missing-note/i)
+        assert.ok(error.cause instanceof Error)
+        assert.match(error.cause.message, /missing-note\.png.*not found/i)
+        return true
+      },
+    )
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
   }
@@ -472,12 +595,16 @@ interface Fixture {
 async function createFixture({
   upsideDown = 0,
   customJudgements = "all",
+  defaultManiaAssetDensity,
+  useMissingExplicitNoteReference = false,
 }: {
   readonly upsideDown?: 0 | 1
   readonly customJudgements?:
     | "all"
     | "none"
     | readonly (typeof judgementFixtures)[number]["grade"][]
+  readonly defaultManiaAssetDensity?: "standard" | "double"
+  readonly useMissingExplicitNoteReference?: boolean
 } = {}): Promise<Fixture> {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-to-etterna-"))
   const osuRoot = path.join(root, "osu!")
@@ -498,10 +625,23 @@ async function createFixture({
   await mkdir(path.dirname(assetsConfigPath), { recursive: true })
   await writeFile(
     path.join(osuRoot, "osu!.Alice.cfg"),
-    "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\nManiaSpeed = 29\n",
+    defaultManiaAssetDensity === "standard"
+      ? "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1280\nHeightFullscreen = 720\nManiaSpeed = 29\n"
+      : "Username = Alice\nFullscreen = 1\nWidthFullscreen = 1920\nHeightFullscreen = 1080\nManiaSpeed = 29\n",
   )
   await writeFile(assetsConfigPath, originalAssetsConfig)
-  await writeFile(path.join(skinDirectory, "skin.ini"), skinIni(skinName, upsideDown))
+  await writeFile(
+    path.join(skinDirectory, "skin.ini"),
+    skinIni(
+      skinName,
+      upsideDown,
+      defaultManiaAssetDensity
+        ? useMissingExplicitNoteReference
+          ? "missing-note"
+          : "none"
+        : "all",
+    ),
+  )
   await writeFile(path.join(etternaRoot, "Save", "Preferences.ini"), "[Options]\nTheme=Rebirth\n")
   await writeFile(
     path.join(profileDirectory, "Etterna.xml"),
@@ -518,6 +658,36 @@ async function createFixture({
     await writeNote(note, 8 + directionIndex, 6 + directionIndex, directionIndex)
     receptors[direction] = { normal, pressed }
     notes[direction] = note
+  }
+
+  if (defaultManiaAssetDensity) {
+    const densitySuffix = defaultManiaAssetDensity === "double" ? "@2x" : ""
+    for (const [number, assetGroup] of [
+      [1, "edge"],
+      [2, "middle"],
+    ] as const) {
+      const normal = defaultReceptorColors[assetGroup].normal
+      const pressed = defaultReceptorColors[assetGroup].pressed
+      const note = defaultNoteColors[assetGroup]
+      await writeSolidPng(
+        path.join(skinDirectory, `mania-key${number}${densitySuffix}.png`),
+        12,
+        12,
+        [normal.r, normal.g, normal.b, 255],
+      )
+      await writeSolidPng(
+        path.join(skinDirectory, `mania-key${number}D${densitySuffix}.png`),
+        12,
+        12,
+        [pressed.r, pressed.g, pressed.b, 255],
+      )
+      await writeSolidPng(
+        path.join(skinDirectory, `mania-note${number}${densitySuffix}.png`),
+        12,
+        12,
+        [note.r, note.g, note.b, 255],
+      )
+    }
   }
 
   for (const [index, fixture] of judgementFixtures.entries()) {
@@ -627,12 +797,21 @@ function createFixtureInstaller(
   })
 }
 
-function skinIni(name: string, upsideDown: 0 | 1): string {
-  const entries = directions.flatMap((direction, index) => [
-    `KeyImage${index}: ASSETS\\${direction}-release`,
-    `KeyImage${index}D: Assets\\${direction}-pressed`,
-    `NoteImage${index}: assets\\${direction}-note`,
-  ])
+function skinIni(
+  name: string,
+  upsideDown: 0 | 1,
+  maniaAssetReferences: "all" | "none" | "missing-note" = "all",
+): string {
+  const entries =
+    maniaAssetReferences === "all"
+      ? directions.flatMap((direction, index) => [
+          `KeyImage${index}: ASSETS\\${direction}-release`,
+          `KeyImage${index}D: Assets\\${direction}-pressed`,
+          `NoteImage${index}: assets\\${direction}-note`,
+        ])
+      : maniaAssetReferences === "missing-note"
+        ? ["NoteImage0: missing-note"]
+        : []
   return [
     "[General]",
     `Name: ${name}`,
