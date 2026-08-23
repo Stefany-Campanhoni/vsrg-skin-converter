@@ -259,6 +259,54 @@ test("settles final resizes before reporting their contextual exact cause withou
   assert.deepEqual(writes, [])
 })
 
+test("settles sibling dimension reads after a synchronous failure with receptor context", async () => {
+  const sibling = deferred<{ width: number; height: number }>()
+  const failureStarted = deferred<void>()
+  const failure = new Error("exact synchronous dimensions failure")
+  const writes: string[] = []
+  let dimensionCalls = 0
+  const writing = writeEtternaReceptors({
+    receptors: inMemoryReceptors(),
+    outputDirectory: "output",
+    read: async (filePath) => Buffer.from(filePath),
+    inspectTransparency: async () => false,
+    normalize: async (buffer) => buffer,
+    resize: async (buffer) => buffer,
+    readDimensions: () => {
+      dimensionCalls += 1
+      if (dimensionCalls === 1) {
+        return sibling.promise
+      }
+      if (dimensionCalls === 2) {
+        failureStarted.resolve()
+        throw failure
+      }
+      return Promise.resolve({ width: 64, height: 64 })
+    },
+    write: async (filePath) => {
+      writes.push(filePath)
+    },
+  })
+  let settled = false
+  void writing.catch(() => {
+    settled = true
+  })
+
+  await failureStarted.promise
+  await new Promise<void>((resolve) => setImmediate(resolve))
+  assert.equal(dimensionCalls, 8)
+  assert.equal(settled, false)
+
+  sibling.resolve({ width: 64, height: 64 })
+  await assert.rejects(writing, (error) => {
+    assert.ok(error instanceof Error)
+    assert.match(error.message, /read dimensions.*pressed receptor.*left.*left-pressed\.png/i)
+    assert.equal(error.cause, failure)
+    return true
+  })
+  assert.deepEqual(writes, [])
+})
+
 test("starts and settles every receptor write when a writer throws synchronously", async () => {
   const sibling = deferred<void>()
   const writesStarted = deferred<void>()

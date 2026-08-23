@@ -158,8 +158,8 @@ async function prepareDirection(options: {
       )
   const [normalBuffer, pressedBuffer] = await settleAll([processedNormal, processedPressed])
   const [normalDimensions, pressedDimensions] = await settleAll([
-    options.readDimensions(normalBuffer),
-    options.readDimensions(pressedBuffer),
+    readReceptorDimensions(options.normal, normalBuffer, options.readDimensions),
+    readReceptorDimensions(options.pressed, pressedBuffer, options.readDimensions),
   ])
   const title = directionTitles[options.direction]
 
@@ -189,6 +189,17 @@ function inspectReceptorTransparency(
   return runEtternaAssetOperation(
     `inspect transparency of osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}'`,
     () => inspect(buffer),
+  )
+}
+
+function readReceptorDimensions(
+  source: ReceptorSource,
+  buffer: Buffer,
+  readDimensions: AssetDimensionReader,
+): Promise<ImageDimensions> {
+  return runEtternaAssetOperation(
+    `read dimensions of osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}'`,
+    () => readDimensions(buffer),
   )
 }
 
