@@ -74,17 +74,29 @@ const noteColors = {
   up: { r: 80, g: 120, b: 200 },
   right: { r: 120, g: 140, b: 200 },
 } as const
-const convertedReceptorWidths: Readonly<Record<ColumnDirection, number>> = {
-  left: 135,
-  down: 136,
-  up: 136,
-  right: 137,
+const convertedReceptorHeights: Readonly<Record<ColumnDirection, number>> = {
+  left: 158,
+  down: 157,
+  up: 156,
+  right: 156,
 }
-const convertedNoteWidths: Readonly<Record<ColumnDirection, number>> = {
-  left: 200,
-  down: 193,
-  up: 188,
-  right: 183,
+const convertedReceptorLogicalHeights: Readonly<Record<ColumnDirection, number>> = {
+  left: 69,
+  down: 69,
+  up: 68,
+  right: 68,
+}
+const convertedNoteHeights: Readonly<Record<ColumnDirection, number>> = {
+  left: 113,
+  down: 117,
+  up: 120,
+  right: 123,
+}
+const convertedNoteLogicalHeights: Readonly<Record<ColumnDirection, number>> = {
+  left: 48,
+  down: 50,
+  up: 51,
+  right: 52,
 }
 const defaultReceptorColors = {
   edge: {
@@ -143,7 +155,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
         const outputPath = path.join(
           noteSkinDirectory,
           "Receptors",
-          `${prefix} ${title} (res 64x64).png`,
+          `${prefix} ${title} (res 64x${convertedReceptorLogicalHeights[direction]}).png`,
         )
         const output = await sharp(outputPath)
           .raw()
@@ -152,7 +164,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
 
         assert.deepEqual(
           { width: output.info.width, height: output.info.height },
-          { width: convertedReceptorWidths[direction], height: 146 },
+          { width: 146, height: convertedReceptorHeights[direction] },
         )
         const expectedColor = receptorColors[direction][state]
         assert.deepEqual(
@@ -166,14 +178,18 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
         )
       }
 
-      const noteOutput = path.join(noteSkinDirectory, "Notes", `_${title} Tap Note (res 64x64).png`)
+      const noteOutput = path.join(
+        noteSkinDirectory,
+        "Notes",
+        `_${title} Tap Note (res 64x${convertedNoteLogicalHeights[direction]}).png`,
+      )
       const output = await sharp(noteOutput)
         .raw()
         .ensureAlpha()
         .toBuffer({ resolveWithObject: true })
       assert.deepEqual(
         { width: output.info.width, height: output.info.height },
-        { width: convertedNoteWidths[direction], height: 150 },
+        { width: 150, height: convertedNoteHeights[direction] },
       )
       const expectedColor = noteColors[direction]
       assert.deepEqual(rgbaAt(output.data, output.info.width, 75, 75), [
@@ -185,20 +201,20 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     }
 
     assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Receptors"))).sort(), [
-      "pressed Down (res 64x64).png",
-      "pressed Left (res 64x64).png",
-      "pressed Right (res 64x64).png",
-      "pressed Up (res 64x64).png",
-      "release Down (res 64x64).png",
-      "release Left (res 64x64).png",
-      "release Right (res 64x64).png",
-      "release Up (res 64x64).png",
+      "pressed Down (res 64x69).png",
+      "pressed Left (res 64x69).png",
+      "pressed Right (res 64x68).png",
+      "pressed Up (res 64x68).png",
+      "release Down (res 64x69).png",
+      "release Left (res 64x69).png",
+      "release Right (res 64x68).png",
+      "release Up (res 64x68).png",
     ])
     assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Notes"))).sort(), [
-      "_Down Tap Note (res 64x64).png",
-      "_Left Tap Note (res 64x64).png",
-      "_Right Tap Note (res 64x64).png",
-      "_Up Tap Note (res 64x64).png",
+      "_Down Tap Note (res 64x50).png",
+      "_Left Tap Note (res 64x48).png",
+      "_Right Tap Note (res 64x52).png",
+      "_Up Tap Note (res 64x51).png",
     ])
 
     const editable = await readFile(path.join(profileDirectory, "Editable.ini"), "utf8")
@@ -520,7 +536,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
     assert.equal(confirmationMessage, `${fixture.skinName} already exists. Overwrite it?`)
     assert.equal(await pathExists(oldSelectedMarker), false)
     await access(path.join(selectedNoteSkin, "NoteSkin.lua"))
-    await access(path.join(selectedNoteSkin, "Receptors", "release Left (res 64x64).png"))
+    await access(path.join(selectedNoteSkin, "Receptors", "release Left (res 64x69).png"))
     assert.equal(await pathExists(path.join(noteSkinsRoot, "Fixture")), false)
     assert.deepEqual(await directorySnapshot(unrelatedNoteSkin), unrelatedBefore)
 

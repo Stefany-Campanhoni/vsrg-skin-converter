@@ -234,11 +234,12 @@ selected digit is absent, fall back silently to `1`; do not reinterpret unsafe p
 unreadable images, or inconsistent heights as a missing font. The Etterna profile writer
 must render the resulting positive finite scale as `ComboZoom`.
 
-The reverse target contract is fixed: notes use the four direction-specific ` (res 64x64)`
-names at exactly 150 pixels high, and normal/pressed receptors use the eight
-direction/state-specific ` (res 64x64)` names at exactly 146 pixels high. Width scales by the
-same factor as height, and an image already at its target height is not resized. Receptor
-processing order is vertical transparent-row trim followed by proportional height scaling.
+The reverse target contract is fixed: notes use four direction-specific names at exactly 150
+pixels wide, and normal/pressed receptors use eight direction/state-specific names at exactly
+146 pixels wide. Height scales by the same factor as width, and an image already at its target
+width is not resized. Each name uses ` (res 64xH)`, where `H` is the nearest positive integer
+that preserves the rendered image's aspect ratio at logical width 64. Receptor processing order
+is vertical transparent-row trim followed by proportional width scaling.
 A fully transparent normal remains transparent; a fully transparent pressed receptor falls
 back to the processed normal from the same direction. Integration tests must assert the exact
 inventories, dimensions, aspect-ratio preservation, and lane/state source pixels, and every

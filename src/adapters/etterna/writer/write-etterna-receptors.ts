@@ -10,9 +10,13 @@ import {
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { normalizeOsuReceptorImage } from "../../../infrastructure/image/normalize-osu-receptor.ts"
-import { resizeImageToHeight } from "../../../infrastructure/image/resize-image-to-height.ts"
 import {
-  etternaReceptorOutputHeight,
+  type ImageDimensions,
+  readImageDimensions,
+} from "../../../infrastructure/image/read-image-dimensions.ts"
+import { resizeImageToWidth } from "../../../infrastructure/image/resize-image-to-width.ts"
+import {
+  etternaReceptorOutputWidth,
   getEtternaOutputAssetFilename,
 } from "./etterna-output-asset-policy.ts"
 import { runEtternaAssetOperation } from "./run-etterna-asset-operation.ts"
@@ -25,6 +29,7 @@ import {
 type AssetReader = (filePath: string) => Promise<Buffer>
 type ReceptorNormalizer = (image: Buffer) => Promise<Buffer>
 type TransparencyInspector = (image: Buffer) => Promise<boolean>
+type AssetDimensionReader = (image: Buffer) => Promise<ImageDimensions>
 
 const directionTitles: Readonly<Record<ColumnDirection, string>> = {
   left: "Left",
@@ -49,7 +54,8 @@ export interface PrepareEtternaReceptorsOptions {
   read?: AssetReader
   normalize?: ReceptorNormalizer
   inspectTransparency?: TransparencyInspector
-  resize?: typeof resizeImageToHeight
+  resize?: typeof resizeImageToWidth
+  readDimensions?: AssetDimensionReader
 }
 
 export interface WriteEtternaReceptorsOptions extends PrepareEtternaReceptorsOptions {
@@ -63,7 +69,8 @@ export async function prepareEtternaReceptors(
   const read = options.read ?? readFile
   const normalize = options.normalize ?? normalizeOsuReceptorImage
   const inspectTransparency = options.inspectTransparency ?? isImageFullyTransparent
-  const resize = options.resize ?? resizeImageToHeight
+  const resize = options.resize ?? resizeImageToWidth
+  const readDimensions = options.readDimensions ?? readImageDimensions
   const sources = columnDirections.flatMap((direction) =>
     receptorStates.map((state): ReceptorSource => {
       const definition = options.receptors[direction][state]
@@ -97,6 +104,7 @@ export async function prepareEtternaReceptors(
             normalize,
             inspectTransparency,
             resize,
+            readDimensions,
           }),
         )
       }),
@@ -121,7 +129,8 @@ async function prepareDirection(options: {
   pressedBuffer: Buffer
   normalize: ReceptorNormalizer
   inspectTransparency: TransparencyInspector
-  resize: typeof resizeImageToHeight
+  resize: typeof resizeImageToWidth
+  readDimensions: AssetDimensionReader
 }): Promise<readonly [PreparedEtternaAsset, PreparedEtternaAsset]> {
   const [normalIsTransparent, pressedIsTransparent] = await settleAll([
     inspectReceptorTransparency(options.normal, options.normalBuffer, options.inspectTransparency),
@@ -148,15 +157,25 @@ async function prepareDirection(options: {
         options.resize,
       )
   const [normalBuffer, pressedBuffer] = await settleAll([processedNormal, processedPressed])
+  const [normalDimensions, pressedDimensions] = await settleAll([
+    options.readDimensions(normalBuffer),
+    options.readDimensions(pressedBuffer),
+  ])
   const title = directionTitles[options.direction]
 
   return [
     {
-      filename: getEtternaOutputAssetFilename(`${receptorPrefixes.normal} ${title}`),
+      filename: getEtternaOutputAssetFilename(
+        `${receptorPrefixes.normal} ${title}`,
+        normalDimensions,
+      ),
       buffer: normalBuffer,
     },
     {
-      filename: getEtternaOutputAssetFilename(`${receptorPrefixes.pressed} ${title}`),
+      filename: getEtternaOutputAssetFilename(
+        `${receptorPrefixes.pressed} ${title}`,
+        pressedDimensions,
+      ),
       buffer: pressedBuffer,
     },
   ]
@@ -188,7 +207,7 @@ function normalizeAndResizeReceptor(
   source: ReceptorSource,
   buffer: Buffer,
   normalize: ReceptorNormalizer,
-  resize: typeof resizeImageToHeight,
+  resize: typeof resizeImageToWidth,
 ): Promise<Buffer> {
   return normalizeReceptor(source, buffer, normalize).then((normalized) =>
     resizeReceptor(source, normalized, resize),
@@ -198,11 +217,11 @@ function normalizeAndResizeReceptor(
 function resizeReceptor(
   source: ReceptorSource,
   buffer: Buffer,
-  resize: typeof resizeImageToHeight,
+  resize: typeof resizeImageToWidth,
 ): Promise<Buffer> {
   return runEtternaAssetOperation(
-    `resize osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}' proportionally to height ${etternaReceptorOutputHeight}`,
-    () => resize(buffer, etternaReceptorOutputHeight),
+    `resize osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}' proportionally to width ${etternaReceptorOutputWidth}`,
+    () => resize(buffer, etternaReceptorOutputWidth),
   )
 }
 

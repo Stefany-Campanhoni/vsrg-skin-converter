@@ -8,7 +8,7 @@ import type { ImageAsset, ImageDensity, ReceptorSet } from "../../../domain/imag
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { writeEtternaReceptors } from "./write-etterna-receptors.ts"
 
-test("trims receptors before scaling them proportionally to 146px high", async () => {
+test("trims receptors before scaling them proportionally to 146px wide", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
   try {
@@ -19,21 +19,21 @@ test("trims receptors before scaling them proportionally to 146px high", async (
 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
     assert.deepEqual((await readdir(receptorDirectory)).sort(), [
-      "pressed Down (res 64x64).png",
-      "pressed Left (res 64x64).png",
-      "pressed Right (res 64x64).png",
-      "pressed Up (res 64x64).png",
-      "release Down (res 64x64).png",
-      "release Left (res 64x64).png",
-      "release Right (res 64x64).png",
-      "release Up (res 64x64).png",
+      "pressed Down (res 64x51).png",
+      "pressed Left (res 64x51).png",
+      "pressed Right (res 64x51).png",
+      "pressed Up (res 64x51).png",
+      "release Down (res 64x51).png",
+      "release Left (res 64x51).png",
+      "release Right (res 64x51).png",
+      "release Up (res 64x51).png",
     ])
     for (const filename of await readdir(receptorDirectory)) {
       const output = await readFile(path.join(receptorDirectory, filename))
-      assert.deepEqual(await imageSize(output), { width: 183, height: 146 }, filename)
-      assert.equal(await alphaAt(output, 0, 73), 0, `${filename} keeps its left margin transparent`)
+      assert.deepEqual(await imageSize(output), { width: 146, height: 117 }, filename)
+      assert.equal(await alphaAt(output, 0, 58), 0, `${filename} keeps its left margin transparent`)
       assert.equal(
-        await alphaAt(output, 182, 73),
+        await alphaAt(output, 145, 58),
         0,
         `${filename} keeps its right margin transparent`,
       )
@@ -46,7 +46,7 @@ test("trims receptors before scaling them proportionally to 146px high", async (
   }
 })
 
-test("scales a fully transparent normal receptor proportionally to 146px high", async () => {
+test("scales a fully transparent normal receptor proportionally to 146px wide", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
   const transparent = await png(7, 11, { r: 0, g: 0, b: 0, alpha: 0 })
@@ -60,9 +60,9 @@ test("scales a fully transparent normal receptor proportionally to 146px high", 
     await writeEtternaReceptors({ receptors, outputDirectory })
 
     const normal = await readFile(
-      path.join(outputDirectory, "Receptors", "release Up (res 64x64).png"),
+      path.join(outputDirectory, "Receptors", "release Up (res 64x100).png"),
     )
-    assert.deepEqual(await imageSize(normal), { width: 93, height: 146 })
+    assert.deepEqual(await imageSize(normal), { width: 146, height: 229 })
     assert.equal(await isImageFullyTransparent(normal), true)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -84,10 +84,10 @@ test("uses the processed normal when pressed is fully transparent", async () => 
     await writeEtternaReceptors({ receptors, outputDirectory })
 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
-    const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x64).png"))
-    const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x64).png"))
-    assert.deepEqual(await imageSize(normal), { width: 183, height: 146 })
-    assert.deepEqual(await imageSize(pressed), { width: 183, height: 146 })
+    const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x51).png"))
+    const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x51).png"))
+    assert.deepEqual(await imageSize(normal), { width: 146, height: 117 })
+    assert.deepEqual(await imageSize(pressed), { width: 146, height: 117 })
     assert.deepEqual(pressed, normal)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -186,6 +186,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
       return Buffer.from("normalized")
     },
     resize: async (buffer) => buffer,
+    readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
       writes.push(filePath)
     },
@@ -233,6 +234,7 @@ test("settles final resizes before reporting their contextual exact cause withou
       }
       return Promise.resolve(Buffer.from("resized"))
     },
+    readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
       writes.push(filePath)
     },
@@ -250,7 +252,7 @@ test("settles final resizes before reporting their contextual exact cause withou
   sibling.resolve(Buffer.from("resized"))
   await assert.rejects(writing, (error) => {
     assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*pressed receptor.*left.*left-pressed\.png.*height 146/i)
+    assert.match(error.message, /resize.*pressed receptor.*left.*left-pressed\.png.*width 146/i)
     assert.equal(error.cause, resizeFailure)
     return true
   })
@@ -269,6 +271,7 @@ test("starts and settles every receptor write when a writer throws synchronously
     inspectTransparency: async () => false,
     normalize: async () => Buffer.from("normalized"),
     resize: async (buffer) => buffer,
+    readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
       calls += 1
       if (calls === 8) {
@@ -332,7 +335,7 @@ async function writeVisibleReceptorFixtures(root: string): Promise<{
       await writeFile(filePath, await receptorPng(color))
       definitions[direction][state].filePath = filePath
       colors[
-        `${state === "normal" ? "release" : "pressed"} ${titleCase(direction)} (res 64x64).png`
+        `${state === "normal" ? "release" : "pressed"} ${titleCase(direction)} (res 64x51).png`
       ] = color
     }
   }

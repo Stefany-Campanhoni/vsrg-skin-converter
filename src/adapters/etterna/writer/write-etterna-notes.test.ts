@@ -7,38 +7,38 @@ import sharp from "sharp"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { writeEtternaNotes } from "./write-etterna-notes.ts"
 
-test("scales tap notes proportionally to 150px high under their fixed Etterna output names", async () => {
+test("scales tap notes proportionally to 150px wide with proportional Etterna resolutions", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-notes-"))
   const outputDirectory = path.join(root, "output")
   const fixtures = {
     left: {
-      outputFilename: "_Left Tap Note (res 64x64).png",
+      outputFilename: "_Left Tap Note (res 64x32).png",
       width: 20,
       height: 10,
-      outputWidth: 300,
+      outputHeight: 75,
       color: { r: 230, g: 15, b: 35, alpha: 1 },
       density: "standard",
     },
     down: {
-      outputFilename: "_Down Tap Note (res 64x64).png",
+      outputFilename: "_Down Tap Note (res 64x53).png",
       width: 30,
       height: 25,
-      outputWidth: 180,
+      outputHeight: 125,
       color: { r: 20, g: 195, b: 75, alpha: 1 },
       density: "double",
     },
     up: {
-      outputFilename: "_Up Tap Note (res 64x64).png",
-      width: 42,
-      height: 150,
-      outputWidth: 42,
+      outputFilename: "_Up Tap Note (res 64x18).png",
+      width: 150,
+      height: 42,
+      outputHeight: 42,
       color: { r: 40, g: 70, b: 225, alpha: 1 },
     },
     right: {
-      outputFilename: "_Right Tap Note (res 64x64).png",
+      outputFilename: "_Right Tap Note (res 64x107).png",
       width: 12,
       height: 20,
-      outputWidth: 90,
+      outputHeight: 250,
       color: { r: 245, g: 180, b: 10, alpha: 1 },
       density: "double",
     },
@@ -47,7 +47,7 @@ test("scales tap notes proportionally to 150px high under their fixed Etterna ou
     {
       width: number
       height: number
-      outputWidth: number
+      outputHeight: number
       outputFilename: string
       color: { r: number; g: number; b: number; alpha: number }
       density?: "standard" | "double"
@@ -74,17 +74,17 @@ test("scales tap notes proportionally to 150px high under their fixed Etterna ou
 
     const notesDirectory = path.join(outputDirectory, "Notes")
     assert.deepEqual((await readdir(notesDirectory)).sort(), [
-      "_Down Tap Note (res 64x64).png",
-      "_Left Tap Note (res 64x64).png",
-      "_Right Tap Note (res 64x64).png",
-      "_Up Tap Note (res 64x64).png",
+      "_Down Tap Note (res 64x53).png",
+      "_Left Tap Note (res 64x32).png",
+      "_Right Tap Note (res 64x107).png",
+      "_Up Tap Note (res 64x18).png",
     ])
     for (const fixture of Object.values(fixtures)) {
       const outputPath = path.join(notesDirectory, fixture.outputFilename)
       const metadata = await sharp(outputPath).metadata()
       assert.deepEqual(
         { width: metadata.width, height: metadata.height },
-        { width: fixture.outputWidth, height: 150 },
+        { width: 150, height: fixture.outputHeight },
       )
       const { data } = await sharp(outputPath).raw().toBuffer({ resolveWithObject: true })
       assert.deepEqual(
@@ -124,6 +124,7 @@ test("settles every tap-note resize before failing and does not start the write 
       }
       return Buffer.from("resized png")
     },
+    readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
       writes.push(filePath)
     },
@@ -148,7 +149,7 @@ test("settles every tap-note resize before failing and does not start the write 
   sibling.resolve(Buffer.from("resized png"))
   await assert.rejects(writing, (error) => {
     assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*tap note.*down.*down\.png.*height 150/i)
+    assert.match(error.message, /resize.*tap note.*down.*down\.png.*width 150/i)
     assert.equal(error.cause, failure)
     return true
   })
@@ -208,6 +209,7 @@ test("starts and settles every tap-note write when a writer throws synchronously
     outputDirectory: "output",
     read: async () => Buffer.from("png"),
     resize: async (buffer) => buffer,
+    readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
       calls += 1
       if (calls === 4) {
