@@ -57,7 +57,9 @@ Translates external game formats to and from the neutral model.
   a vertical-only image scale before composition. As a source, its reader projects the four
   4K column widths to their arithmetic mean before exposing the scalar through the neutral
   model. Missing judgement PNGs remain absent in the neutral set so the Etterna target can
-  apply its bundled fallback without hiding unsafe paths or unreadable custom assets.
+  apply its bundled fallback without hiding unsafe paths or unreadable custom assets. Missing
+  or empty 4K note and receptor references resolve through osu!'s direction-specific default
+  logical names before entering the neutral model.
 
 Fixed osu! long-note assets are published by a target writer without entering the image
 pipeline. After every target asset succeeds, an allowlisted finalizer removes only known
@@ -293,6 +295,10 @@ note density selects only the input file; judgement density also selects Etterna
 or `(Doubleres)` sheet name. The judgement source resolver owns `Hit*` references, directory
 references, missing-property `mania-hit*` defaults, and `-0` frame precedence; the shared PNG
 resolver remains responsible for case-insensitive, density-specific, skin-contained file access.
+The `skin.ini` projection owns missing or empty 4K lane defaults: outer columns use
+`mania-note1`, `mania-key1`, and `mania-key1D`, while middle columns use the corresponding
+`mania-note2`, `mania-key2`, and `mania-key2D` names. Explicit references remain authoritative,
+and the shared resolver keeps a missing selected-density default fatal.
 When a selected-density judgement candidate is absent, the reader preserves the other grades
 and the target writer extracts the missing grade from the bundled default sheet. Default
 frames are rendered at standard density or doubled for an `@2x` source before all six frames

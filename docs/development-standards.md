@@ -220,6 +220,12 @@ filenames or dimensions. Keep inverse osu!-to-Etterna coordinate/width formulas 
 Etterna filenames, dimensions, fallback policy, and future output calibrations in
 `adapters/etterna`, and multi-target publication in filesystem infrastructure.
 
+Missing or empty osu! 4K lane image properties use osu-owned defaults before PNG resolution.
+Columns 1 and 4 map notes, normal receptors, and pressed receptors to `mania-note1`,
+`mania-key1`, and `mania-key1D`; columns 2 and 3 map to the corresponding `*2` names. Explicit
+properties never fall back when their selected PNG is absent, and an unavailable
+selected-density default remains fatal.
+
 Reverse combo zoom uses the `[Fonts].ComboPrefix` osu! default of `score` and resolves all
 ten selected-density digit PNGs. The canonical osu! template digit height is 42 logical
 pixels, so 42px SD and 84px double-density both map to `comboScale = 1`. Use the median of

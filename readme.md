@@ -135,6 +135,12 @@ converter uses the median height ratio and tolerates one selected-density pixel 
 An incomplete combo font falls back silently to `ComboZoom = 1`, while unsafe paths,
 unreadable images, and inconsistent heights remain fatal.
 
+When a 4K `[Mania]` section omits or leaves empty its note or receptor image references, the
+osu! reader uses the standard lane defaults. Columns 1 and 4 use `mania-note1`, `mania-key1`,
+and `mania-key1D`; columns 2 and 3 use their `mania-note2`, `mania-key2`, and `mania-key2D`
+counterparts. The selected asset density still applies, and conversion fails when a required
+default PNG is absent.
+
 Missing osu!mania judgement images use the bundled osu!mania default when converting to
 Etterna. Each missing grade is extracted from the default 1x6 sheet and mixed with the custom
 grades that exist. For an `@2x` source configuration, default frames are doubled before the

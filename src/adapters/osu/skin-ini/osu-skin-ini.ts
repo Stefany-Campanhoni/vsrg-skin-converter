@@ -18,6 +18,15 @@ export interface OsuMania4kDefinition {
   readonly judgements: Readonly<Record<JudgementGrade, string | undefined>>
 }
 
+const defaultNormalReceptors = ["mania-key1", "mania-key2", "mania-key2", "mania-key1"] as const
+const defaultPressedReceptors = [
+  "mania-key1D",
+  "mania-key2D",
+  "mania-key2D",
+  "mania-key1D",
+] as const
+const defaultTapNotes = ["mania-note1", "mania-note2", "mania-note2", "mania-note1"] as const
+
 export function parseOsuSkinIni(source: string, filePath: string): readonly OsuIniSection[] {
   const sections: OsuIniSection[] = []
   let current: { name: string; properties: Map<string, string> } | undefined
@@ -89,9 +98,9 @@ export function readOsuMania4kDefinition(
     comboPosition: readNumber(properties, "comboposition", filePath),
     judgementPosition: readNumber(properties, "scoreposition", filePath),
     columnWidths: readColumnWidths(properties, filePath),
-    normalReceptors: readTuple(properties, "keyimage", filePath),
-    pressedReceptors: readTuple(properties, "keyimage", filePath, "d"),
-    tapNotes: readTuple(properties, "noteimage", filePath),
+    normalReceptors: readAssetTuple(properties, "keyimage", defaultNormalReceptors),
+    pressedReceptors: readAssetTuple(properties, "keyimage", defaultPressedReceptors, "d"),
+    tapNotes: readAssetTuple(properties, "noteimage", defaultTapNotes),
     judgements: Object.fromEntries(
       judgementGrades.map((grade) => [
         grade,
@@ -138,17 +147,17 @@ function readColumnWidths(
     : widths
 }
 
-function readTuple(
+function readAssetTuple(
   properties: ReadonlyMap<string, string>,
   prefix: "keyimage" | "noteimage",
-  filePath: string,
+  defaults: readonly [string, string, string, string],
   suffix = "",
 ): [string, string, string, string] {
   return [
-    requiredProperty(properties, `${prefix}0${suffix}`, filePath),
-    requiredProperty(properties, `${prefix}1${suffix}`, filePath),
-    requiredProperty(properties, `${prefix}2${suffix}`, filePath),
-    requiredProperty(properties, `${prefix}3${suffix}`, filePath),
+    properties.get(`${prefix}0${suffix}`) || defaults[0],
+    properties.get(`${prefix}1${suffix}`) || defaults[1],
+    properties.get(`${prefix}2${suffix}`) || defaults[2],
+    properties.get(`${prefix}3${suffix}`) || defaults[3],
   ]
 }
 

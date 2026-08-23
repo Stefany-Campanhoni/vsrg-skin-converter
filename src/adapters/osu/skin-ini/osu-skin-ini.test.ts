@@ -144,6 +144,58 @@ test("allows missing 4K judgement references for osu default asset fallback", ()
   }
 })
 
+test("uses osu default 4K notes and receptors when their references are absent", () => {
+  const sourceWithoutManiaAssets = maniaSection()
+    .split("\n")
+    .filter((line) => !/^(?:KeyImage[0-3](?:D)?|NoteImage[0-3]):/.test(line))
+    .join("\n")
+
+  const definition = readOsuMania4kDefinition(
+    parseOsuSkinIni(sourceWithoutManiaAssets, filePath),
+    filePath,
+  )
+
+  assert.deepEqual(definition.normalReceptors, [
+    "mania-key1",
+    "mania-key2",
+    "mania-key2",
+    "mania-key1",
+  ])
+  assert.deepEqual(definition.pressedReceptors, [
+    "mania-key1D",
+    "mania-key2D",
+    "mania-key2D",
+    "mania-key1D",
+  ])
+  assert.deepEqual(definition.tapNotes, [
+    "mania-note1",
+    "mania-note2",
+    "mania-note2",
+    "mania-note1",
+  ])
+})
+
+test("uses osu default 4K assets for empty references without replacing explicit ones", () => {
+  const sourceWithEmptyReferences = maniaSection()
+    .replace("KeyImage0: key-left", "KeyImage0:")
+    .replace("KeyImage1D: key-down-pressed", "KeyImage1D:")
+    .replace("NoteImage3: note-right", "NoteImage3:")
+
+  const definition = readOsuMania4kDefinition(
+    parseOsuSkinIni(sourceWithEmptyReferences, filePath),
+    filePath,
+  )
+
+  assert.deepEqual(definition.normalReceptors, ["mania-key1", "key-down", "key-up", "key-right"])
+  assert.deepEqual(definition.pressedReceptors, [
+    "key-left-pressed",
+    "mania-key2D",
+    "key-up-pressed",
+    "key-right-pressed",
+  ])
+  assert.deepEqual(definition.tapNotes, ["note-left", "note-down", "note-up", "mania-note1"])
+})
+
 test("returns undefined when the General Name property is missing", () => {
   for (const source of ["[General]\nName-General: Fixture", "[General]\nName:", "[Fonts]"]) {
     assert.equal(readOsuSkinName(parseOsuSkinIni(source, filePath), filePath), undefined)
