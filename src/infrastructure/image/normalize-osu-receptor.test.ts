@@ -25,7 +25,7 @@ test("trims only vertical transparency and preserves lateral receptor geometry",
   }
 })
 
-test("stretches a short visible region vertically to a square", async () => {
+test("preserves the aspect ratio of a short visible region", async () => {
   const pixels = Buffer.alloc(10 * 8 * 4)
   for (let y = 2; y <= 5; y += 1) {
     for (let x = 1; x <= 8; x += 1) {
@@ -39,9 +39,9 @@ test("stretches a short visible region vertically to a square", async () => {
   const output = await normalizeOsuReceptorImage(source)
   const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 10, height: 10 })
+  assert.deepEqual({ width: info.width, height: info.height }, { width: 10, height: 4 })
   assert.deepEqual([...pixel(data, info.width, 4, 0)], [40, 180, 90, 255])
-  assert.deepEqual([...pixel(data, info.width, 4, 9)], [40, 180, 90, 255])
+  assert.deepEqual([...pixel(data, info.width, 4, 3)], [40, 180, 90, 255])
 })
 
 test("returns a fully transparent receptor byte-for-byte", async () => {

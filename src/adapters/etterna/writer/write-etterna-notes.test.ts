@@ -1,5 +1,5 @@
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import test from "node:test"
@@ -7,34 +7,38 @@ import sharp from "sharp"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { writeEtternaNotes } from "./write-etterna-notes.ts"
 
-test("writes every tap note as a 150x150 PNG under its fixed Etterna output name", async () => {
+test("scales tap notes proportionally to 150px high under their fixed Etterna output names", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-notes-"))
   const outputDirectory = path.join(root, "output")
   const fixtures = {
     left: {
       outputFilename: "_Left Tap Note (res 64x64).png",
-      width: 9,
-      height: 17,
+      width: 20,
+      height: 10,
+      outputWidth: 300,
       color: { r: 230, g: 15, b: 35, alpha: 1 },
       density: "standard",
     },
     down: {
       outputFilename: "_Down Tap Note (res 64x64).png",
-      width: 18,
-      height: 7,
+      width: 30,
+      height: 25,
+      outputWidth: 180,
       color: { r: 20, g: 195, b: 75, alpha: 1 },
       density: "double",
     },
     up: {
       outputFilename: "_Up Tap Note (res 64x64).png",
-      width: 11,
-      height: 21,
+      width: 42,
+      height: 150,
+      outputWidth: 42,
       color: { r: 40, g: 70, b: 225, alpha: 1 },
     },
     right: {
       outputFilename: "_Right Tap Note (res 64x64).png",
-      width: 25,
-      height: 8,
+      width: 12,
+      height: 20,
+      outputWidth: 90,
       color: { r: 245, g: 180, b: 10, alpha: 1 },
       density: "double",
     },
@@ -43,6 +47,7 @@ test("writes every tap note as a 150x150 PNG under its fixed Etterna output name
     {
       width: number
       height: number
+      outputWidth: number
       outputFilename: string
       color: { r: number; g: number; b: number; alpha: number }
       density?: "standard" | "double"
@@ -79,7 +84,7 @@ test("writes every tap note as a 150x150 PNG under its fixed Etterna output name
       const metadata = await sharp(outputPath).metadata()
       assert.deepEqual(
         { width: metadata.width, height: metadata.height },
-        { width: 150, height: 150 },
+        { width: fixture.outputWidth, height: 150 },
       )
       const { data } = await sharp(outputPath).raw().toBuffer({ resolveWithObject: true })
       assert.deepEqual(
@@ -87,6 +92,10 @@ test("writes every tap note as a 150x150 PNG under its fixed Etterna output name
         [fixture.color.r, fixture.color.g, fixture.color.b, 255],
       )
     }
+    assert.deepEqual(
+      await readFile(path.join(notesDirectory, fixtures.up.outputFilename)),
+      await readFile(path.join(root, "up.png")),
+    )
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -139,7 +148,7 @@ test("settles every tap-note resize before failing and does not start the write 
   sibling.resolve(Buffer.from("resized png"))
   await assert.rejects(writing, (error) => {
     assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*tap note.*down.*down\.png.*150x150/i)
+    assert.match(error.message, /resize.*tap note.*down.*down\.png.*height 150/i)
     assert.equal(error.cause, failure)
     return true
   })

@@ -45,7 +45,6 @@ export async function normalizeOsuReceptorImage(image: Buffer): Promise<Buffer> 
         top: firstVisibleRow,
         height: lastVisibleRow - firstVisibleRow + 1,
       })
-      .resize({ width: info.width, height: info.width, fit: "fill" })
       .png()
       .toBuffer()
   } catch (cause) {

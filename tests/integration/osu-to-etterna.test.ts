@@ -74,6 +74,18 @@ const noteColors = {
   up: { r: 80, g: 120, b: 200 },
   right: { r: 120, g: 140, b: 200 },
 } as const
+const convertedReceptorWidths: Readonly<Record<ColumnDirection, number>> = {
+  left: 135,
+  down: 136,
+  up: 136,
+  right: 137,
+}
+const convertedNoteWidths: Readonly<Record<ColumnDirection, number>> = {
+  left: 200,
+  down: 193,
+  up: 188,
+  right: 183,
+}
 const defaultReceptorColors = {
   edge: {
     normal: { r: 15, g: 85, b: 155 },
@@ -140,7 +152,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
 
         assert.deepEqual(
           { width: output.info.width, height: output.info.height },
-          { width: 146, height: 146 },
+          { width: convertedReceptorWidths[direction], height: 146 },
         )
         const expectedColor = receptorColors[direction][state]
         assert.deepEqual(
@@ -161,7 +173,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
         .toBuffer({ resolveWithObject: true })
       assert.deepEqual(
         { width: output.info.width, height: output.info.height },
-        { width: 150, height: 150 },
+        { width: convertedNoteWidths[direction], height: 150 },
       )
       const expectedColor = noteColors[direction]
       assert.deepEqual(rgbaAt(output.data, output.info.width, 75, 75), [

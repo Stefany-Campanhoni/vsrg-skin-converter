@@ -8,7 +8,7 @@ import type { ImageAsset, ImageDensity, ReceptorSet } from "../../../domain/imag
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { writeEtternaReceptors } from "./write-etterna-receptors.ts"
 
-test("normalizes receptors before resizing them to fixed Etterna output dimensions", async () => {
+test("trims receptors before scaling them proportionally to 146px high", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
   try {
@@ -30,10 +30,10 @@ test("normalizes receptors before resizing them to fixed Etterna output dimensio
     ])
     for (const filename of await readdir(receptorDirectory)) {
       const output = await readFile(path.join(receptorDirectory, filename))
-      assert.deepEqual(await imageSize(output), { width: 146, height: 146 }, filename)
+      assert.deepEqual(await imageSize(output), { width: 183, height: 146 }, filename)
       assert.equal(await alphaAt(output, 0, 73), 0, `${filename} keeps its left margin transparent`)
       assert.equal(
-        await alphaAt(output, 145, 73),
+        await alphaAt(output, 182, 73),
         0,
         `${filename} keeps its right margin transparent`,
       )
@@ -46,7 +46,7 @@ test("normalizes receptors before resizing them to fixed Etterna output dimensio
   }
 })
 
-test("resizes a fully transparent normal receptor to the fixed output dimensions", async () => {
+test("scales a fully transparent normal receptor proportionally to 146px high", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
   const transparent = await png(7, 11, { r: 0, g: 0, b: 0, alpha: 0 })
@@ -62,7 +62,7 @@ test("resizes a fully transparent normal receptor to the fixed output dimensions
     const normal = await readFile(
       path.join(outputDirectory, "Receptors", "release Up (res 64x64).png"),
     )
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
+    assert.deepEqual(await imageSize(normal), { width: 93, height: 146 })
     assert.equal(await isImageFullyTransparent(normal), true)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -86,8 +86,8 @@ test("uses the processed normal when pressed is fully transparent", async () => 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
     const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x64).png"))
     const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x64).png"))
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
-    assert.deepEqual(await imageSize(pressed), { width: 146, height: 146 })
+    assert.deepEqual(await imageSize(normal), { width: 183, height: 146 })
+    assert.deepEqual(await imageSize(pressed), { width: 183, height: 146 })
     assert.deepEqual(pressed, normal)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -250,7 +250,7 @@ test("settles final resizes before reporting their contextual exact cause withou
   sibling.resolve(Buffer.from("resized"))
   await assert.rejects(writing, (error) => {
     assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*pressed receptor.*left.*left-pressed\.png.*146x146/i)
+    assert.match(error.message, /resize.*pressed receptor.*left.*left-pressed\.png.*height 146/i)
     assert.equal(error.cause, resizeFailure)
     return true
   })

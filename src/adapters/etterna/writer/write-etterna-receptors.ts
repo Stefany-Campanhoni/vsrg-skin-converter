@@ -10,9 +10,9 @@ import {
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { normalizeOsuReceptorImage } from "../../../infrastructure/image/normalize-osu-receptor.ts"
-import { resizeImageExact } from "../../../infrastructure/image/resize-image-exact.ts"
+import { resizeImageToHeight } from "../../../infrastructure/image/resize-image-to-height.ts"
 import {
-  etternaReceptorOutputSize,
+  etternaReceptorOutputHeight,
   getEtternaOutputAssetFilename,
 } from "./etterna-output-asset-policy.ts"
 import { runEtternaAssetOperation } from "./run-etterna-asset-operation.ts"
@@ -49,7 +49,7 @@ export interface PrepareEtternaReceptorsOptions {
   read?: AssetReader
   normalize?: ReceptorNormalizer
   inspectTransparency?: TransparencyInspector
-  resize?: typeof resizeImageExact
+  resize?: typeof resizeImageToHeight
 }
 
 export interface WriteEtternaReceptorsOptions extends PrepareEtternaReceptorsOptions {
@@ -63,7 +63,7 @@ export async function prepareEtternaReceptors(
   const read = options.read ?? readFile
   const normalize = options.normalize ?? normalizeOsuReceptorImage
   const inspectTransparency = options.inspectTransparency ?? isImageFullyTransparent
-  const resize = options.resize ?? resizeImageExact
+  const resize = options.resize ?? resizeImageToHeight
   const sources = columnDirections.flatMap((direction) =>
     receptorStates.map((state): ReceptorSource => {
       const definition = options.receptors[direction][state]
@@ -121,7 +121,7 @@ async function prepareDirection(options: {
   pressedBuffer: Buffer
   normalize: ReceptorNormalizer
   inspectTransparency: TransparencyInspector
-  resize: typeof resizeImageExact
+  resize: typeof resizeImageToHeight
 }): Promise<readonly [PreparedEtternaAsset, PreparedEtternaAsset]> {
   const [normalIsTransparent, pressedIsTransparent] = await settleAll([
     inspectReceptorTransparency(options.normal, options.normalBuffer, options.inspectTransparency),
@@ -188,21 +188,21 @@ function normalizeAndResizeReceptor(
   source: ReceptorSource,
   buffer: Buffer,
   normalize: ReceptorNormalizer,
-  resize: typeof resizeImageExact,
+  resize: typeof resizeImageToHeight,
 ): Promise<Buffer> {
-  return normalizeReceptor(source, buffer, normalize).then((square) =>
-    resizeReceptor(source, square, resize),
+  return normalizeReceptor(source, buffer, normalize).then((normalized) =>
+    resizeReceptor(source, normalized, resize),
   )
 }
 
 function resizeReceptor(
   source: ReceptorSource,
   buffer: Buffer,
-  resize: typeof resizeImageExact,
+  resize: typeof resizeImageToHeight,
 ): Promise<Buffer> {
   return runEtternaAssetOperation(
-    `resize osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}' to ${etternaReceptorOutputSize.width}x${etternaReceptorOutputSize.height}`,
-    () => resize(buffer, etternaReceptorOutputSize),
+    `resize osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}' proportionally to height ${etternaReceptorOutputHeight}`,
+    () => resize(buffer, etternaReceptorOutputHeight),
   )
 }
 
