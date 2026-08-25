@@ -1,5 +1,11 @@
 # vsrg-skin-converter
 
+## 1.0.1
+
+### Patch Changes
+
+- [#35](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/35) [`8044122`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/804412281d1139b7d51147f772a882dba934c46c) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Ignore osu! skin directories that do not contain a skin.ini file.
+
 ## 1.0.0
 
 ### Major Changes
