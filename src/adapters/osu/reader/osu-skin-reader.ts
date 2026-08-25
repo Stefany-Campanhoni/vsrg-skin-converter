@@ -75,7 +75,7 @@ export class OsuSkinReader implements SkinReader {
     let mania: OsuMania4kDefinition
     try {
       const sections = parseOsuSkinIni(ini.source, ini.filePath)
-      name = readOsuSkinName(sections, ini.filePath) ?? path.basename(reference.sourcePath)
+      name = readOsuSkinName(sections) ?? path.basename(reference.sourcePath)
       comboPrefix = readOsuComboPrefix(sections, ini.filePath)
       mania = readOsuMania4kDefinition(sections, ini.filePath)
     } catch (cause) {
@@ -105,6 +105,7 @@ export class OsuSkinReader implements SkinReader {
               skinDirectory: reference.sourcePath,
               logicalPath,
               useDoubleResolutionAssets: this.#useDoubleResolutionAssets,
+              fallbackToStandardResolution: true,
             })
           } catch (cause) {
             throw new Error(`Could not resolve osu skin asset ${property} ('${logicalPath}')`, {
