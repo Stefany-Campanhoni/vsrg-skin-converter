@@ -1,6 +1,6 @@
 # 🎹 VSRG Skin Converter
 
-<p align="center">
+<p>
   <em>Convert vertical-scrolling rhythm-game skins between Etterna and osu!mania.</em>
 </p>
 
