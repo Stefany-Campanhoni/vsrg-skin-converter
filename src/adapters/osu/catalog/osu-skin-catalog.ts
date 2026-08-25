@@ -1,9 +1,10 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { SkinCatalog } from "../../../application/ports/skin-catalog.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { parseOsuSkinIni, readOsuSkinName } from "../skin-ini/osu-skin-ini.ts"
+import { readOsuSkinIniFile } from "../skin-ini/read-osu-skin-ini-file.ts"
 
 export class OsuSkinCatalog implements SkinCatalog {
   async listSkins(location: string): Promise<SkinReference[]> {
@@ -39,7 +40,7 @@ async function readSkin(
     }
     const iniPath = path.join(skinDirectory, skinIniEntry.name)
     const name =
-      readOsuSkinName(parseOsuSkinIni(await readFile(iniPath, "utf8"), iniPath), iniPath) ??
+      readOsuSkinName(parseOsuSkinIni(await readOsuSkinIniFile(iniPath), iniPath), iniPath) ??
       directoryName
     return { game: "osu", name, sourcePath: skinDirectory, gameRoot: location }
   } catch (cause) {
