@@ -31,7 +31,7 @@ test("prints concise help without starting prompts", async () => {
   await runCliCommand(["--help"], dependencies)
   assert.deepEqual(events, [
     "write:VSRG Skin Converter 1.0.0",
-    "write:Usage: vsrg-skin-converter.cmd [--help|--version]",
+    "write:Usage: vsrg-skin-converter.cmd [--verbose] [--help|--version]",
   ])
 })
 

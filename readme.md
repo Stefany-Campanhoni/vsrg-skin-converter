@@ -161,7 +161,9 @@ npm install
 npm start
 ```
 
-Use `npm run dev` for automatic restart while developing.
+Use `npm run dev` for automatic restart while developing. Add `--verbose` to print the
+complete stack trace when the application reports an error, for example
+`npm start -- --verbose`.
 
 ## Development
 
