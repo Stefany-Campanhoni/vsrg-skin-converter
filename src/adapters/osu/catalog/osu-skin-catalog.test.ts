@@ -30,13 +30,21 @@ test("lists immediate osu skins by their General names", async (context) => {
   ])
 })
 
-test("rejects skin directories without one usable skin.ini", async (context) => {
+test("ignores skin directories without a skin.ini", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "invalid-osu-skin-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
   const skinsRoot = path.join(osuRoot, "Skins")
   await mkdir(path.join(skinsRoot, "Missing Ini"), { recursive: true })
+  await writeSkin(skinsRoot, "Valid Skin", "skin.ini", "Valid Skin")
 
-  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Missing Ini/)
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "Valid Skin",
+      sourcePath: path.join(skinsRoot, "Valid Skin"),
+      gameRoot: osuRoot,
+    },
+  ])
 })
 
 test("uses the skin folder name when the General Name property is missing", async (context) => {
@@ -50,6 +58,29 @@ test("uses the skin folder name when the General Name property is missing", asyn
     {
       game: "osu",
       name: "Folder Fallback",
+      sourcePath: skinDirectory,
+      gameRoot: osuRoot,
+    },
+  ])
+})
+
+test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async (context) => {
+  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "utf16-osu-skin-catalog-"))
+  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  const skinDirectory = path.join(osuRoot, "Skins", "UTF-16 Skin")
+  await mkdir(skinDirectory, { recursive: true })
+  await writeFile(
+    path.join(skinDirectory, "skin.ini"),
+    Buffer.concat([
+      Buffer.from([0xff, 0xfe]),
+      Buffer.from("[General]\nName: UTF-16 Fixture", "utf16le"),
+    ]),
+  )
+
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "UTF-16 Fixture",
       sourcePath: skinDirectory,
       gameRoot: osuRoot,
     },
@@ -92,7 +123,26 @@ test("does not treat a directory named skin.ini as the required regular file", a
   )
 })
 
-test("wraps a duplicate General section error with skin catalog context", async (context) => {
+test("rejects a skin.ini file alongside a case-variant skin.ini directory", async (context) => {
+  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "mixed-osu-skin-catalog-"))
+  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  const skinDirectory = path.join(osuRoot, "Skins", "Mixed Ini")
+  await mkdir(skinDirectory, { recursive: true })
+  await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: Valid")
+  try {
+    await mkdir(path.join(skinDirectory, "SKIN.INI"))
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+      context.skip("The current filesystem treats case-only filenames as identical")
+      return
+    }
+    throw error
+  }
+
+  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
+})
+
+test("lists a skin with duplicate General sections by its last Name", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-general-osu-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "Duplicate General")
@@ -102,16 +152,14 @@ test("wraps a duplicate General section error with skin catalog context", async 
     "[General]\nName: First Name\n[gEnErAl]\nName: Second Name",
   )
 
-  await assert.rejects(
-    () => new OsuSkinCatalog().listSkins(osuRoot),
-    (error) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /Could not read osu! skin Duplicate General/)
-      assert.ok(error.cause instanceof Error)
-      assert.match(error.cause.message, /at most one General section.*skin\.ini/i)
-      return true
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "Second Name",
+      sourcePath: skinDirectory,
+      gameRoot: osuRoot,
     },
-  )
+  ])
 })
 
 async function writeSkin(

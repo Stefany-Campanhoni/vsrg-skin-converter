@@ -1,5 +1,5 @@
 import type { Dirent } from "node:fs"
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { SkinReader } from "../../../application/ports/skin-reader.ts"
 import { columnDirections, type ImageAsset } from "../../../domain/image.ts"
@@ -24,6 +24,7 @@ import {
   readOsuMania4kDefinition,
   readOsuSkinName,
 } from "../skin-ini/osu-skin-ini.ts"
+import { readOsuSkinIniFile } from "../skin-ini/read-osu-skin-ini-file.ts"
 
 export interface OsuSkinReaderConfiguration {
   readonly useDoubleResolutionAssets: boolean
@@ -75,7 +76,7 @@ export class OsuSkinReader implements SkinReader {
     let mania: OsuMania4kDefinition
     try {
       const sections = parseOsuSkinIni(ini.source, ini.filePath)
-      name = readOsuSkinName(sections, ini.filePath) ?? path.basename(reference.sourcePath)
+      name = readOsuSkinName(sections) ?? path.basename(reference.sourcePath)
       comboPrefix = readOsuComboPrefix(sections, ini.filePath)
       mania = readOsuMania4kDefinition(sections, ini.filePath)
     } catch (cause) {
@@ -105,6 +106,7 @@ export class OsuSkinReader implements SkinReader {
               skinDirectory: reference.sourcePath,
               logicalPath,
               useDoubleResolutionAssets: this.#useDoubleResolutionAssets,
+              fallbackToStandardResolution: true,
             })
           } catch (cause) {
             throw new Error(`Could not resolve osu skin asset ${property} ('${logicalPath}')`, {
@@ -263,7 +265,7 @@ async function readSkinIni(skinDirectory: string): Promise<OsuSkinIniSource> {
 
   const filePath = path.join(skinDirectory, matches[0]?.name ?? "skin.ini")
   try {
-    return { source: await readFile(filePath, "utf8"), filePath }
+    return { source: await readOsuSkinIniFile(filePath), filePath }
   } catch (cause) {
     throw new Error(`Could not read osu skin.ini ${filePath}`, { cause })
   }

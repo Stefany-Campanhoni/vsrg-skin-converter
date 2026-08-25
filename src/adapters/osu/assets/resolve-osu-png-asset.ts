@@ -6,6 +6,7 @@ export interface ResolveOsuPngAssetOptions {
   readonly skinDirectory: string
   readonly logicalPath: string
   readonly useDoubleResolutionAssets: boolean
+  readonly fallbackToStandardResolution?: boolean
 }
 
 interface OsuAssetMetadata {
@@ -30,9 +31,35 @@ export async function resolveOsuPngAsset(
   const requestedPath = selectVariant(options.logicalPath, options.useDoubleResolutionAssets)
   const description = `osu PNG asset '${options.logicalPath}'`
   const skinRoot = await resolveSkinRoot(options.skinDirectory, description, dependencies.realpath)
+
+  try {
+    return await resolveVariant(requestedPath.primary, skinRoot, description, dependencies)
+  } catch (error) {
+    if (
+      !options.fallbackToStandardResolution ||
+      !requestedPath.fallback ||
+      !(error instanceof OsuPngAssetNotFoundError)
+    ) {
+      throw error
+    }
+    return resolveVariant(requestedPath.fallback, skinRoot, description, dependencies)
+  }
+}
+
+interface OsuPngAssetVariant {
+  readonly segments: string[]
+  readonly pixelDensity: ImageDensity
+}
+
+async function resolveVariant(
+  variant: OsuPngAssetVariant,
+  skinRoot: string,
+  description: string,
+  dependencies: ResolveOsuPngAssetDependencies,
+): Promise<ImageAsset> {
   let currentDirectory = skinRoot
 
-  for (const [index, segment] of requestedPath.segments.entries()) {
+  for (const [index, segment] of variant.segments.entries()) {
     const candidate = await resolveSegment(
       currentDirectory,
       segment,
@@ -45,13 +72,13 @@ export async function resolveOsuPngAsset(
       throw new Error(`Cannot resolve ${description}: '${segment}' points outside the skin root`)
     }
 
-    if (index === requestedPath.segments.length - 1) {
+    if (index === variant.segments.length - 1) {
       const metadata = await readMetadata(target, description, dependencies.stat)
       if (!metadata.isFile()) {
         throw new Error(`Cannot resolve ${description}: selected path is not a regular file`)
       }
 
-      return { filePath: candidate, rotation: 0, pixelDensity: requestedPath.pixelDensity }
+      return { filePath: candidate, rotation: 0, pixelDensity: variant.pixelDensity }
     }
 
     const metadata = await readMetadata(target, description, dependencies.stat)
@@ -67,7 +94,7 @@ export async function resolveOsuPngAsset(
 function selectVariant(
   logicalPath: string,
   useDoubleResolutionAssets: boolean,
-): { segments: string[]; pixelDensity: ImageDensity } {
+): { primary: OsuPngAssetVariant; fallback?: OsuPngAssetVariant } {
   validateOsuPngLogicalPath(logicalPath)
   const normalizedPath = logicalPath.replace(/\\/g, "/")
 
@@ -80,11 +107,22 @@ function selectVariant(
   const extension = path.posix.extname(fileName)
   const stem = extension ? fileName.slice(0, -extension.length) : fileName
   const explicitlyDouble = /@2x$/i.test(stem)
-  const pixelDensity: ImageDensity =
-    explicitlyDouble || useDoubleResolutionAssets ? "double" : "standard"
-  const selectedName = `${stem}${!explicitlyDouble && useDoubleResolutionAssets ? "@2x" : ""}.png`
+  const implicitlyDouble = !explicitlyDouble && useDoubleResolutionAssets
+  const pixelDensity: ImageDensity = explicitlyDouble || implicitlyDouble ? "double" : "standard"
+  const selectedName = `${stem}${implicitlyDouble ? "@2x" : ""}.png`
+  const standardName = `${stem}.png`
 
-  return { segments: [...segments.slice(0, -1), selectedName], pixelDensity }
+  return {
+    primary: { segments: [...segments.slice(0, -1), selectedName], pixelDensity },
+    ...(implicitlyDouble
+      ? {
+          fallback: {
+            segments: [...segments.slice(0, -1), standardName],
+            pixelDensity: "standard" as const,
+          },
+        }
+      : {}),
+  }
 }
 
 export function validateOsuPngLogicalPath(logicalPath: string): void {

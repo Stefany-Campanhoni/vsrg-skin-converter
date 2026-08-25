@@ -327,7 +327,28 @@ for (const density of ["standard", "double"] as const) {
   })
 }
 
-test("fails when a required osu 4K default asset is absent", async () => {
+test("falls back to a standard-density required osu 4K default asset", async () => {
+  const fixture = await createFixture({
+    customJudgements: "none",
+    defaultManiaAssetDensity: "double",
+  })
+  try {
+    await rm(path.join(fixture.skinDirectory, "mania-note2@2x.png"))
+    const note = defaultNoteColors.middle
+    await writeSolidPng(path.join(fixture.skinDirectory, "mania-note2.png"), 12, 12, [
+      note.r,
+      note.g,
+      note.b,
+      255,
+    ])
+
+    await convertFixture(fixture)
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true })
+  }
+})
+
+test("fails when both densities of a required osu 4K default asset are absent", async () => {
   const fixture = await createFixture({
     customJudgements: "none",
     defaultManiaAssetDensity: "double",
@@ -341,7 +362,7 @@ test("fails when a required osu 4K default asset is absent", async () => {
         assert.ok(error instanceof Error)
         assert.match(error.message, /tapNotes\.down.*mania-note2/i)
         assert.ok(error.cause instanceof Error)
-        assert.match(error.cause.message, /mania-note2@2x\.png.*not found/i)
+        assert.match(error.cause.message, /mania-note2\.png.*not found/i)
         return true
       },
     )
