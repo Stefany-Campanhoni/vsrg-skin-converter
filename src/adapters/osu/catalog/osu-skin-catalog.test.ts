@@ -64,6 +64,29 @@ test("uses the skin folder name when the General Name property is missing", asyn
   ])
 })
 
+test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async (context) => {
+  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "utf16-osu-skin-catalog-"))
+  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  const skinDirectory = path.join(osuRoot, "Skins", "UTF-16 Skin")
+  await mkdir(skinDirectory, { recursive: true })
+  await writeFile(
+    path.join(skinDirectory, "skin.ini"),
+    Buffer.concat([
+      Buffer.from([0xff, 0xfe]),
+      Buffer.from("[General]\nName: UTF-16 Fixture", "utf16le"),
+    ]),
+  )
+
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "UTF-16 Fixture",
+      sourcePath: skinDirectory,
+      gameRoot: osuRoot,
+    },
+  ])
+})
+
 test("rejects duplicate case-insensitive skin.ini files", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-osu-skin-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
