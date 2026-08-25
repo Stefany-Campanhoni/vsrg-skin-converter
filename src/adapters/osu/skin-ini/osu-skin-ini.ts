@@ -58,15 +58,13 @@ export function parseOsuSkinIni(source: string, filePath: string): readonly OsuI
   return sections
 }
 
-export function readOsuSkinName(
-  sections: readonly OsuIniSection[],
-  filePath: string,
-): string | undefined {
+export function readOsuSkinName(sections: readonly OsuIniSection[]): string | undefined {
   const generalSections = sections.filter((section) => section.name.toLowerCase() === "general")
-  if (generalSections.length > 1) {
-    throw new Error(`Expected at most one General section in osu! skin ${filePath}`)
-  }
-  return generalSections[0]?.properties.get("name") || undefined
+  const name = generalSections.reduce<string | undefined>(
+    (currentName, section) => section.properties.get("name") ?? currentName,
+    undefined,
+  )
+  return name || undefined
 }
 
 export function readOsuComboPrefix(sections: readonly OsuIniSection[], filePath: string): string {
