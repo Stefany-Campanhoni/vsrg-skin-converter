@@ -25,7 +25,7 @@ test("prints the complete error stack when started with --verbose", async () => 
   assert.match(result.stderr, /Error: Unknown argument: --unknown[\s\S]+\s+at /)
 })
 
-test("rejects repeated verbose flags", async () => {
+test("prints the complete error stack when --verbose is repeated", async () => {
   const cliPath = fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--verbose", "--verbose", "--unknown"], {
     ...process.env,
@@ -33,7 +33,7 @@ test("rejects repeated verbose flags", async () => {
   })
 
   assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /Error: Unexpected CLI arguments: expected zero or one[\s\S]+\s+at /)
+  assert.match(result.stderr, /Error: Unknown argument: --unknown[\s\S]+\s+at /)
 })
 
 test("keeps error output concise outside the dev script", async () => {

@@ -3,11 +3,8 @@ import { runCli } from "./cli/main.ts"
 import { runCliCommand } from "./cli/run-cli-command.ts"
 
 const args = process.argv.slice(2)
-const verboseIndex = args.indexOf("--verbose")
-const verbose = verboseIndex !== -1
-const commandArgs = verbose
-  ? [...args.slice(0, verboseIndex), ...args.slice(verboseIndex + 1)]
-  : args
+const verbose = args.includes("--verbose")
+const commandArgs = args.filter((argument) => argument !== "--verbose")
 
 runCliCommand(commandArgs, {
   version: packageJson.version,
