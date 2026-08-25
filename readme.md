@@ -188,9 +188,10 @@ npm run release:windows
 Repository quality and release automation lives under `.ci`, grouped by responsibility.
 The npm commands above are the supported interface for running release tooling locally.
 
-Every pull request must use a Conventional Commit title and add a Changeset. Run
-`npm run changeset` for a public `patch`, `minor`, or `major` change, or
-`npm run changeset -- --empty` for maintenance that should not release the application.
+Every pull request must use a Conventional Commit title. It must also add a Changeset unless
+it is the automated Release PR or was authored by `dependabot[bot]`. Run `npm run changeset`
+for a public `patch`, `minor`, or `major` change, or `npm run changeset -- --empty` for
+maintenance that should not release the application.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 

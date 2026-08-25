@@ -128,14 +128,16 @@ tests so the Etterna-to-osu! route cannot regress while the reverse route evolve
 
 Changesets owns SemVer intent and `CHANGELOG.md`. Every ordinary pull request adds one new
 `.changeset/*.md` document. Use a real `patch`, `minor`, or `major` entry for a public change
-and `npm run changeset -- --empty` for maintenance-only work. Only the automated
+and `npm run changeset -- --empty` for maintenance-only work. The automated
 `changeset-release/main` branch may omit a new changeset because its job is to consume the
-pending set.
+pending set. Pull requests whose author login is exactly `dependabot[bot]` may also omit one;
+the exemption must not rely only on a branch name.
 
 All commits and pull request titles follow the configured Conventional Commit types. The
 local `commit-msg` hook gives immediate feedback, while CI remains authoritative and checks
-the complete pull request range plus the squash title. Do not weaken either check for bots;
-configure automated dependency commit prefixes to use an allowed type instead.
+the complete pull request range plus the squash title. Do not weaken Conventional Commit
+checks for bots; configure automated dependency commit prefixes to use an allowed type
+instead. The Dependabot Changeset exemption does not exempt these checks.
 
 The Changesets Action is pinned by full SHA and its major version must remain compatible
 with the installed Changesets CLI major. It receives only the dedicated `CHANGESETS_TOKEN`

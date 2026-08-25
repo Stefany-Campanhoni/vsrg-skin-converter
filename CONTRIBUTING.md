@@ -86,8 +86,9 @@ request commit plus the title that becomes the squash commit.
 Every non-release pull request must also add a new `.changeset/*.md` file. Run
 `npm run changeset` for a public change and choose its `patch`, `minor`, or `major` impact.
 For documentation, tests, CI, or other maintenance that needs no application version, run
-`npm run changeset -- --empty`. The automated `changeset-release/main` Release PR is the only
-exception because it consumes the pending files.
+`npm run changeset -- --empty`. The automated `changeset-release/main` Release PR and pull
+requests authored by `dependabot[bot]` are the only exceptions. The Release PR consumes the
+pending files, while Dependabot dependency updates do not need to create release intent.
 
 ## Assets and Templates
 
