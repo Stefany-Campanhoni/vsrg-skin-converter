@@ -57,6 +57,7 @@ export interface EtternaToOsuRouteDependencies {
   convertAndInstallSkin(
     request: ConvertAndInstallSkinRequest,
   ): ReturnType<typeof convertAndInstallSkin>
+  writeLine(message: string): void
   warn(message: string): void
 }
 
@@ -80,6 +81,7 @@ const defaultDependencies: Omit<EtternaToOsuRouteDependencies, "convertAndInstal
   resolveDefaultOsuInstallationDirectory,
   resolveOsuSkinOutputPath,
   createInstaller: createDefaultOsuInstaller,
+  writeLine: (message) => console.log(message),
   warn: console.warn,
 }
 
@@ -145,6 +147,7 @@ export async function runEtternaToOsuRoute(
       `${diagnostic.severity.toUpperCase()} ${diagnostic.component}${direction}: ${diagnostic.message}`,
     )
   }
+  resolved.writeLine("✨ Migration complete! Now all you have to do is launch the game.")
 }
 
 async function convertEtternaSkin(

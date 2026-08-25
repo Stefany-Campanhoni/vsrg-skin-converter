@@ -11,6 +11,10 @@ import {
   selectEtternaProfile,
 } from "./run-etterna-to-osu.ts"
 
+type EtternaToOsuTestDependencies = EtternaToOsuRouteDependencies & {
+  writeLine(message: string): void
+}
+
 const profiles: EtternaProfile[] = [{ id: "00000003", displayName: "Alice" }]
 const skin: SkinReference = {
   game: "etterna",
@@ -31,7 +35,7 @@ test("installs the Etterna skin with the selected target and formats diagnostics
     | undefined
   let conversionRequest: ConvertAndInstallSkinRequest | undefined
   let selectedOptions: { value: string; label: string }[] | undefined
-  const dependencies: EtternaToOsuRouteDependencies & {
+  const dependencies: EtternaToOsuTestDependencies & {
     convertSkin(request: ConvertSkinRequest): Promise<{ diagnostics: [] }>
   } = {
     etternaDefaultLocation: "C:/Games/Etterna",
@@ -90,6 +94,9 @@ test("installs the Etterna skin with the selected target and formats diagnostics
         ],
       }
     },
+    writeLine: (message) => {
+      events.push(`write:${message}`)
+    },
     convertSkin: async () => assert.fail("route must use convertAndInstallSkin"),
     warn: (message) => events.push(`warn:${message}`),
   }
@@ -117,7 +124,38 @@ test("installs the Etterna skin with the selected target and formats diagnostics
     "installer",
     "convert-install",
     "warn:WARNING receptor [left]: Used fallback",
+    "write:✨ Migration complete! Now all you have to do is launch the game.",
   ])
+})
+
+test("does not show the success message when Etterna migration fails", async () => {
+  let successMessageShown = false
+  await assert.rejects(
+    () =>
+      runEtternaToOsuRoute({
+        etternaDefaultLocation: "C:/Games/Etterna",
+        localAppData: undefined,
+        windowsUsername: "Stefany",
+        resolveInstallationDirectory: async (defaultDirectory) => defaultDirectory,
+        listEtternaProfiles: async () => profiles,
+        selectEtternaProfile: async () => profiles[0]?.id,
+        readEtternaTheme: async () => "Til Death",
+        listSkins: async () => [skin],
+        selectSkin: async () => skin.sourcePath,
+        resolveDefaultOsuInstallationDirectory: () => "C:/osu!",
+        resolveOsuSkinOutputPath: () => "C:/osu!/Skins/Diamond",
+        createInstaller: () => ({}) as SkinInstaller,
+        convertAndInstallSkin: async () => {
+          throw new Error("migration failed")
+        },
+        writeLine: () => {
+          successMessageShown = true
+        },
+        warn: () => {},
+      }),
+    /migration failed/,
+  )
+  assert.equal(successMessageShown, false)
 })
 
 test("stops at each cancelled Etterna to osu route selection", async () => {
@@ -125,7 +163,7 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
 
   for (const cancellationPoint of cancellationPoints) {
     let converted = false
-    const dependencies: EtternaToOsuRouteDependencies = {
+    const dependencies: EtternaToOsuTestDependencies = {
       etternaDefaultLocation: "C:/Games/Etterna",
       localAppData: undefined,
       windowsUsername: "Stefany",
@@ -150,6 +188,7 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
         converted = true
         return { diagnostics: [] }
       },
+      writeLine: () => assert.fail("cancelled migration must not show success"),
       warn: () => {},
     }
 
