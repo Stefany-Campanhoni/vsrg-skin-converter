@@ -11,6 +11,10 @@ import {
   selectOsuUserConfiguration,
 } from "./run-osu-to-etterna.ts"
 
+type OsuToEtternaTestDependencies = OsuToEtternaRouteDependencies & {
+  waitForAnyKey(message: string): Promise<void>
+}
+
 const configuration: OsuUserConfiguration = {
   filePath: "C:/Games/osu!/osu!.Alice.cfg",
   username: "Alice",
@@ -39,7 +43,7 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
       }
     | undefined
   let request: ConvertAndInstallSkinRequest | undefined
-  const dependencies: OsuToEtternaRouteDependencies = {
+  const dependencies: OsuToEtternaTestDependencies = {
     localAppData: "C:/Users/Alice/AppData/Local",
     resolveDefaultOsuInstallationDirectory: (localAppData) => {
       events.push(`osu-default:${localAppData}`)
@@ -106,6 +110,9 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
         ],
       }
     },
+    waitForAnyKey: async (message) => {
+      events.push(`wait:${message}`)
+    },
     warn: (message) => events.push(`warn:${message}`),
   }
 
@@ -135,7 +142,27 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
     "installer:Alice:Til Death",
     "convert-install",
     "warn:WARNING receptor [right]: Fallback",
+    "wait:✨ Migration complete! Now all you have to do is launch the game.",
   ])
+})
+
+test("does not show the success message when osu migration fails", async () => {
+  let successMessageShown = false
+  await assert.rejects(
+    () =>
+      runOsuToEtternaRoute(
+        createDependencies({
+          convertAndInstallSkin: async () => {
+            throw new Error("migration failed")
+          },
+          waitForAnyKey: async () => {
+            successMessageShown = true
+          },
+        }),
+      ),
+    /migration failed/,
+  )
+  assert.equal(successMessageShown, false)
 })
 
 test("declining an existing NoteSkin cancels before reader, installer, or publication", async () => {
@@ -226,7 +253,9 @@ test("selects osu configurations using Username labels and rejects unknown paths
 
 function createDependencies(
   overrides: Partial<OsuToEtternaRouteDependencies> = {},
-): OsuToEtternaRouteDependencies {
+): OsuToEtternaRouteDependencies & {
+  waitForAnyKey(message: string): Promise<void>
+} {
   return {
     localAppData: undefined,
     resolveDefaultOsuInstallationDirectory: () => "C:/Games/osu!",
@@ -243,6 +272,7 @@ function createDependencies(
     createReader: () => ({}) as SkinReader,
     createInstaller: () => ({}) as SkinInstaller,
     convertAndInstallSkin: async () => ({ diagnostics: [] }),
+    waitForAnyKey: async () => undefined,
     warn: () => {},
     ...overrides,
   }

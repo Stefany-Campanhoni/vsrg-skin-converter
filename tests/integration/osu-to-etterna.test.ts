@@ -458,6 +458,7 @@ test("declining an overwrite leaves the NoteSkin unchanged and creates no profil
       createReader: () => assert.fail("decline must happen before reader construction"),
       createInstaller: () => assert.fail("decline must happen before installer construction"),
       convertAndInstallSkin: async () => assert.fail("decline must happen before conversion"),
+      waitForAnyKey: async () => assert.fail("decline must not show success message"),
       warn: () => assert.fail("decline must not emit conversion diagnostics"),
     })
 
@@ -530,6 +531,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
           conversions: new ConversionRegistry([new OsuToEtternaConversion()]),
         })
       },
+      waitForAnyKey: async () => undefined,
       warn: (message) => assert.fail(`unexpected diagnostic: ${message}`),
     })
 
