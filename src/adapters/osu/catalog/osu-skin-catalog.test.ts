@@ -30,13 +30,21 @@ test("lists immediate osu skins by their General names", async (context) => {
   ])
 })
 
-test("rejects skin directories without one usable skin.ini", async (context) => {
+test("ignores skin directories without a skin.ini", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "invalid-osu-skin-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
   const skinsRoot = path.join(osuRoot, "Skins")
   await mkdir(path.join(skinsRoot, "Missing Ini"), { recursive: true })
+  await writeSkin(skinsRoot, "Valid Skin", "skin.ini", "Valid Skin")
 
-  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Missing Ini/)
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "Valid Skin",
+      sourcePath: path.join(skinsRoot, "Valid Skin"),
+      gameRoot: osuRoot,
+    },
+  ])
 })
 
 test("uses the skin folder name when the General Name property is missing", async (context) => {
@@ -90,6 +98,25 @@ test("does not treat a directory named skin.ini as the required regular file", a
       error.cause instanceof Error &&
       /exactly one skin\.ini/i.test(error.cause.message),
   )
+})
+
+test("rejects a skin.ini file alongside a case-variant skin.ini directory", async (context) => {
+  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "mixed-osu-skin-catalog-"))
+  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  const skinDirectory = path.join(osuRoot, "Skins", "Mixed Ini")
+  await mkdir(skinDirectory, { recursive: true })
+  await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: Valid")
+  try {
+    await mkdir(path.join(skinDirectory, "SKIN.INI"))
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "EEXIST") {
+      context.skip("The current filesystem treats case-only filenames as identical")
+      return
+    }
+    throw error
+  }
+
+  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
 })
 
 test("wraps a duplicate General section error with skin catalog context", async (context) => {
