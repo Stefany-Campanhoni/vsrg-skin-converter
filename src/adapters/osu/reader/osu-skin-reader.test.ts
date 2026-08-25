@@ -379,7 +379,7 @@ test("rejects references from another game before reading inputs", async () => {
   assert.equal(readStarted, false)
 })
 
-test("wraps duplicate General sections with skin reader context and preserves the parser error", async () => {
+test("reads the last Name from duplicate General sections", async () => {
   const iniPath = "C:/osu/Skins/Fixture/skin.ini"
   const reader = new OsuSkinReader(
     { useDoubleResolutionAssets: false, scrollSpeed: 29 },
@@ -388,22 +388,13 @@ test("wraps duplicate General sections with skin reader context and preserves th
         source: `${source}\n[gEnErAl]\nName: Conflicting Name`,
         filePath: iniPath,
       }),
-      resolveAsset: async () => {
-        throw new Error("asset resolution must not start")
-      },
+      resolveAsset: async (options) => asset(options.logicalPath),
     }),
   )
 
-  await assert.rejects(
-    () => reader.readSkin(reference),
-    (error) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /Could not parse osu skin\.ini.*Fixture.*skin\.ini/i)
-      assert.ok(error.cause instanceof Error)
-      assert.match(error.cause.message, /at most one General section.*skin\.ini/i)
-      return true
-    },
-  )
+  const model = await reader.readSkin(reference)
+
+  assert.deepEqual(model.metadata, { name: "Conflicting Name" })
 })
 
 test("uses the skin folder name when the General Name property is missing", async () => {
