@@ -25,4 +25,5 @@ the detailed project rules.
 
 Every PR-bound development task must add a `.changeset/*.md` release intent artifact. Use an
 empty Changeset only for maintenance with no public release impact, and use a Conventional
-Commit pull request title.
+Commit pull request title. Automated pull requests authored by `dependabot[bot]` are exempt
+from the Changeset requirement.

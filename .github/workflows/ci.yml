@@ -60,9 +60,10 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REF: ${{ github.head_ref }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
-          node .ci/quality/assert-pr-changeset.ts $env:BASE_SHA $env:HEAD_SHA $env:HEAD_REF
-          if ($env:HEAD_REF -ne "changeset-release/main") {
+          node .ci/quality/assert-pr-changeset.ts $env:BASE_SHA $env:HEAD_SHA $env:HEAD_REF $env:PR_AUTHOR
+          if ($env:HEAD_REF -ne "changeset-release/main" -and $env:PR_AUTHOR -ne "dependabot[bot]") {
             npx changeset status --since $env:BASE_SHA
           }
 

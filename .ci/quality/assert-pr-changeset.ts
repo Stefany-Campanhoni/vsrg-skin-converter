@@ -5,14 +5,20 @@ import { promisify } from "node:util"
 
 const execFileAsync = promisify(execFile)
 const releasePullRequestBranch = "changeset-release/main"
+const dependabotLogin = "dependabot[bot]"
 
 function isChangesetDocument(filePath: string): boolean {
   const normalized = filePath.replaceAll("\\", "/")
   return /^\.changeset\/[^/]+\.md$/i.test(normalized) && normalized !== ".changeset/README.md"
 }
 
-export function assertPullRequestHasChangeset(headRef: string, changedFiles: string[]): void {
+export function assertPullRequestHasChangeset(
+  headRef: string,
+  changedFiles: string[],
+  pullRequestAuthor?: string,
+): void {
   if (headRef === releasePullRequestBranch) return
+  if (pullRequestAuthor === dependabotLogin) return
   if (changedFiles.some(isChangesetDocument)) return
 
   throw new Error(
@@ -25,9 +31,11 @@ function assertCommitSha(value: string, label: string): void {
 }
 
 async function main(): Promise<void> {
-  const [baseSha, headSha, headRef] = process.argv.slice(2)
+  const [baseSha, headSha, headRef, pullRequestAuthor] = process.argv.slice(2)
   if (!baseSha || !headSha || !headRef) {
-    throw new Error("Usage: assert-pr-changeset.ts <base-sha> <head-sha> <head-ref>")
+    throw new Error(
+      "Usage: assert-pr-changeset.ts <base-sha> <head-sha> <head-ref> [pull-request-author]",
+    )
   }
   assertCommitSha(baseSha, "base")
   assertCommitSha(headSha, "head")
@@ -37,7 +45,7 @@ async function main(): Promise<void> {
     ["diff", "--name-only", "--diff-filter=A", `${baseSha}...${headSha}`, "--", ".changeset"],
     { encoding: "utf8" },
   )
-  assertPullRequestHasChangeset(headRef, stdout.split(/\r?\n/u).filter(Boolean))
+  assertPullRequestHasChangeset(headRef, stdout.split(/\r?\n/u).filter(Boolean), pullRequestAuthor)
 }
 
 const entryPoint = process.argv[1]
