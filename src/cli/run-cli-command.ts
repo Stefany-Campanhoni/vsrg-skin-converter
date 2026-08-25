@@ -13,7 +13,7 @@ export async function runCliCommand(
   if (args[0] === "--version") return dependencies.writeLine(dependencies.version)
   if (args[0] === "--help") {
     dependencies.writeLine(`VSRG Skin Converter ${dependencies.version}`)
-    dependencies.writeLine("Usage: vsrg-skin-converter.cmd [--help|--version]")
+    dependencies.writeLine("Usage: vsrg-skin-converter.cmd [--verbose] [--help|--version]")
     return
   }
   throw new Error(`Unknown argument: ${args[0]}`)
