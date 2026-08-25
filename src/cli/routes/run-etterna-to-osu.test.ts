@@ -12,7 +12,7 @@ import {
 } from "./run-etterna-to-osu.ts"
 
 type EtternaToOsuTestDependencies = EtternaToOsuRouteDependencies & {
-  waitForAnyKey(message: string): Promise<void>
+  writeLine(message: string): void
 }
 
 const profiles: EtternaProfile[] = [{ id: "00000003", displayName: "Alice" }]
@@ -94,8 +94,8 @@ test("installs the Etterna skin with the selected target and formats diagnostics
         ],
       }
     },
-    waitForAnyKey: async (message) => {
-      events.push(`wait:${message}`)
+    writeLine: (message) => {
+      events.push(`write:${message}`)
     },
     convertSkin: async () => assert.fail("route must use convertAndInstallSkin"),
     warn: (message) => events.push(`warn:${message}`),
@@ -124,7 +124,7 @@ test("installs the Etterna skin with the selected target and formats diagnostics
     "installer",
     "convert-install",
     "warn:WARNING receptor [left]: Used fallback",
-    "wait:✨ Migration complete! Now all you have to do is launch the game.",
+    "write:✨ Migration complete! Now all you have to do is launch the game.",
   ])
 })
 
@@ -148,7 +148,7 @@ test("does not show the success message when Etterna migration fails", async () 
         convertAndInstallSkin: async () => {
           throw new Error("migration failed")
         },
-        waitForAnyKey: async () => {
+        writeLine: () => {
           successMessageShown = true
         },
         warn: () => {},
@@ -163,7 +163,7 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
 
   for (const cancellationPoint of cancellationPoints) {
     let converted = false
-    const dependencies: EtternaToOsuRouteDependencies = {
+    const dependencies: EtternaToOsuTestDependencies = {
       etternaDefaultLocation: "C:/Games/Etterna",
       localAppData: undefined,
       windowsUsername: "Stefany",
@@ -188,7 +188,7 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
         converted = true
         return { diagnostics: [] }
       },
-      waitForAnyKey: async () => undefined,
+      writeLine: () => assert.fail("cancelled migration must not show success"),
       warn: () => {},
     }
 

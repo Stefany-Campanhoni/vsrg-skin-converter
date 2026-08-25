@@ -12,7 +12,7 @@ import {
 } from "./run-osu-to-etterna.ts"
 
 type OsuToEtternaTestDependencies = OsuToEtternaRouteDependencies & {
-  waitForAnyKey(message: string): Promise<void>
+  writeLine(message: string): void
 }
 
 const configuration: OsuUserConfiguration = {
@@ -110,8 +110,8 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
         ],
       }
     },
-    waitForAnyKey: async (message) => {
-      events.push(`wait:${message}`)
+    writeLine: (message) => {
+      events.push(`write:${message}`)
     },
     warn: (message) => events.push(`warn:${message}`),
   }
@@ -142,7 +142,7 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
     "installer:Alice:Til Death",
     "convert-install",
     "warn:WARNING receptor [right]: Fallback",
-    "wait:✨ Migration complete! Now all you have to do is launch the game.",
+    "write:✨ Migration complete! Now all you have to do is launch the game.",
   ])
 })
 
@@ -155,7 +155,7 @@ test("does not show the success message when osu migration fails", async () => {
           convertAndInstallSkin: async () => {
             throw new Error("migration failed")
           },
-          waitForAnyKey: async () => {
+          writeLine: () => {
             successMessageShown = true
           },
         }),
@@ -185,11 +185,50 @@ test("declining an existing NoteSkin cancels before reader, installer, or public
       events.push("convert-install")
       return { diagnostics: [] }
     },
+    writeLine: () => assert.fail("declined migration must not show success"),
   })
 
   await runOsuToEtternaRoute(dependencies)
 
   assert.deepEqual(events, ["confirm:General Name already exists. Overwrite it?"])
+})
+
+test("does not show the success message at any cancelled osu to Etterna step", async () => {
+  const cancellationPoints = [
+    "source-location",
+    "configuration",
+    "skin",
+    "target-location",
+    "overwrite-confirmation",
+  ] as const
+
+  for (const cancellationPoint of cancellationPoints) {
+    let converted = false
+    const dependencies = createDependencies({
+      resolveInstallationDirectory: async (directory) => {
+        if (
+          (cancellationPoint === "source-location" && directory === "C:/Games/osu!") ||
+          (cancellationPoint === "target-location" && directory === "C:/Games/Etterna")
+        ) {
+          return undefined
+        }
+        return directory
+      },
+      selectOsuUserConfiguration: async () =>
+        cancellationPoint === "configuration" ? undefined : configuration,
+      selectSkin: async () => (cancellationPoint === "skin" ? undefined : skin.sourcePath),
+      noteSkinExists: async () => cancellationPoint === "overwrite-confirmation",
+      askConfirm: async () => (cancellationPoint === "overwrite-confirmation" ? undefined : true),
+      convertAndInstallSkin: async () => {
+        converted = true
+        return { diagnostics: [] }
+      },
+      writeLine: () => assert.fail(`cancelled ${cancellationPoint} must not show success`),
+    })
+
+    await runOsuToEtternaRoute(dependencies)
+    assert.equal(converted, false, `must not convert after ${cancellationPoint} cancellation`)
+  }
 })
 
 test("passes the selected name on every install and enables overwrite only after acceptance", async () => {
@@ -254,7 +293,7 @@ test("selects osu configurations using Username labels and rejects unknown paths
 function createDependencies(
   overrides: Partial<OsuToEtternaRouteDependencies> = {},
 ): OsuToEtternaRouteDependencies & {
-  waitForAnyKey(message: string): Promise<void>
+  writeLine(message: string): void
 } {
   return {
     localAppData: undefined,
@@ -272,7 +311,7 @@ function createDependencies(
     createReader: () => ({}) as SkinReader,
     createInstaller: () => ({}) as SkinInstaller,
     convertAndInstallSkin: async () => ({ diagnostics: [] }),
-    waitForAnyKey: async () => undefined,
+    writeLine: () => undefined,
     warn: () => {},
     ...overrides,
   }

@@ -66,7 +66,7 @@ export interface OsuToEtternaRouteDependencies {
   convertAndInstallSkin(
     request: ConvertAndInstallSkinRequest,
   ): ReturnType<typeof convertAndInstallSkin>
-  waitForAnyKey(message: string): Promise<void>
+  writeLine(message: string): void
   warn(message: string): void
 }
 
@@ -105,7 +105,7 @@ const defaultDependencies: OsuToEtternaRouteDependencies = {
       installers: new Map(),
       conversions: new ConversionRegistry([new OsuToEtternaConversion()]),
     }),
-  waitForAnyKey,
+  writeLine: (message) => console.log(message),
   warn: console.warn,
 }
 
@@ -178,9 +178,7 @@ export async function runOsuToEtternaRoute(
       `${diagnostic.severity.toUpperCase()} ${diagnostic.component}${direction}: ${diagnostic.message}`,
     )
   }
-  await dependencies.waitForAnyKey(
-    "✨ Migration complete! Now all you have to do is launch the game.",
-  )
+  dependencies.writeLine("✨ Migration complete! Now all you have to do is launch the game.")
 }
 
 async function runConversion(
