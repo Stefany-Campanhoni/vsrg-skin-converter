@@ -62,6 +62,7 @@ const logicalPaths = [
 test("reads the 4K Mania definition into an osu skin model", async () => {
   const started: string[] = []
   const settled: string[] = []
+  const fallbackSelections: (boolean | undefined)[] = []
   const dependencies = withGenericJudgementResolver({
     readSkinIni: async (skinDirectory) => {
       assert.equal(skinDirectory, reference.sourcePath)
@@ -71,6 +72,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
       started.push(options.logicalPath)
       assert.equal(options.skinDirectory, reference.sourcePath)
       assert.equal(options.useDoubleResolutionAssets, true)
+      fallbackSelections.push(options.fallbackToStandardResolution)
       await Promise.resolve()
       settled.push(options.logicalPath)
       return {
@@ -96,6 +98,26 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
 
   assert.deepEqual(started, logicalPaths)
   assert.deepEqual(settled, logicalPaths)
+  assert.deepEqual(fallbackSelections, [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ])
   assert.equal(model.game, "osu")
   assert.deepEqual(model.metadata, { name: "Parsed Fixture" })
   assert.deepEqual(model.playfield, {
