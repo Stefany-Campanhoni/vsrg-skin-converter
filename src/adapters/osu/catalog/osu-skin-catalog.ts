@@ -39,8 +39,7 @@ async function readSkin(
     }
     const iniPath = path.join(skinDirectory, skinIniEntry.name)
     const name =
-      readOsuSkinName(parseOsuSkinIni(await readFile(iniPath, "utf8"), iniPath), iniPath) ??
-      directoryName
+      readOsuSkinName(parseOsuSkinIni(await readFile(iniPath, "utf8"), iniPath)) ?? directoryName
     return { game: "osu", name, sourcePath: skinDirectory, gameRoot: location }
   } catch (cause) {
     throw new Error(`Could not read osu! skin ${directoryName} from ${skinDirectory}`, { cause })
