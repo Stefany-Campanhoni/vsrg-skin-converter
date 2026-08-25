@@ -1,9 +1,10 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { SkinCatalog } from "../../../application/ports/skin-catalog.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { parseOsuSkinIni, readOsuSkinName } from "../skin-ini/osu-skin-ini.ts"
+import { readOsuSkinIniFile } from "../skin-ini/read-osu-skin-ini-file.ts"
 
 export class OsuSkinCatalog implements SkinCatalog {
   async listSkins(location: string): Promise<SkinReference[]> {
@@ -15,7 +16,9 @@ export class OsuSkinCatalog implements SkinCatalog {
         invokeAsPromise(() => readSkin(location, skinRoot, entry.name)),
       ),
     )
-    return skins.sort((left, right) => left.name.localeCompare(right.name))
+    return skins
+      .filter((skin): skin is SkinReference => skin !== undefined)
+      .sort((left, right) => left.name.localeCompare(right.name))
   }
 }
 
@@ -23,20 +26,21 @@ async function readSkin(
   location: string,
   skinRoot: string,
   directoryName: string,
-): Promise<SkinReference> {
+): Promise<SkinReference | undefined> {
   const skinDirectory = path.join(skinRoot, directoryName)
   try {
     const entries = await readdir(skinDirectory, { withFileTypes: true })
-    const iniFiles = entries.filter(
-      (entry) => entry.isFile() && entry.name.toLowerCase() === "skin.ini",
-    )
-    if (iniFiles.length !== 1) {
+    const skinIniEntries = entries.filter((entry) => entry.name.toLowerCase() === "skin.ini")
+    if (skinIniEntries.length === 0) {
+      return undefined
+    }
+    const skinIniEntry = skinIniEntries[0]
+    if (skinIniEntries.length !== 1 || !skinIniEntry?.isFile()) {
       throw new Error(`Expected exactly one skin.ini in ${skinDirectory}`)
     }
-    const iniPath = path.join(skinDirectory, iniFiles[0]?.name ?? "skin.ini")
+    const iniPath = path.join(skinDirectory, skinIniEntry.name)
     const name =
-      readOsuSkinName(parseOsuSkinIni(await readFile(iniPath, "utf8"), iniPath), iniPath) ??
-      directoryName
+      readOsuSkinName(parseOsuSkinIni(await readOsuSkinIniFile(iniPath), iniPath)) ?? directoryName
     return { game: "osu", name, sourcePath: skinDirectory, gameRoot: location }
   } catch (cause) {
     throw new Error(`Could not read osu! skin ${directoryName} from ${skinDirectory}`, { cause })

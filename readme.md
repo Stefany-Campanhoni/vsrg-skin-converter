@@ -81,6 +81,9 @@ offers a native folder picker when a default installation cannot be found.
   unique 4K `[Mania]` section supplies `UpsideDown`. The converted NoteSkin is installed
   under `Etterna/NoteSkins/dance`, and a new numbered local profile is created under
   `Etterna/Save/LocalProfiles`.
+- Source `skin.ini` files are decoded as UTF-8 (with or without a byte order mark) or UTF-16
+  with a byte order mark. Other encodings, including UTF-16 without a byte order mark, are
+  rejected before INI parsing.
 
 For an osu! source, `[General].Name` supplies the converted skin name when present and
 non-empty. Otherwise, the converter uses the immediate source skin directory name, allowing
@@ -161,7 +164,9 @@ npm install
 npm start
 ```
 
-Use `npm run dev` for automatic restart while developing.
+Use `npm run dev` for automatic restart while developing. Add `--verbose` to print the
+complete stack trace when the application reports an error, for example
+`npm start -- --verbose`.
 
 ## Development
 
