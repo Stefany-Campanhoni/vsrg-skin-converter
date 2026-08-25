@@ -105,6 +105,7 @@ export class OsuSkinReader implements SkinReader {
               skinDirectory: reference.sourcePath,
               logicalPath,
               useDoubleResolutionAssets: this.#useDoubleResolutionAssets,
+              fallbackToStandardResolution: true,
             })
           } catch (cause) {
             throw new Error(`Could not resolve osu skin asset ${property} ('${logicalPath}')`, {
