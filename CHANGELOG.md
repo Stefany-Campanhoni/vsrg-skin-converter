@@ -1,5 +1,19 @@
 # vsrg-skin-converter
 
+## 1.0.2
+
+### Patch Changes
+
+- [#37](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/37) [`bc250a2`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/bc250a24ad74f1e97a717aac41c996b257b8ec5d) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Allow osu! skins with duplicate `[General]` sections to be converted to Etterna.
+
+- [#39](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/39) [`b973294`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/b9732940bf241cbb796d910711f6e664c0459edd) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Fall back to standard-density osu!mania note and receptor PNGs when an implicit HD asset is absent.
+
+- [#41](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/41) [`ba7883f`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/ba7883fdcf9d23b0b3b4cee8644634c74d915c3b) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Show a launch-the-game message after a successful skin migration.
+
+- [#42](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/42) [`e930cd3`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/e930cd395ef8c58891fc6449768b0e016013bfe4) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Support UTF-16 osu! skin.ini files that include a byte order mark.
+
+- [#40](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/40) [`92cb8e5`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/92cb8e55d713d02c9f038d13383b8e03fa20234b) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Add a verbose CLI mode that prints complete error stack traces.
+
 ## 1.0.1
 
 ### Patch Changes
