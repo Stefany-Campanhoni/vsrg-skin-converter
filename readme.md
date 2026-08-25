@@ -86,7 +86,7 @@ Requirements:
 
 - Windows 10 or newer
 - Node.js 22.18 or newer
-- Etterna and/or osu!, depending on the conversion direction
+- Etterna and osu!, depending on the conversion direction
 
 Install the exact dependency tree and start the CLI:
 
