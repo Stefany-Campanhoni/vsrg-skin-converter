@@ -18,7 +18,7 @@ test("preserves ordered sections and projects the unique 4K Mania definition", (
   )
   assert.equal(sections[0]?.properties.get("author"), "Fixture: Author")
   assert.equal(sections[2]?.properties.get("columnwidth"), "68,68,70,70")
-  assert.equal(readOsuSkinName(sections, "skin.ini"), "Fixture Name")
+  assert.equal(readOsuSkinName(sections), "Fixture Name")
   assert.deepEqual(readOsuMania4kDefinition(sections, "skin.ini"), {
     isDownscroll: false,
     hitPosition: 432,
@@ -198,14 +198,14 @@ test("uses osu default 4K assets for empty references without replacing explicit
 
 test("returns undefined when the General Name property is missing", () => {
   for (const source of ["[General]\nName-General: Fixture", "[General]\nName:", "[Fonts]"]) {
-    assert.equal(readOsuSkinName(parseOsuSkinIni(source, filePath), filePath), undefined)
+    assert.equal(readOsuSkinName(parseOsuSkinIni(source, filePath)), undefined)
   }
 })
 
 test("reads a mixed-case General Name property", () => {
   const sections = parseOsuSkinIni("[gEnErAl]\nnAmE: Mixed Case Name", filePath)
 
-  assert.equal(readOsuSkinName(sections, filePath), "Mixed Case Name")
+  assert.equal(readOsuSkinName(sections), "Mixed Case Name")
 })
 
 test("reads the combo font prefix and uses the osu score default when it is absent", () => {
@@ -235,16 +235,13 @@ test("rejects ambiguous Fonts sections instead of selecting one combo prefix", (
   assert.throws(() => readOsuComboPrefix(sections, filePath), /Fonts section.*skin\.ini/i)
 })
 
-test("rejects duplicate case-insensitive General sections instead of selecting one name", () => {
+test("reads the last Name from duplicate case-insensitive General sections", () => {
   const sections = parseOsuSkinIni(
     "[General]\nName: First Name\n[gEnErAl]\nName: Second Name",
     filePath,
   )
 
-  assert.throws(
-    () => readOsuSkinName(sections, filePath),
-    /at most one General section.*C:\/osu!\/Skins\/Test\/skin\.ini/i,
-  )
+  assert.equal(readOsuSkinName(sections), "Second Name")
 })
 
 test("rejects an assignment outside a section with the file path", () => {
