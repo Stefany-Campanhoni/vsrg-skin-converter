@@ -5,6 +5,18 @@ const etternaLogicalWidth = 64
 export const etternaTapNoteOutputWidth = 150
 export const etternaReceptorOutputWidth = 146
 
+export function getEtternaReceptorOutputDimensions(
+  noteDimensions: ImageDimensions,
+): ImageDimensions {
+  return {
+    width: etternaReceptorOutputWidth,
+    height: Math.max(
+      1,
+      Math.round((etternaReceptorOutputWidth * noteDimensions.height) / noteDimensions.width),
+    ),
+  }
+}
+
 export function getEtternaOutputAssetFilename(
   logicalName: string,
   dimensions: ImageDimensions,

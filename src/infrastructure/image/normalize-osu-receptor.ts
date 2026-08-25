@@ -1,7 +1,20 @@
 import sharp from "sharp"
+import type { ImageDimensions } from "./read-image-dimensions.ts"
 
-export async function normalizeOsuReceptorImage(image: Buffer): Promise<Buffer> {
+export async function normalizeOsuReceptorImage(
+  image: Buffer,
+  targetDimensions: ImageDimensions,
+): Promise<Buffer> {
   try {
+    if (
+      !Number.isInteger(targetDimensions.width) ||
+      !Number.isInteger(targetDimensions.height) ||
+      targetDimensions.width <= 0 ||
+      targetDimensions.height <= 0
+    ) {
+      throw new Error("Target dimensions must be positive integers")
+    }
+
     const { data, info } = await sharp(image)
       .ensureAlpha()
       .raw()
@@ -32,19 +45,21 @@ export async function normalizeOsuReceptorImage(image: Buffer): Promise<Buffer> 
       }
     }
 
-    if (firstVisibleRow < 0) {
-      return image
-    }
-
-    return sharp(data, {
+    let normalized = sharp(data, {
       raw: { width: info.width, height: info.height, channels: 4 },
     })
-      .extract({
+
+    if (firstVisibleRow >= 0) {
+      normalized = normalized.extract({
         left: 0,
         width: info.width,
         top: firstVisibleRow,
         height: lastVisibleRow - firstVisibleRow + 1,
       })
+    }
+
+    return normalized
+      .resize({ ...targetDimensions, fit: "fill" })
       .png()
       .toBuffer()
   } catch (cause) {

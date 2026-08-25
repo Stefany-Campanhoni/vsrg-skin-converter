@@ -4,36 +4,55 @@ import os from "node:os"
 import path from "node:path"
 import test from "node:test"
 import sharp from "sharp"
-import type { ImageAsset, ImageDensity, ReceptorSet } from "../../../domain/image.ts"
+import type {
+  ColumnDirection,
+  ImageAsset,
+  ImageDensity,
+  ReceptorSet,
+} from "../../../domain/image.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { writeEtternaReceptors } from "./write-etterna-receptors.ts"
 
-test("trims receptors before scaling them proportionally to 146px wide", async () => {
+test("normalizes each receptor to its direction's note proportions", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
+  const noteDimensions = {
+    left: { width: 10, height: 10 },
+    down: { width: 10, height: 5 },
+    up: { width: 10, height: 15 },
+    right: { width: 10, height: 8 },
+  } as const
+  const logicalHeights = { left: 64, down: 32, up: 96, right: 51 } as const
+  const renderedHeights = { left: 146, down: 73, up: 219, right: 117 } as const
   try {
     await mkdir(outputDirectory)
-    const { receptors, colors } = await writeVisibleReceptorFixtures(root)
+    const { receptors, colors } = await writeVisibleReceptorFixtures(root, logicalHeights)
 
-    await writeEtternaReceptors({ receptors, outputDirectory })
+    await writeEtternaReceptors({ receptors, noteDimensions, outputDirectory })
 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
     assert.deepEqual((await readdir(receptorDirectory)).sort(), [
-      "pressed Down (res 64x51).png",
-      "pressed Left (res 64x51).png",
+      "pressed Down (res 64x32).png",
+      "pressed Left (res 64x64).png",
       "pressed Right (res 64x51).png",
-      "pressed Up (res 64x51).png",
-      "release Down (res 64x51).png",
-      "release Left (res 64x51).png",
+      "pressed Up (res 64x96).png",
+      "release Down (res 64x32).png",
+      "release Left (res 64x64).png",
       "release Right (res 64x51).png",
-      "release Up (res 64x51).png",
+      "release Up (res 64x96).png",
     ])
     for (const filename of await readdir(receptorDirectory)) {
       const output = await readFile(path.join(receptorDirectory, filename))
-      assert.deepEqual(await imageSize(output), { width: 146, height: 117 }, filename)
-      assert.equal(await alphaAt(output, 0, 58), 0, `${filename} keeps its left margin transparent`)
+      const direction = directionFromFilename(filename)
+      const renderedHeight = renderedHeights[direction]
+      assert.deepEqual(await imageSize(output), { width: 146, height: renderedHeight }, filename)
       assert.equal(
-        await alphaAt(output, 145, 58),
+        await alphaAt(output, 0, Math.floor(renderedHeight / 2)),
+        0,
+        `${filename} keeps its left margin transparent`,
+      )
+      assert.equal(
+        await alphaAt(output, 145, Math.floor(renderedHeight / 2)),
         0,
         `${filename} keeps its right margin transparent`,
       )
@@ -46,7 +65,7 @@ test("trims receptors before scaling them proportionally to 146px wide", async (
   }
 })
 
-test("scales a fully transparent normal receptor proportionally to 146px wide", async () => {
+test("normalizes a fully transparent normal receptor to the note proportions", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-etterna-receptors-"))
   const outputDirectory = path.join(root, "output")
   const transparent = await png(7, 11, { r: 0, g: 0, b: 0, alpha: 0 })
@@ -57,12 +76,16 @@ test("scales a fully transparent normal receptor proportionally to 146px wide", 
     await writeFile(filePath, transparent)
     receptors.up.normal = asset(filePath, "double")
 
-    await writeEtternaReceptors({ receptors, outputDirectory })
+    await writeEtternaReceptors({
+      receptors,
+      noteDimensions: squareNoteDimensions(),
+      outputDirectory,
+    })
 
     const normal = await readFile(
-      path.join(outputDirectory, "Receptors", "release Up (res 64x100).png"),
+      path.join(outputDirectory, "Receptors", "release Up (res 64x64).png"),
     )
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 229 })
+    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
     assert.equal(await isImageFullyTransparent(normal), true)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -81,13 +104,17 @@ test("uses the processed normal when pressed is fully transparent", async () => 
     receptors.left.normal.pixelDensity = "standard"
     receptors.left.pressed = asset(filePath, "double")
 
-    await writeEtternaReceptors({ receptors, outputDirectory })
+    await writeEtternaReceptors({
+      receptors,
+      noteDimensions: squareNoteDimensions(),
+      outputDirectory,
+    })
 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
-    const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x51).png"))
-    const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x51).png"))
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 117 })
-    assert.deepEqual(await imageSize(pressed), { width: 146, height: 117 })
+    const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x64).png"))
+    const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x64).png"))
+    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
+    assert.deepEqual(await imageSize(pressed), { width: 146, height: 146 })
     assert.deepEqual(pressed, normal)
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -101,6 +128,7 @@ test("reports receptor source read failures with direction, state, path, and exa
     () =>
       writeEtternaReceptors({
         receptors: inMemoryReceptors(),
+        noteDimensions: squareNoteDimensions(),
         outputDirectory: "output",
         read: async (filePath) => {
           if (filePath === "left-pressed.png") {
@@ -128,6 +156,7 @@ test("settles sibling transparency inspections before reporting contextual exact
   let inspectionCalls = 0
   const writing = writeEtternaReceptors({
     receptors: inMemoryReceptors(),
+    noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
     read: async (filePath) => Buffer.from(filePath),
     inspectTransparency: () => {
@@ -171,6 +200,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
   let normalizeCalls = 0
   const writing = writeEtternaReceptors({
     receptors: inMemoryReceptors(),
+    noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
     read: async (filePath) => Buffer.from(filePath),
     inspectTransparency: async () => false,
@@ -185,7 +215,6 @@ test("settles sibling receptor processing after a decode failure before rejectin
       }
       return Buffer.from("normalized")
     },
-    resize: async (buffer) => buffer,
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
       writes.push(filePath)
@@ -211,54 +240,6 @@ test("settles sibling receptor processing after a decode failure before rejectin
   assert.deepEqual(writes, [])
 })
 
-test("settles final resizes before reporting their contextual exact cause without writes", async () => {
-  const sibling = deferred<Buffer>()
-  const failureStarted = deferred<void>()
-  const resizeFailure = new Error("exact final resize failure")
-  const writes: string[] = []
-  let resizeCalls = 0
-  const writing = writeEtternaReceptors({
-    receptors: inMemoryReceptors(),
-    outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
-    inspectTransparency: async () => false,
-    normalize: async (buffer) => buffer,
-    resize: () => {
-      resizeCalls += 1
-      if (resizeCalls === 1) {
-        return sibling.promise
-      }
-      if (resizeCalls === 2) {
-        failureStarted.resolve()
-        throw resizeFailure
-      }
-      return Promise.resolve(Buffer.from("resized"))
-    },
-    readDimensions: async () => ({ width: 64, height: 64 }),
-    write: async (filePath) => {
-      writes.push(filePath)
-    },
-  })
-  let settled = false
-  void writing.catch(() => {
-    settled = true
-  })
-
-  await failureStarted.promise
-  await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(resizeCalls, 8)
-  assert.equal(settled, false)
-
-  sibling.resolve(Buffer.from("resized"))
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*pressed receptor.*left.*left-pressed\.png.*width 146/i)
-    assert.equal(error.cause, resizeFailure)
-    return true
-  })
-  assert.deepEqual(writes, [])
-})
-
 test("settles sibling dimension reads after a synchronous failure with receptor context", async () => {
   const sibling = deferred<{ width: number; height: number }>()
   const failureStarted = deferred<void>()
@@ -267,11 +248,11 @@ test("settles sibling dimension reads after a synchronous failure with receptor 
   let dimensionCalls = 0
   const writing = writeEtternaReceptors({
     receptors: inMemoryReceptors(),
+    noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
     read: async (filePath) => Buffer.from(filePath),
     inspectTransparency: async () => false,
     normalize: async (buffer) => buffer,
-    resize: async (buffer) => buffer,
     readDimensions: () => {
       dimensionCalls += 1
       if (dimensionCalls === 1) {
@@ -314,11 +295,11 @@ test("starts and settles every receptor write when a writer throws synchronously
   let calls = 0
   const writing = writeEtternaReceptors({
     receptors: inMemoryReceptors(),
+    noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
     read: async (filePath) => Buffer.from(filePath),
     inspectTransparency: async () => false,
     normalize: async () => Buffer.from("normalized"),
-    resize: async (buffer) => buffer,
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
       calls += 1
@@ -363,7 +344,10 @@ test("starts and settles every receptor write when a writer throws synchronously
   })
 })
 
-async function writeVisibleReceptorFixtures(root: string): Promise<{
+async function writeVisibleReceptorFixtures(
+  root: string,
+  logicalHeights?: Readonly<Record<"left" | "down" | "up" | "right", number>>,
+): Promise<{
   receptors: ReceptorSet
   colors: Readonly<Record<string, Rgba>>
 }> {
@@ -383,11 +367,25 @@ async function writeVisibleReceptorFixtures(root: string): Promise<{
       await writeFile(filePath, await receptorPng(color))
       definitions[direction][state].filePath = filePath
       colors[
-        `${state === "normal" ? "release" : "pressed"} ${titleCase(direction)} (res 64x51).png`
+        `${state === "normal" ? "release" : "pressed"} ${titleCase(direction)} (res 64x${logicalHeights?.[direction] ?? 51}).png`
       ] = color
     }
   }
   return { receptors: definitions, colors }
+}
+
+function directionFromFilename(filename: string): "left" | "down" | "up" | "right" {
+  for (const direction of ["left", "down", "up", "right"] as const) {
+    if (filename.toLowerCase().includes(direction)) return direction
+  }
+  throw new Error(`Could not derive direction from '${filename}'`)
+}
+
+function squareNoteDimensions(): Readonly<
+  Record<ColumnDirection, { readonly width: number; readonly height: number }>
+> {
+  const square = { width: 1, height: 1 } as const
+  return { left: square, down: square, up: square, right: square }
 }
 
 function inMemoryReceptors(): ReceptorSet {
