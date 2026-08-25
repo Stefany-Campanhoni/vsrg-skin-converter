@@ -297,8 +297,10 @@ references, missing-property `mania-hit*` defaults, and `-0` frame precedence; t
 resolver remains responsible for case-insensitive, density-specific, skin-contained file access.
 The `skin.ini` projection owns missing or empty 4K lane defaults: outer columns use
 `mania-note1`, `mania-key1`, and `mania-key1D`, while middle columns use the corresponding
-`mania-note2`, `mania-key2`, and `mania-key2D` names. Explicit references remain authoritative,
-and the shared resolver keeps a missing selected-density default fatal.
+`mania-note2`, `mania-key2`, and `mania-key2D` names. For these note and receptor assets only,
+an implicit HD selection falls back to its unsuffixed SD PNG when the `@2x` file is absent.
+Explicit `@2x` references remain authoritative, and a missing selected-density asset remains
+fatal for combo fonts and judgements.
 When a selected-density judgement candidate is absent, the reader preserves the other grades
 and the target writer extracts the missing grade from the bundled default sheet. Default
 frames are rendered at standard density or doubled for an `@2x` source before all six frames

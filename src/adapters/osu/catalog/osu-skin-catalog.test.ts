@@ -142,7 +142,7 @@ test("rejects a skin.ini file alongside a case-variant skin.ini directory", asyn
   await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
 })
 
-test("wraps a duplicate General section error with skin catalog context", async (context) => {
+test("lists a skin with duplicate General sections by its last Name", async (context) => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-general-osu-catalog-"))
   context.after(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "Duplicate General")
@@ -152,16 +152,14 @@ test("wraps a duplicate General section error with skin catalog context", async 
     "[General]\nName: First Name\n[gEnErAl]\nName: Second Name",
   )
 
-  await assert.rejects(
-    () => new OsuSkinCatalog().listSkins(osuRoot),
-    (error) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /Could not read osu! skin Duplicate General/)
-      assert.ok(error.cause instanceof Error)
-      assert.match(error.cause.message, /at most one General section.*skin\.ini/i)
-      return true
+  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+    {
+      game: "osu",
+      name: "Second Name",
+      sourcePath: skinDirectory,
+      gameRoot: osuRoot,
     },
-  )
+  ])
 })
 
 async function writeSkin(

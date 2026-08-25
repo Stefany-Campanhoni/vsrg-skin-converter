@@ -21,8 +21,18 @@ async function writePng(skinDirectory: string, relativePath: string): Promise<st
   return filePath
 }
 
-function resolve(skinDirectory: string, logicalPath: string, useDoubleResolutionAssets = false) {
-  return resolveOsuPngAsset({ skinDirectory, logicalPath, useDoubleResolutionAssets })
+function resolve(
+  skinDirectory: string,
+  logicalPath: string,
+  useDoubleResolutionAssets = false,
+  fallbackToStandardResolution = false,
+) {
+  return resolveOsuPngAsset({
+    skinDirectory,
+    logicalPath,
+    useDoubleResolutionAssets,
+    fallbackToStandardResolution,
+  })
 }
 
 test("selects the unsuffixed PNG for an implicit standard-density reference", async () => {
@@ -63,11 +73,14 @@ test("uses an explicit @2x reference in standard mode", async () => {
   })
 })
 
-test("does not fall back from an unavailable selected density", async () => {
+test("falls back to the unsuffixed PNG for an implicit double-density reference", async () => {
   await withSkin(async (skinDirectory) => {
-    await writePng(skinDirectory, "Notes/Pink.png")
+    const expected = await writePng(skinDirectory, "Notes/Pink.png")
 
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink", true), /pink@2x\.png/i)
+    const asset = await resolve(skinDirectory, "notes/pink", true, true)
+
+    assert.equal(asset.filePath, expected)
+    assert.equal(asset.pixelDensity, "standard")
   })
 })
 
@@ -79,10 +92,11 @@ test("does not fall back to @2x when standard density is selected", async () => 
   })
 })
 
-test("an explicit @2x reference never falls back even in high-resolution mode", async () => {
+test("an explicit @2x reference never falls back in standard or high-resolution mode", async () => {
   await withSkin(async (skinDirectory) => {
     await writePng(skinDirectory, "Notes/Pink.png")
 
+    await assert.rejects(() => resolve(skinDirectory, "notes/pink@2x"), /pink@2x\.png/i)
     await assert.rejects(() => resolve(skinDirectory, "notes/pink@2x", true), /pink@2x\.png/i)
   })
 })
