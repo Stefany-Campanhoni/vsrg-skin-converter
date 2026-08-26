@@ -2,6 +2,7 @@ return {
   MeasureCounter= false, NPSDisplay= true, RateDisplay= true, 
   TargetTracker= true, JudgmentText= true, ComboText= true,
   ComboGlow= true, TargetGoal= 93, ReceptorSize= ${receptor_size},
+  ConvertedAspectRatio= true, CurrentHeight= 720, CurrentWidth= 1280,
   GameplayXYCoordinates= {
     ["4K"]= {NoteFieldY= ${hit_position}, JudgmentY= ${judgement_position}, ComboY= ${combo_position},}},
   GameplaySizes= {
