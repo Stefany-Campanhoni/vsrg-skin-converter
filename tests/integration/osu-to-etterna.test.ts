@@ -75,16 +75,10 @@ const noteColors = {
   right: { r: 120, g: 140, b: 200 },
 } as const
 const convertedReceptorHeights: Readonly<Record<ColumnDirection, number>> = {
-  left: 158,
-  down: 157,
-  up: 156,
-  right: 156,
-}
-const convertedReceptorLogicalHeights: Readonly<Record<ColumnDirection, number>> = {
-  left: 69,
-  down: 69,
-  up: 68,
-  right: 68,
+  left: 110,
+  down: 114,
+  up: 117,
+  right: 119,
 }
 const convertedNoteHeights: Readonly<Record<ColumnDirection, number>> = {
   left: 113,
@@ -155,7 +149,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
         const outputPath = path.join(
           noteSkinDirectory,
           "Receptors",
-          `${prefix} ${title} (res 64x${convertedReceptorLogicalHeights[direction]}).png`,
+          `${prefix} ${title} (res 64x${convertedNoteLogicalHeights[direction]}).png`,
         )
         const output = await sharp(outputPath)
           .raw()
@@ -201,14 +195,14 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     }
 
     assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Receptors"))).sort(), [
-      "pressed Down (res 64x69).png",
-      "pressed Left (res 64x69).png",
-      "pressed Right (res 64x68).png",
-      "pressed Up (res 64x68).png",
-      "release Down (res 64x69).png",
-      "release Left (res 64x69).png",
-      "release Right (res 64x68).png",
-      "release Up (res 64x68).png",
+      "pressed Down (res 64x50).png",
+      "pressed Left (res 64x48).png",
+      "pressed Right (res 64x52).png",
+      "pressed Up (res 64x51).png",
+      "release Down (res 64x50).png",
+      "release Left (res 64x48).png",
+      "release Right (res 64x52).png",
+      "release Up (res 64x51).png",
     ])
     assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Notes"))).sort(), [
       "_Down Tap Note (res 64x50).png",
@@ -562,7 +556,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
     assert.equal(confirmationMessage, `${fixture.skinName} already exists. Overwrite it?`)
     assert.equal(await pathExists(oldSelectedMarker), false)
     await access(path.join(selectedNoteSkin, "NoteSkin.lua"))
-    await access(path.join(selectedNoteSkin, "Receptors", "release Left (res 64x69).png"))
+    await access(path.join(selectedNoteSkin, "Receptors", "release Left (res 64x48).png"))
     assert.equal(await pathExists(path.join(noteSkinsRoot, "Fixture")), false)
     assert.deepEqual(await directorySnapshot(unrelatedNoteSkin), unrelatedBefore)
 

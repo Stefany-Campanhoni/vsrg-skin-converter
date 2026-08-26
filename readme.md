@@ -1,3 +1,7 @@
+<p align="center">
+  <img alt="VSRG Skin Converter banner" src="docs/assets/banner.png" width="100%">
+</p>
+
 # 🎹 VSRG Skin Converter
 
 <p align="center">
@@ -109,6 +113,9 @@ requirements.
 
 VSRG Skin Converter is licensed under the [GNU General Public License v3.0](LICENSE)
 (`GPL-3.0-only`). Bundled templates are distributed with permission.
+
+The project banner was created for VSRG Skin Converter by
+[@akaneyt](https://www.youtube.com/@akaneyt) and is redistributed with the artist's permission.
 
 The bundled osu!mania default judgement sheet is derived from the osu! legacy skin assets by
 ppy Pty Ltd and distributed under
