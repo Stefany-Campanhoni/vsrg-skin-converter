@@ -2,6 +2,7 @@
   "name": "vsrg-skin-converter",
   "version": "1.0.3",
   "private": true,
+  "packageManager": "bun@1.4.0",
   "main": "src/cli.ts",
   "scripts": {
     "build": "node .ci/release/build-application.ts",
@@ -43,6 +44,7 @@
   "homepage": "https://github.com/Stefany-Campanhoni/vsrg-skin-converter#readme",
   "type": "module",
   "engines": {
+    "bun": "1.4.0",
     "node": ">=22.18.0"
   },
   "devDependencies": {
@@ -52,7 +54,7 @@
     "@commitlint/cli": "21.2.2",
     "@commitlint/config-conventional": "21.2.2",
     "@types/luaparse": "^0.2.13",
-    "@types/node": "^26.2.0",
+    "@types/bun": "1.4.0",
     "@types/semver": "7.8.0",
     "esbuild": "0.28.2",
     "husky": "9.1.7",
