@@ -238,14 +238,17 @@ must render the resulting positive finite scale as `ComboZoom`.
 
 The reverse target contract is fixed: notes use four direction-specific names at exactly 150
 pixels wide, and normal/pressed receptors use eight direction/state-specific names at exactly
-146 pixels wide. Height scales by the same factor as width, and an image already at its target
-width is not resized. Each name uses ` (res 64xH)`, where `H` is the nearest positive integer
-that preserves the rendered image's aspect ratio at logical width 64. Receptor processing order
-is vertical transparent-row trim followed by proportional width scaling.
-A fully transparent normal remains transparent; a fully transparent pressed receptor falls
-back to the processed normal from the same direction. Integration tests must assert the exact
-inventories, dimensions, aspect-ratio preservation, and lane/state source pixels, and every
-route asset change must run both direction integration tests.
+146 pixels wide. Notes scale proportionally. Each receptor uses the source dimensions of the
+tap note from the same direction and, after vertical transparent-row trimming, normalizes to
+the note's aspect ratio using its own width as the base. The exact final dimensions are
+`146 x max(1, round(146 * note height / note width))`. Each name uses ` (res 64xH)`, where `H`
+is the nearest positive integer for the rendered image at logical width 64. Receptor processing
+order is note-dimension resolution, vertical trim, then one exact note-ratio target render.
+A fully transparent normal is normalized to the note proportions while remaining transparent;
+a fully transparent pressed receptor falls back to the processed normal from the same direction.
+Integration tests must assert the exact inventories, note-derived dimensions, lane/state source
+pixels, and both square and rectangular note cases, and every route asset change must run both
+direction integration tests.
 
 Reverse judgement migration must preserve this row order: marvelous, perfect, great, good,
 bad, miss. Do not resize, trim, crop, or rotate custom images. A selected-density PNG that

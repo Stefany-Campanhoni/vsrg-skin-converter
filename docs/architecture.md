@@ -306,14 +306,17 @@ and the target writer extracts the missing grade from the bundled default sheet.
 frames are rendered at standard density or doubled for an `@2x` source before all six frames
 are centered and composed.
 The target adapter always writes four tap notes at 150 pixels wide and eight receptors at
-146 pixels wide. It scales height by the same factor as width, skips resizing when an image
-is already at its target width, and writes ` (res 64xH)` using the proportional logical
-height so Etterna preserves the rendered aspect ratio.
-Receptors are vertically trimmed before proportional scaling. A transparent normal remains
-transparent; a transparent pressed receptor falls back to the processed normal from the same
-direction. Any future game-specific output calibration belongs in the target adapter; shared
-image infrastructure implements only the game-neutral trim, proportional resize, and
-transparency mechanisms requested by that adapter.
+146 pixels wide. Tap notes scale proportionally. After vertical trimming, each normal and
+pressed receptor is normalized to the aspect ratio of the tap note from the same direction,
+using the receptor width as its fixed base, and then rendered at the exact note-derived target
+dimensions in a single resize. Square notes therefore produce square receptors, while
+rectangular notes produce receptors with the same proportions. Output names use
+` (res 64xH)` with the rendered logical height.
+A transparent normal is normalized to the note proportions while remaining transparent; a
+transparent pressed receptor falls back to the processed normal from the same direction. Any
+future game-specific output calibration belongs in the target adapter; shared image
+infrastructure implements only the game-neutral trim, ratio-based normalization,
+exact resize, and transparency mechanisms requested by that adapter.
 
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
