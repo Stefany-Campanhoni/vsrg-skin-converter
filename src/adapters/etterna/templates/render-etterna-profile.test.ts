@@ -25,6 +25,14 @@ test("the production profile template makes receptor size renderable", async () 
   assert.match(template, /ComboZoom= \$\{combo_zoom\}/)
 })
 
+test("the production profile declares the current Rebirth coordinate space", async () => {
+  const template = await readFile(playerConfigTemplatePath, "utf8")
+
+  assert.match(template, /ConvertedAspectRatio= true/)
+  assert.match(template, /CurrentHeight= 720/)
+  assert.match(template, /CurrentWidth= 1280/)
+})
+
 test("renders each profile value for its target syntax and relocates playerConfig", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-profile-render-"))
   try {

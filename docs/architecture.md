@@ -175,8 +175,10 @@ glyphs. Target writers transform only the assets they own, and the finalizer rem
 internal build-only sources after every output task succeeds. `templates/etterna/noteskin`,
 `templates/etterna/profile`, and `templates/etterna/judgement` are independent bundles used
 by the reverse installer. The profile writer relocates `playerConfig.lua` below the active
-theme settings directory, while the judgement bundle provides the 1x6 osu!mania default
-used only for missing source grades.
+theme settings directory. The generated profile declares Rebirth's current 1280x720
+coordinate space as already converted so the theme does not rescale migrated gameplay
+positions on first load. The judgement bundle provides the 1x6 osu!mania default used only
+for missing source grades.
 
 ## Current Conversion Calibrations
 

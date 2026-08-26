@@ -244,6 +244,9 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     assert.match(playerConfig, /JudgmentY= 40(?:,|\s)/)
     assert.match(playerConfig, /ReceptorSize= 106(?:,|\s)/)
     assert.match(playerConfig, /ComboZoom= 0\.5(?:,|\s)/)
+    assert.match(playerConfig, /ConvertedAspectRatio= true(?:,|\s)/)
+    assert.match(playerConfig, /CurrentHeight= 720(?:,|\s)/)
+    assert.match(playerConfig, /CurrentWidth= 1280(?:,|\s)/)
     assert.ok(guid)
     const judgementFilename = `${fixture.skinName} - ${guid} 1x6 (Doubleres).png`
     const judgementDirectory = path.join(fixture.etternaRoot, "Assets", "Judgments")
