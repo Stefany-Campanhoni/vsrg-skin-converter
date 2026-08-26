@@ -1,5 +1,13 @@
 # vsrg-skin-converter
 
+## 1.0.3
+
+### Patch Changes
+
+- [#47](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/47) [`740a90d`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/740a90d0b4f07634d80ba2122cb4fca8a6af6669) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Preserve osu!-to-Etterna gameplay positions when Rebirth first loads the generated profile.
+
+- [#45](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/45) [`41c5651`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/41c5651cbbfbe55ad5c1300721c0a09abdd03e35) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Normalize each osu!mania receptor to its matching tap note proportions before writing Etterna NoteSkin assets.
+
 ## 1.0.2
 
 ### Patch Changes
