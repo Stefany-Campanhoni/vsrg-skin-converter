@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -15,8 +14,8 @@ test("copies fixed long-note assets byte-for-byte to the osu template paths", as
 
     await writeOsuLongNotes({ outputDirectory: workspace })
 
-    assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), body)
-    assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "tail.png")), tail)
+    expect(await readFile(path.join(workspace, "mania", "lns", "body.png"))).toStrictEqual(body)
+    expect(await readFile(path.join(workspace, "mania", "lns", "tail.png"))).toStrictEqual(tail)
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }
@@ -28,10 +27,12 @@ test("rejects when a required long-note template asset is missing", async () => 
   try {
     await writeFile(path.join(workspace, "LNB.png"), body)
 
-    await assert.rejects(() => writeOsuLongNotes({ outputDirectory: workspace }), {
-      code: "ENOENT",
-    })
-    assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), body)
+    await expect((() => writeOsuLongNotes({ outputDirectory: workspace }))()).rejects.toMatchObject(
+      {
+        code: "ENOENT",
+      },
+    )
+    expect(await readFile(path.join(workspace, "mania", "lns", "body.png"))).toStrictEqual(body)
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }

@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../tests/support/expectations.ts"
 import { normalizeOsuReceptorImage } from "./normalize-osu-receptor.ts"
 
 test("trims vertical transparency and uses square note proportions", async () => {
@@ -16,12 +16,12 @@ test("trims vertical transparency and uses square note proportions", async () =>
   const output = await normalizeOsuReceptorImage(source, { width: 8, height: 8 })
   const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 8, height: 8 })
+  expect({ width: info.width, height: info.height }).toStrictEqual({ width: 8, height: 8 })
   for (let y = 0; y < info.height; y += 1) {
-    assert.equal(pixel(data, info.width, 0, y)[3], 0)
-    assert.equal(pixel(data, info.width, 7, y)[3], 0)
-    assert.deepEqual([...pixel(data, info.width, 2, y)], [255, 0, 0, 255])
-    assert.deepEqual([...pixel(data, info.width, 5, y)], [0, 0, 255, 255])
+    expect(pixel(data, info.width, 0, y)[3]).toBe(0)
+    expect(pixel(data, info.width, 7, y)[3]).toBe(0)
+    expect([...pixel(data, info.width, 2, y)]).toStrictEqual([255, 0, 0, 255])
+    expect([...pixel(data, info.width, 5, y)]).toStrictEqual([0, 0, 255, 255])
   }
 })
 
@@ -39,9 +39,9 @@ test("normalizes a short visible region to square note proportions", async () =>
   const output = await normalizeOsuReceptorImage(source, { width: 10, height: 10 })
   const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 10, height: 10 })
-  assert.deepEqual([...pixel(data, info.width, 4, 0)], [40, 180, 90, 255])
-  assert.deepEqual([...pixel(data, info.width, 4, 9)], [40, 180, 90, 255])
+  expect({ width: info.width, height: info.height }).toStrictEqual({ width: 10, height: 10 })
+  expect([...pixel(data, info.width, 4, 0)]).toStrictEqual([40, 180, 90, 255])
+  expect([...pixel(data, info.width, 4, 9)]).toStrictEqual([40, 180, 90, 255])
 })
 
 test("normalizes receptor height from a rectangular note using receptor width as the base", async () => {
@@ -58,9 +58,9 @@ test("normalizes receptor height from a rectangular note using receptor width as
   const output = await normalizeOsuReceptorImage(source, { width: 6, height: 9 })
   const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 6, height: 9 })
-  assert.deepEqual([...pixel(data, info.width, 3, 0)], [120, 60, 200, 255])
-  assert.deepEqual([...pixel(data, info.width, 3, 8)], [120, 60, 200, 255])
+  expect({ width: info.width, height: info.height }).toStrictEqual({ width: 6, height: 9 })
+  expect([...pixel(data, info.width, 3, 0)]).toStrictEqual([120, 60, 200, 255])
+  expect([...pixel(data, info.width, 3, 8)]).toStrictEqual([120, 60, 200, 255])
 })
 
 test("normalizes a fully transparent receptor to the note proportions", async () => {
@@ -78,7 +78,7 @@ test("normalizes a fully transparent receptor to the note proportions", async ()
   const output = await normalizeOsuReceptorImage(source, { width: 6, height: 2 })
 
   const metadata = await sharp(output).metadata()
-  assert.deepEqual({ width: metadata.width, height: metadata.height }, { width: 6, height: 2 })
+  expect({ width: metadata.width, height: metadata.height }).toStrictEqual({ width: 6, height: 2 })
 })
 
 test("trims and renders textured receptors to final dimensions in one resize", async () => {
@@ -107,11 +107,11 @@ test("trims and renders textured receptors to final dimensions in one resize", a
     .raw()
     .toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual(
-    { width: output.info.width, height: output.info.height },
-    { width: 146, height: 73 },
-  )
-  assert.deepEqual(output.data, expected.data)
+  expect({ width: output.info.width, height: output.info.height }).toStrictEqual({
+    width: 146,
+    height: 73,
+  })
+  expect(output.data).toStrictEqual(expected.data)
 })
 
 test("rejects invalid target dimensions with normalization context", async () => {
@@ -132,13 +132,13 @@ test("rejects invalid target dimensions with normalization context", async () =>
     { width: 1.5, height: 1 },
     { width: 1, height: Number.NaN },
   ]) {
-    await assert.rejects(
-      () => normalizeOsuReceptorImage(source, targetDimensions),
+    await expectRejectionSatisfies(
+      (() => normalizeOsuReceptorImage(source, targetDimensions))(),
       (error) => {
-        assert.ok(error instanceof Error)
-        assert.match(error.message, /normalize osu! receptor image/i)
-        assert.ok(error.cause instanceof Error)
-        assert.match(error.cause.message, /target dimensions must be positive integers/i)
+        expectTruthy(error instanceof Error)
+        expect(error.message).toMatch(/normalize osu! receptor image/i)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.message).toMatch(/target dimensions must be positive integers/i)
         return true
       },
     )
@@ -146,10 +146,9 @@ test("rejects invalid target dimensions with normalization context", async () =>
 })
 
 test("adds receptor-normalization context to undecodable images", async () => {
-  await assert.rejects(
-    () => normalizeOsuReceptorImage(Buffer.from("not an image"), { width: 1, height: 1 }),
-    /normalize osu! receptor image/i,
-  )
+  await expect(
+    (() => normalizeOsuReceptorImage(Buffer.from("not an image"), { width: 1, height: 1 }))(),
+  ).rejects.toThrow(/normalize osu! receptor image/i)
 })
 
 function setPixel(

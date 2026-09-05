@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { createHash } from "node:crypto"
 import {
   access,
@@ -16,6 +15,7 @@ import {
 } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies, expectTruthy } from "../../../tests/support/expectations.ts"
 import type {
   OutputFileTarget,
   OutputSetTarget,
@@ -67,7 +67,7 @@ async function exists(candidate: string): Promise<boolean> {
 }
 
 async function assertOnlyTargets(parent: string, names: readonly string[]): Promise<void> {
-  assert.deepEqual((await readdir(parent)).sort(), [...names].sort())
+  expect((await readdir(parent)).sort()).toStrictEqual([...names].sort())
 }
 
 function isLinkCapabilityError(error: unknown): boolean {
@@ -114,7 +114,9 @@ function errorTreeContains(error: unknown, expected: unknown): boolean {
 }
 
 test("rejects an empty output set", async () => {
-  await assert.rejects(() => new TransactionalOutputSetPublisher().publish([]), /at least one/i)
+  await expect((() => new TransactionalOutputSetPublisher().publish([]))()).rejects.toThrow(
+    /at least one/i,
+  )
 })
 
 const unsafeTargetCases = [
@@ -152,11 +154,10 @@ for (const caseName of unsafeTargetCases) {
         }
       })()
 
-      await assert.rejects(
-        () => new TransactionalOutputSetPublisher().publish([unsafeTarget]),
-        /unsafe|outside|root/i,
-      )
-      assert.equal(builds, 0)
+      await expect(
+        (() => new TransactionalOutputSetPublisher().publish([unsafeTarget]))(),
+      ).rejects.toThrow(/unsafe|outside|root/i)
+      expect(builds).toBe(0)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -186,11 +187,10 @@ for (const caseName of ["duplicate", "overlapping"] as const) {
         },
       ]
 
-      await assert.rejects(
-        () => new TransactionalOutputSetPublisher().publish(unsafeTargets),
-        /duplicate|overlap/i,
-      )
-      assert.equal(builds, 0)
+      await expect(
+        (() => new TransactionalOutputSetPublisher().publish(unsafeTargets))(),
+      ).rejects.toThrow(/duplicate|overlap/i)
+      expect(builds).toBe(0)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -200,21 +200,17 @@ for (const caseName of ["duplicate", "overlapping"] as const) {
 test("rejects an existing must-not-exist target before starting any builder", async () => {
   const root = await makeRoot()
   const existing = target(root, "profile", "must-not-exist", async () => {
-    assert.fail("must not build")
+    throw Error("must not build")
   })
 
   try {
     await mkdir(existing.targetPath)
     await writeFile(path.join(existing.targetPath, "owner.txt"), "someone else")
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher().publish([existing]),
-      /must not exist|already exists/i,
-    )
-    assert.equal(
-      await readFile(path.join(existing.targetPath, "owner.txt"), "utf8"),
-      "someone else",
-    )
+    await expect(
+      (() => new TransactionalOutputSetPublisher().publish([existing]))(),
+    ).rejects.toThrow(/must not exist|already exists/i)
+    expect(await readFile(path.join(existing.targetPath, "owner.txt"), "utf8")).toBe("someone else")
     await assertOnlyTargets(root, ["profile"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -261,14 +257,14 @@ test("starts and settles every builder before changing a target after a synchron
     ])
 
     await secondStarted
-    assert.equal(await readFile(path.join(first.targetPath, "current.txt"), "utf8"), "first")
-    assert.equal(await readFile(path.join(second.targetPath, "current.txt"), "utf8"), "second")
+    expect(await readFile(path.join(first.targetPath, "current.txt"), "utf8")).toBe("first")
+    expect(await readFile(path.join(second.targetPath, "current.txt"), "utf8")).toBe("second")
 
     releaseSecond?.()
-    await assert.rejects(publication, (error) => {
-      assert(error instanceof Error)
-      assert.match(error.message, /build.*first/i)
-      assert.equal(error.cause, failure)
+    await expectRejectionSatisfies(publication, (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/build.*first/i)
+      expect(error.cause).toBe(failure)
       return true
     })
     await assertOnlyTargets(root, ["first", "second"])
@@ -305,13 +301,13 @@ test("reports the first input-order builder failure after every asynchronous bui
     await secondSettled
     releaseFirst?.()
 
-    await assert.rejects(publication, (error) => {
-      assert(error instanceof Error)
-      assert.match(error.message, /build.*first/i)
-      assert.equal(error.cause, firstFailure)
+    await expectRejectionSatisfies(publication, (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/build.*first/i)
+      expect(error.cause).toBe(firstFailure)
       return true
     })
-    assert.deepEqual(await readdir(root), [])
+    expect(await readdir(root)).toStrictEqual([])
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -334,13 +330,9 @@ test("publishes replace-existing and must-not-exist targets and removes transact
 
     await new TransactionalOutputSetPublisher().publish([noteSkin, profile])
 
-    assert.deepEqual(await readdir(noteSkin.targetPath), ["new.txt"])
-    assert.equal(
-      await readFile(path.join(profile.targetPath, "profile.txt"), "utf8"),
-      "new profile",
-    )
-    assert.equal(
-      await readFile(path.join(profile.targetPath, "nested", "data.txt"), "utf8"),
+    expect(await readdir(noteSkin.targetPath)).toStrictEqual(["new.txt"])
+    expect(await readFile(path.join(profile.targetPath, "profile.txt"), "utf8")).toBe("new profile")
+    expect(await readFile(path.join(profile.targetPath, "nested", "data.txt"), "utf8")).toBe(
       "nested data",
     )
     await assertOnlyTargets(root, ["noteskin", "profile"])
@@ -378,18 +370,18 @@ for (const failingRename of [1, 2, 3, 4]) {
       await writeFile(path.join(first.targetPath, "current.bin"), firstBytes)
       await writeFile(path.join(second.targetPath, "current.bin"), secondBytes)
 
-      await assert.rejects(
-        () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+      await expectRejectionSatisfies(
+        (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
         (error) => {
-          assert(error instanceof Error)
-          assert.match(error.message, /rename|back up|promote/i)
-          assert.equal(error.cause, boundaryFailure)
+          expectTruthy(error instanceof Error)
+          expect(error.message).toMatch(/rename|back up|promote/i)
+          expect(error.cause).toBe(boundaryFailure)
           return true
         },
       )
 
-      assert.deepEqual(await readFile(path.join(first.targetPath, "current.bin")), firstBytes)
-      assert.deepEqual(await readFile(path.join(second.targetPath, "current.bin")), secondBytes)
+      expect(await readFile(path.join(first.targetPath, "current.bin"))).toStrictEqual(firstBytes)
+      expect(await readFile(path.join(second.targetPath, "current.bin"))).toStrictEqual(secondBytes)
       await assertOnlyTargets(root, ["first", "second"])
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -422,13 +414,15 @@ test("removes a newly promoted profile and restores a NoteSkin when a later prom
     await mkdir(noteSkin.targetPath)
     await writeFile(path.join(noteSkin.targetPath, "current.bin"), previousBytes)
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([profile, noteSkin]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([profile, noteSkin]))(),
       (error) => error instanceof Error && error.cause === promotionFailure,
     )
 
-    assert.equal(await exists(profile.targetPath), false)
-    assert.deepEqual(await readFile(path.join(noteSkin.targetPath, "current.bin")), previousBytes)
+    expect(await exists(profile.targetPath)).toBe(false)
+    expect(await readFile(path.join(noteSkin.targetPath, "current.bin"))).toStrictEqual(
+      previousBytes,
+    )
     await assertOnlyTargets(root, ["noteskin"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -468,12 +462,12 @@ test("does not delete a backup before every promotion succeeds", async () => {
       await writeFile(path.join(output.targetPath, "old.txt"), path.basename(output.targetPath))
     }
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => error instanceof Error && error.cause === failure,
     )
 
-    assert.deepEqual(deletedExistingBackups, [])
+    expect(deletedExistingBackups).toStrictEqual([])
     await assertOnlyTargets(root, ["first", "second"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -509,13 +503,13 @@ test("settles and retries committed backup cleanup while preserving the first fa
       await writeFile(path.join(output.targetPath, "old.txt"), "old")
     }
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => {
-        assert(error instanceof AggregateError)
-        assert(error.cause instanceof Error)
-        assert.equal(error.cause.cause, firstFailure)
-        assert(
+        expectTruthy(error instanceof AggregateError)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.cause).toBe(firstFailure)
+        expectTruthy(
           aggregateErrors(error).some(
             (candidate) => candidate instanceof Error && candidate.cause === secondFailure,
           ),
@@ -524,9 +518,9 @@ test("settles and retries committed backup cleanup while preserving the first fa
       },
     )
 
-    assert.equal(await readFile(path.join(first.targetPath, "new.txt"), "utf8"), "new first")
-    assert.equal(await readFile(path.join(second.targetPath, "new.txt"), "utf8"), "new second")
-    assert.equal(failedBackups.size, 2)
+    expect(await readFile(path.join(first.targetPath, "new.txt"), "utf8")).toBe("new first")
+    expect(await readFile(path.join(second.targetPath, "new.txt"), "utf8")).toBe("new second")
+    expect(failedBackups.size).toBe(2)
     await assertOnlyTargets(root, ["first", "second"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -551,18 +545,18 @@ test("atomically refuses a must-not-exist target created immediately before prom
   }
 
   try {
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([profile]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([profile]))(),
       (error) => {
-        assert(error instanceof Error)
-        assert.match(error.message, /reserve|must not exist|promot/i)
+        expectTruthy(error instanceof Error)
+        expect(error.message).toMatch(/reserve|must not exist|promot/i)
         return true
       },
     )
 
-    assert.equal(raced, true)
-    assert.equal(await readFile(path.join(profile.targetPath, "theirs.txt"), "utf8"), "theirs")
-    assert.equal(await exists(path.join(profile.targetPath, "ours.txt")), false)
+    expect(raced).toBe(true)
+    expect(await readFile(path.join(profile.targetPath, "theirs.txt"), "utf8")).toBe("theirs")
+    expect(await exists(path.join(profile.targetPath, "ours.txt"))).toBe(false)
     await assertOnlyTargets(root, ["profile"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -583,17 +577,16 @@ test.skipIf(!directoryAliasesAvailable)(
       await mkdir(outside)
       await symlink(outside, alias, process.platform === "win32" ? "junction" : "dir")
 
-      await assert.rejects(
-        () =>
+      await expect(
+        (() =>
           new TransactionalOutputSetPublisher().publish([
             target(allowedRoot, path.join("escape", "output"), "replace-existing", async () => {
               builds += 1
             }),
-          ]),
-        /physical|outside allowed root|alias/i,
-      )
-      assert.equal(builds, 0)
-      assert.deepEqual(await readdir(outside), [])
+          ]))(),
+      ).rejects.toThrow(/physical|outside allowed root|alias/i)
+      expect(builds).toBe(0)
+      expect(await readdir(outside)).toStrictEqual([])
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -616,15 +609,14 @@ test.skipIf(!directoryAliasesAvailable)(
       await mkdir(realDirectory, { recursive: true })
       await symlink(realDirectory, alias, process.platform === "win32" ? "junction" : "dir")
 
-      await assert.rejects(
-        () =>
+      await expect(
+        (() =>
           new TransactionalOutputSetPublisher().publish([
             target(allowedRoot, path.join("real", "output"), "replace-existing", build),
             target(allowedRoot, path.join("alias", "output"), "replace-existing", build),
-          ]),
-        /physical.*duplicate|duplicate.*physical/i,
-      )
-      assert.equal(builds, 0)
+          ]))(),
+      ).rejects.toThrow(/physical.*duplicate|duplicate.*physical/i)
+      expect(builds).toBe(0)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -647,15 +639,14 @@ test.skipIf(!directoryAliasesAvailable)(
       await mkdir(realDirectory, { recursive: true })
       await symlink(realDirectory, alias, process.platform === "win32" ? "junction" : "dir")
 
-      await assert.rejects(
-        () =>
+      await expect(
+        (() =>
           new TransactionalOutputSetPublisher().publish([
             target(allowedRoot, "real", "replace-existing", build),
             target(allowedRoot, path.join("alias", "child"), "replace-existing", build),
-          ]),
-        /physical.*overlap|overlap.*physical/i,
-      )
-      assert.equal(builds, 0)
+          ]))(),
+      ).rejects.toThrow(/physical.*overlap|overlap.*physical/i)
+      expect(builds).toBe(0)
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -699,8 +690,8 @@ test.skipIf(!directoryAliasesAvailable)(
         },
       }
 
-      await assert.rejects(
-        () =>
+      await expect(
+        (() =>
           new TransactionalOutputSetPublisher(fileSystem).publish([
             target(
               allowedRoot,
@@ -710,13 +701,12 @@ test.skipIf(!directoryAliasesAvailable)(
                 builds += 1
               },
             ),
-          ]),
-        /physical|outside allowed root|alias/i,
-      )
-      assert.equal(aliasInspections >= 2, true)
-      assert.equal(outsideNestedWasCreated, false)
-      assert.equal(builds, 0)
-      assert.deepEqual(await readdir(outside), [])
+          ]))(),
+      ).rejects.toThrow(/physical|outside allowed root|alias/i)
+      expect(aliasInspections >= 2).toBe(true)
+      expect(outsideNestedWasCreated).toBe(false)
+      expect(builds).toBe(0)
+      expect(await readdir(outside)).toStrictEqual([])
     } finally {
       await rm(root, { recursive: true, force: true })
     }
@@ -744,13 +734,13 @@ test("rolls back a must-not-exist target when moving a staged entry fails", asyn
   }
 
   try {
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([profile]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([profile]))(),
       (error) => error instanceof Error && error.cause === moveFailure,
     )
-    assert.equal(stagedEntryMoves, 2)
-    assert.equal(await exists(profile.targetPath), false)
-    assert.deepEqual(await readdir(root), [])
+    expect(stagedEntryMoves).toBe(2)
+    expect(await exists(profile.targetPath)).toBe(false)
+    expect(await readdir(root)).toStrictEqual([])
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -792,23 +782,23 @@ test("surfaces rollback removal failure and does not silently restore over the o
       )
     }
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => {
-        assert(error instanceof AggregateError)
-        assert(error.cause instanceof Error)
-        assert.equal(error.cause.cause, promotionFailure)
+        expectTruthy(error instanceof AggregateError)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.cause).toBe(promotionFailure)
         const rollbackFailure = aggregateErrors(error).find(
           (candidate) => candidate instanceof Error && candidate.cause === removalFailure,
         )
-        assert(rollbackFailure instanceof Error)
-        assert.match(rollbackFailure.message, /remove.*first.*rollback.*backup/i)
+        expectTruthy(rollbackFailure instanceof Error)
+        expect(rollbackFailure.message).toMatch(/remove.*first.*rollback.*backup/i)
         return true
       },
     )
-    assert.equal(await readFile(path.join(first.targetPath, "new.txt"), "utf8"), "new first")
-    assert.equal(await readFile(path.join(second.targetPath, "old.txt"), "utf8"), "old second")
-    assert((await readdir(root)).some((entry) => entry.startsWith(".first.backup-")))
+    expect(await readFile(path.join(first.targetPath, "new.txt"), "utf8")).toBe("new first")
+    expect(await readFile(path.join(second.targetPath, "old.txt"), "utf8")).toBe("old second")
+    expectTruthy((await readdir(root)).some((entry) => entry.startsWith(".first.backup-")))
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -847,25 +837,25 @@ test("surfaces backup restoration failure and reports the retained recovery arti
       )
     }
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => {
-        assert(error instanceof AggregateError)
-        assert(error.cause instanceof Error)
-        assert.equal(error.cause.cause, promotionFailure)
+        expectTruthy(error instanceof AggregateError)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.cause).toBe(promotionFailure)
         const rollbackFailure = aggregateErrors(error).find(
           (candidate) => candidate instanceof Error && candidate.cause === restoreFailure,
         )
-        assert(rollbackFailure instanceof Error)
-        assert.match(rollbackFailure.message, /restore.*first.*backup/i)
+        expectTruthy(rollbackFailure instanceof Error)
+        expect(rollbackFailure.message).toMatch(/restore.*first.*backup/i)
         return true
       },
     )
 
     const entries = await readdir(root)
-    assert(entries.some((entry) => entry.startsWith(".first.backup-")))
-    assert.equal(await exists(first.targetPath), false)
-    assert.equal(await readFile(path.join(second.targetPath, "old.txt"), "utf8"), "old second")
+    expectTruthy(entries.some((entry) => entry.startsWith(".first.backup-")))
+    expect(await exists(first.targetPath)).toBe(false)
+    expect(await readFile(path.join(second.targetPath, "old.txt"), "utf8")).toBe("old second")
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -885,12 +875,12 @@ test("rejects a successful publication when persistent staging cleanup fails", a
   }
 
   try {
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([profile]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([profile]))(),
       (error) => error instanceof Error && error.cause === cleanupFailure,
     )
-    assert.equal(await exists(profile.targetPath), true)
-    assert((await readdir(root)).some((entry) => entry.includes(".staging-")))
+    expect(await exists(profile.targetPath)).toBe(true)
+    expectTruthy((await readdir(root)).some((entry) => entry.includes(".staging-")))
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -913,14 +903,14 @@ test("preserves a build failure and reports persistent staging cleanup failures"
   }
 
   try {
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([output]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([output]))(),
       (error) => {
-        assert(error instanceof AggregateError)
-        assert(error.cause instanceof Error)
-        assert.equal(error.cause.cause, buildFailure)
-        assert.equal(aggregateErrors(error)[0], error.cause)
-        assert(
+        expectTruthy(error instanceof AggregateError)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.cause).toBe(buildFailure)
+        expect(aggregateErrors(error)[0]).toBe(error.cause)
+        expectTruthy(
           aggregateErrors(error).some(
             (candidate) => candidate instanceof Error && candidate.cause === cleanupFailure,
           ),
@@ -970,14 +960,14 @@ test("retains promotion, rollback, and cleanup failures in one aggregate error t
       await writeFile(path.join(output.targetPath, "old.txt"), "old")
     }
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => {
-        assert(error instanceof AggregateError)
-        assert.equal(aggregateErrors(error)[0], error.cause)
-        assert.equal(errorTreeContains(error, promotionFailure), true)
-        assert.equal(errorTreeContains(error, restoreFailure), true)
-        assert.equal(errorTreeContains(error, cleanupFailure), true)
+        expectTruthy(error instanceof AggregateError)
+        expect(aggregateErrors(error)[0]).toBe(error.cause)
+        expect(errorTreeContains(error, promotionFailure)).toBe(true)
+        expect(errorTreeContains(error, restoreFailure)).toBe(true)
+        expect(errorTreeContains(error, cleanupFailure)).toBe(true)
         return true
       },
     )
@@ -1008,10 +998,12 @@ test("preserves a concurrent replace-existing creator when promotion loses the r
   }
 
   try {
-    await assert.rejects(() => new TransactionalOutputSetPublisher(fileSystem).publish([output]))
-    assert.equal(raced, true)
-    assert.equal(await readFile(path.join(output.targetPath, "theirs.txt"), "utf8"), "theirs")
-    assert.equal(await exists(path.join(output.targetPath, "ours.txt")), false)
+    await expect(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([output]))(),
+    ).rejects.toThrow()
+    expect(raced).toBe(true)
+    expect(await readFile(path.join(output.targetPath, "theirs.txt"), "utf8")).toBe("theirs")
+    expect(await exists(path.join(output.targetPath, "ours.txt"))).toBe(false)
     await assertOnlyTargets(root, ["output"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1025,8 +1017,8 @@ test("removes transaction-created empty parent directories after a build failure
 
   try {
     await mkdir(allowedRoot)
-    await assert.rejects(
-      () =>
+    await expectRejectionSatisfies(
+      (() =>
         new TransactionalOutputSetPublisher().publish([
           target(
             allowedRoot,
@@ -1036,10 +1028,10 @@ test("removes transaction-created empty parent directories after a build failure
               throw failure
             },
           ),
-        ]),
+        ]))(),
       (error) => error instanceof Error && error.cause === failure,
     )
-    assert.deepEqual(await readdir(allowedRoot), [])
+    expect(await readdir(allowedRoot)).toStrictEqual([])
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -1051,7 +1043,7 @@ test("publishes an empty must-not-exist workspace", async () => {
 
   try {
     await new TransactionalOutputSetPublisher().publish([output])
-    assert.deepEqual(await readdir(output.targetPath), [])
+    expect(await readdir(output.targetPath)).toStrictEqual([])
     await assertOnlyTargets(root, ["empty"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1071,8 +1063,8 @@ test("publishes new and replacement file targets without leaving transaction art
 
     await new TransactionalOutputSetPublisher().publish([created, replaced])
 
-    assert.equal(await readFile(created.targetPath, "utf8"), "created")
-    assert.equal(await readFile(replaced.targetPath, "utf8"), "replacement")
+    expect(await readFile(created.targetPath, "utf8")).toBe("created")
+    expect(await readFile(replaced.targetPath, "utf8")).toBe("replacement")
     await assertOnlyTargets(root, ["created.png", "replaced.lua"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1090,11 +1082,10 @@ test("publishes directory and file targets in one output transaction", async () 
   try {
     await new TransactionalOutputSetPublisher().publish([directory, judgement])
 
-    assert.equal(
-      await readFile(path.join(directory.targetPath, "NoteSkin.lua"), "utf8"),
+    expect(await readFile(path.join(directory.targetPath, "NoteSkin.lua"), "utf8")).toBe(
       "return {}",
     )
-    assert.equal(await readFile(judgement.targetPath, "utf8"), "png")
+    expect(await readFile(judgement.targetPath, "utf8")).toBe("png")
     await assertOnlyTargets(root, ["noteskin", "judgement.png"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1115,7 +1106,7 @@ test("validates file content expectations before backing up any target", async (
       { state: "sha256", sha256: createHash("sha256").update(original).digest("hex") },
     )
     await new TransactionalOutputSetPublisher().publish([matching])
-    assert.equal(await readFile(configPath, "utf8"), "updated")
+    expect(await readFile(configPath, "utf8")).toBe("updated")
 
     await writeFile(configPath, "changed concurrently")
     const mismatched = fileTarget(
@@ -1125,11 +1116,10 @@ test("validates file content expectations before backing up any target", async (
       async (stagingFile) => writeFile(stagingFile, "must not publish"),
       { state: "sha256", sha256: createHash("sha256").update(original).digest("hex") },
     )
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher().publish([mismatched]),
-      /content.*changed|expectation|sha-?256/i,
-    )
-    assert.equal(await readFile(configPath, "utf8"), "changed concurrently")
+    await expect(
+      (() => new TransactionalOutputSetPublisher().publish([mismatched]))(),
+    ).rejects.toThrow(/content.*changed|expectation|sha-?256/i)
+    expect(await readFile(configPath, "utf8")).toBe("changed concurrently")
 
     const expectedMissing = fileTarget(
       root,
@@ -1138,11 +1128,10 @@ test("validates file content expectations before backing up any target", async (
       async (stagingFile) => writeFile(stagingFile, "must not publish"),
       { state: "missing" },
     )
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher().publish([expectedMissing]),
-      /expected.*missing|content expectation/i,
-    )
-    assert.equal(await readFile(configPath, "utf8"), "changed concurrently")
+    await expect(
+      (() => new TransactionalOutputSetPublisher().publish([expectedMissing]))(),
+    ).rejects.toThrow(/expected.*missing|content expectation/i)
+    expect(await readFile(configPath, "utf8")).toBe("changed concurrently")
     await assertOnlyTargets(root, ["assetsConfig.lua"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1184,15 +1173,14 @@ test("preserves a SHA-256 target changed between live validation and backup", as
       },
     )
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]),
-      /content.*changed|expectation|sha-?256/i,
-    )
+    await expect(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]))(),
+    ).rejects.toThrow(/content.*changed|expectation|sha-?256/i)
 
-    assert.equal(changedAfterValidation, true)
-    assert.equal(await readFile(configPath, "utf8"), concurrentConfig)
-    assert.deepEqual(await readdir(skin.targetPath), ["old.txt"])
-    assert.equal(await readFile(path.join(skin.targetPath, "old.txt"), "utf8"), "old skin")
+    expect(changedAfterValidation).toBe(true)
+    expect(await readFile(configPath, "utf8")).toBe(concurrentConfig)
+    expect(await readdir(skin.targetPath)).toStrictEqual(["old.txt"])
+    expect(await readFile(path.join(skin.targetPath, "old.txt"), "utf8")).toBe("old skin")
     await assertOnlyTargets(root, ["skin", "osu!.Audit.cfg"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1232,15 +1220,14 @@ test("preserves a missing-expected file created between live validation and back
       { state: "missing" },
     )
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]),
-      /expected.*missing|content expectation/i,
-    )
+    await expect(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([skin, config]))(),
+    ).rejects.toThrow(/expected.*missing|content expectation/i)
 
-    assert.equal(createdAfterValidation, true)
-    assert.equal(await readFile(configPath, "utf8"), concurrentConfig)
-    assert.deepEqual(await readdir(skin.targetPath), ["old.txt"])
-    assert.equal(await readFile(path.join(skin.targetPath, "old.txt"), "utf8"), "old skin")
+    expect(createdAfterValidation).toBe(true)
+    expect(await readFile(configPath, "utf8")).toBe(concurrentConfig)
+    expect(await readdir(skin.targetPath)).toStrictEqual(["old.txt"])
+    expect(await readFile(path.join(skin.targetPath, "old.txt"), "utf8")).toBe("old skin")
     await assertOnlyTargets(root, ["skin", "osu!.Audit.cfg"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1250,23 +1237,21 @@ test("preserves a missing-expected file created between live validation and back
 test("rejects file builders that do not create one regular staging file", async () => {
   const root = await makeRoot()
   try {
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         new TransactionalOutputSetPublisher().publish([
           fileTarget(root, "missing.png", "must-not-exist", async () => {}),
-        ]),
-      /staged.*file|regular file/i,
-    )
-    await assert.rejects(
-      () =>
+        ]))(),
+    ).rejects.toThrow(/staged.*file|regular file/i)
+    await expect(
+      (() =>
         new TransactionalOutputSetPublisher().publish([
           fileTarget(root, "directory.png", "must-not-exist", async (stagingFile) => {
             await mkdir(stagingFile)
           }),
-        ]),
-      /staged.*file|regular file/i,
-    )
-    assert.deepEqual(await readdir(root), [])
+        ]))(),
+    ).rejects.toThrow(/staged.*file|regular file/i)
+    expect(await readdir(root)).toStrictEqual([])
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -1288,12 +1273,11 @@ test("atomically refuses a raced must-not-exist file without replacing the winne
     },
   }
   try {
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([output]),
-      /promote without replacement|must not exist/i,
-    )
-    assert.equal(raced, true)
-    assert.equal(await readFile(output.targetPath, "utf8"), "theirs")
+    await expect(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([output]))(),
+    ).rejects.toThrow(/promote without replacement|must not exist/i)
+    expect(raced).toBe(true)
+    expect(await readFile(output.targetPath, "utf8")).toBe("theirs")
     await assertOnlyTargets(root, ["judgement.png"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1321,12 +1305,12 @@ test("rolls back promoted files and restores backups when a later file promotion
     await writeFile(first.targetPath, "old first")
     await writeFile(second.targetPath, "old second")
 
-    await assert.rejects(
-      () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+    await expectRejectionSatisfies(
+      (() => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]))(),
       (error) => error instanceof Error && error.cause === promotionFailure,
     )
-    assert.equal(await readFile(first.targetPath, "utf8"), "old first")
-    assert.equal(await readFile(second.targetPath, "utf8"), "old second")
+    expect(await readFile(first.targetPath, "utf8")).toBe("old first")
+    expect(await readFile(second.targetPath, "utf8")).toBe("old second")
     await assertOnlyTargets(root, ["first.lua", "second.lua"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1344,7 +1328,7 @@ test("publishes a replace-existing file when its missing expectation still holds
   )
   try {
     await new TransactionalOutputSetPublisher().publish([output])
-    assert.equal(await readFile(output.targetPath, "utf8"), "return {}")
+    expect(await readFile(output.targetPath, "utf8")).toBe("return {}")
     await assertOnlyTargets(root, ["assetsConfig.lua"])
   } finally {
     await rm(root, { recursive: true, force: true })

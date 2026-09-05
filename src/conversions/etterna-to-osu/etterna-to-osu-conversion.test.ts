@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { SkinModel } from "../../domain/skin.ts"
 import { EtternaToOsuConversion } from "./etterna-to-osu-conversion.ts"
 
@@ -31,20 +30,22 @@ test("converts Etterna playfield coordinates into an osu skin model", async () =
 
   const result = await conversion.convert(etternaSkin)
 
-  assert.equal(result.game, "osu")
-  assert.equal(result.playfield.hitPosition, 432)
-  assert.equal(result.playfield.judgementPosition, 244)
-  assert.equal(result.playfield.comboPosition, 209)
-  assert.equal(result.playfield.columnWidth, 70)
-  assert.equal(result.playfield.scrollSpeed, 29)
-  assert.equal(result.playfield.comboScale, 0.6)
-  assert.equal(result.playfield.judgementScale, 0.675)
-  assert.equal(result.assets, etternaSkin.assets)
-  assert.equal(result.diagnostics, etternaSkin.diagnostics)
+  expect(result.game).toBe("osu")
+  expect(result.playfield.hitPosition).toBe(432)
+  expect(result.playfield.judgementPosition).toBe(244)
+  expect(result.playfield.comboPosition).toBe(209)
+  expect(result.playfield.columnWidth).toBe(70)
+  expect(result.playfield.scrollSpeed).toBe(29)
+  expect(result.playfield.comboScale).toBe(0.6)
+  expect(result.playfield.judgementScale).toBe(0.675)
+  expect(result.assets).toBe(etternaSkin.assets)
+  expect(result.diagnostics).toBe(etternaSkin.diagnostics)
 })
 
 test("rejects a source model from another game", async () => {
   const conversion = new EtternaToOsuConversion()
 
-  await assert.rejects(() => conversion.convert({ ...etternaSkin, game: "osu" }), /Etterna.*osu/i)
+  await expect((() => conversion.convert({ ...etternaSkin, game: "osu" }))()).rejects.toThrow(
+    /Etterna.*osu/i,
+  )
 })

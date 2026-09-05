@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import luaparse from "luaparse"
+import { expectTruthy } from "../../../tests/support/expectations.ts"
 import {
   asAstObject,
   getCallableName,
@@ -29,10 +29,10 @@ test("provides shared Lua AST traversal and lookup primitives", () => {
   })
 
   const texture = getTableField(sprite, "Texture")
-  assert.equal(getCallableName(asAstObject(texture)?.base), "GetPath")
-  assert.ok(visited.includes("Chunk"))
-  assert.ok(visited.includes("CallExpression"))
-  assert.equal(asAstObject(null), undefined)
+  expect(getCallableName(asAstObject(texture)?.base)).toBe("GetPath")
+  expectTruthy(visited.includes("Chunk"))
+  expectTruthy(visited.includes("CallExpression"))
+  expect(asAstObject(null)).toBe(undefined)
 })
 
 test("reads identifier and bracketed-string fields from raw Lua tables", () => {
@@ -45,13 +45,13 @@ test("reads identifier and bracketed-string fields from raw Lua tables", () => {
     }
   `)
   const statement = ast.body[0]
-  assert.equal(statement?.type, "ReturnStatement")
+  expect(statement?.type).toBe("ReturnStatement")
   const root =
     statement?.type === "ReturnStatement" ? asAstObject(statement.arguments[0]) : undefined
   const judgement = getTableField(root, "judgment")
 
-  assert.equal(asAstObject(getTableField(judgement, "fixture-guid"))?.raw, '"selected.png"')
-  assert.equal(asAstObject(getTableField(judgement, "default"))?.raw, '"default.png"')
+  expect(asAstObject(getTableField(judgement, "fixture-guid"))?.raw).toBe('"selected.png"')
+  expect(asAstObject(getTableField(judgement, "default"))?.raw).toBe('"default.png"')
 })
 
 test("decodes escaped bracketed-string keys before matching fields", () => {
@@ -67,7 +67,7 @@ test("decodes escaped bracketed-string keys before matching fields", () => {
     statement?.type === "ReturnStatement" ? asAstObject(statement.arguments[0]) : undefined
   const judgement = getTableField(root, "judgment")
 
-  assert.equal(asAstObject(getTableField(judgement, "fixture-guid"))?.raw, '"selected.png"')
+  expect(asAstObject(getTableField(judgement, "fixture-guid"))?.raw).toBe('"selected.png"')
 })
 
 test("uses the last matching identifier and decoded bracketed-string fields", () => {
@@ -86,8 +86,8 @@ test("uses the last matching identifier and decoded bracketed-string fields", ()
     statement?.type === "ReturnStatement" ? asAstObject(statement.arguments[0]) : undefined
   const judgement = getTableField(root, "judgment")
 
-  assert.equal(asAstObject(getTableField(judgement, "default"))?.raw, '"new-default.png"')
-  assert.equal(asAstObject(getTableField(judgement, "fixture-guid"))?.raw, '"new-selected.png"')
+  expect(asAstObject(getTableField(judgement, "default"))?.raw).toBe('"new-default.png"')
+  expect(asAstObject(getTableField(judgement, "fixture-guid"))?.raw).toBe('"new-selected.png"')
 })
 
 test("matches table fields case-insensitively while preserving Lua last-write semantics", () => {
@@ -102,6 +102,6 @@ test("matches table fields case-insensitively while preserving Lua last-write se
   const root =
     statement?.type === "ReturnStatement" ? asAstObject(statement.arguments[0]) : undefined
 
-  assert.equal(asAstObject(getTableFieldCaseInsensitive(root, "4k"))?.raw, '"new-value"')
-  assert.equal(asAstObject(getTableField(root, ""))?.raw, '"empty-key-value"')
+  expect(asAstObject(getTableFieldCaseInsensitive(root, "4k"))?.raw).toBe('"new-value"')
+  expect(asAstObject(getTableField(root, ""))?.raw).toBe('"empty-key-value"')
 })

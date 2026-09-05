@@ -1,8 +1,8 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { allocateEtternaProfileIdentity } from "./allocate-etterna-profile-identity.ts"
 
 async function withGameRoot(run: (root: string) => Promise<void>): Promise<void> {
@@ -34,7 +34,7 @@ test("allocates ID 00000000 when LocalProfiles is missing", async () => {
       randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
     })
 
-    assert.equal(identity.id, "00000000")
+    expect(identity.id).toBe("00000000")
   })
 })
 
@@ -46,7 +46,7 @@ test("allocates ID 00000000 when LocalProfiles is empty", async () => {
       randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
     })
 
-    assert.equal(identity.id, "00000000")
+    expect(identity.id).toBe("00000000")
   })
 })
 
@@ -63,7 +63,7 @@ test("allocates one above the maximum valid eight-digit profile directory", asyn
       randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
     })
 
-    assert.equal(identity.id, "00000009")
+    expect(identity.id).toBe("00000009")
   })
 })
 
@@ -76,7 +76,7 @@ test("does not reuse gaps between valid profile directory IDs", async () => {
       randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
     })
 
-    assert.equal(identity.id, "00000003")
+    expect(identity.id).toBe("00000003")
   })
 })
 
@@ -89,7 +89,7 @@ test("ignores an exact eight-digit regular file when allocating the next profile
       randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
     })
 
-    assert.equal(identity.id, "00000004")
+    expect(identity.id).toBe("00000004")
   })
 })
 
@@ -98,8 +98,8 @@ test("keeps non-missing LocalProfiles listing failures fatal", async () => {
     await mkdir(path.join(root, "Save"), { recursive: true })
     await writeFile(path.join(root, "Save", "LocalProfiles"), "not a directory")
 
-    await assert.rejects(
-      () => allocateEtternaProfileIdentity(root),
+    await expectRejectionSatisfies(
+      (() => allocateEtternaProfileIdentity(root))(),
       (error) =>
         error instanceof Error &&
         /Could not list Etterna profiles/.test(error.message) &&
@@ -112,7 +112,9 @@ test("rejects when the maximum valid profile directory ID cannot be incremented"
   await withGameRoot(async (root) => {
     await writeProfile(root, "99999999")
 
-    await assert.rejects(() => allocateEtternaProfileIdentity(root), /99999999|profile ID/i)
+    await expect((() => allocateEtternaProfileIdentity(root))()).rejects.toThrow(
+      /99999999|profile ID/i,
+    )
   })
 })
 
@@ -125,8 +127,8 @@ test("retries a generated GUID collision and returns 16 lower-case hexadecimal c
       randomBytes: () => values.shift() ?? Buffer.alloc(8),
     })
 
-    assert.equal(identity.guid, "0123456789abcdef")
-    assert.match(identity.guid, /^[0-9a-f]{16}$/)
+    expect(identity.guid).toBe("0123456789abcdef")
+    expect(identity.guid).toMatch(/^[0-9a-f]{16}$/)
   })
 })
 
@@ -134,26 +136,24 @@ test("rejects when GUID collision retries are exhausted", async () => {
   await withGameRoot(async (root) => {
     await writeProfile(root, "00000000", "<Guid>aaaaaaaaaaaaaaaa</Guid>")
 
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         allocateEtternaProfileIdentity(root, {
           maxGuidAttempts: 2,
           randomBytes: () => Buffer.from("aaaaaaaaaaaaaaaa", "hex"),
-        }),
-      /GUID.*attempt|attempt.*GUID/i,
-    )
+        }))(),
+    ).rejects.toThrow(/GUID.*attempt|attempt.*GUID/i)
   })
 })
 
 test("rejects random byte sources that do not return exactly eight bytes", async () => {
   await withGameRoot(async (root) => {
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         allocateEtternaProfileIdentity(root, {
           randomBytes: () => Buffer.alloc(7),
-        }),
-      /eight.*bytes|8.*bytes/i,
-    )
+        }))(),
+    ).rejects.toThrow(/eight.*bytes|8.*bytes/i)
   })
 })
 
@@ -161,8 +161,8 @@ test("rejects a valid profile with a missing Etterna.xml using profile context",
   await withGameRoot(async (root) => {
     await mkdir(profileDirectory(root, "00000000"), { recursive: true })
 
-    await assert.rejects(
-      () => allocateEtternaProfileIdentity(root),
+    await expectRejectionSatisfies(
+      (() => allocateEtternaProfileIdentity(root))(),
       (error) =>
         error instanceof Error &&
         error.message.includes("00000000") &&
@@ -177,8 +177,8 @@ test("rejects a valid profile with unreadable Etterna.xml using profile context"
     const directory = profileDirectory(root, "00000000")
     await mkdir(path.join(directory, "Etterna.xml"), { recursive: true })
 
-    await assert.rejects(
-      () => allocateEtternaProfileIdentity(root),
+    await expectRejectionSatisfies(
+      (() => allocateEtternaProfileIdentity(root))(),
       (error) =>
         error instanceof Error &&
         error.message.includes("00000000") &&
@@ -192,8 +192,8 @@ test("rejects a valid profile with a missing GUID using profile context", async 
   await withGameRoot(async (root) => {
     await writeProfile(root, "00000000", "<Stats />")
 
-    await assert.rejects(
-      () => allocateEtternaProfileIdentity(root),
+    await expectRejectionSatisfies(
+      (() => allocateEtternaProfileIdentity(root))(),
       (error) =>
         error instanceof Error &&
         error.message.includes("00000000") &&

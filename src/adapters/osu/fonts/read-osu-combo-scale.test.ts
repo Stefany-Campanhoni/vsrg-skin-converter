@@ -1,22 +1,21 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import sharp from "sharp"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { osuTemplatesPath } from "../../../config/paths.ts"
 import { readOsuComboScale } from "./read-osu-combo-scale.ts"
 
 for (const useDoubleResolutionAssets of [false, true]) {
   test(`maps the real osu template font to scale one at ${useDoubleResolutionAssets ? "double" : "standard"} density`, async () => {
-    assert.equal(
+    expect(
       await readOsuComboScale({
         skinDirectory: osuTemplatesPath,
         comboPrefix: "combo",
         useDoubleResolutionAssets,
       }),
-      1,
-    )
+    ).toBe(1)
   })
 }
 
@@ -28,14 +27,13 @@ for (const fixture of [
     await withSkin(async (skinDirectory) => {
       await writeDigits(skinDirectory, fixture.suffix, () => fixture.height)
 
-      assert.equal(
+      expect(
         await readOsuComboScale({
           skinDirectory,
           comboPrefix: "fonts/combo",
           useDoubleResolutionAssets: fixture.useDoubleResolutionAssets,
         }),
-        0.5,
-      )
+      ).toBe(0.5)
     })
   })
 }
@@ -44,14 +42,13 @@ test("uses scale one silently when any selected combo digit is absent", async ()
   await withSkin(async (skinDirectory) => {
     await writeDigits(skinDirectory, "", () => 42, 9)
 
-    assert.equal(
+    expect(
       await readOsuComboScale({
         skinDirectory,
         comboPrefix: "fonts/combo",
         useDoubleResolutionAssets: false,
       }),
-      1,
-    )
+    ).toBe(1)
   })
 })
 
@@ -59,14 +56,13 @@ test("does not fall back across densities when the selected combo font is absent
   await withSkin(async (skinDirectory) => {
     await writeDigits(skinDirectory, "", () => 42)
 
-    assert.equal(
+    expect(
       await readOsuComboScale({
         skinDirectory,
         comboPrefix: "fonts/combo",
         useDoubleResolutionAssets: true,
       }),
-      1,
-    )
+    ).toBe(1)
   })
 })
 
@@ -74,14 +70,13 @@ test("uses the median scale when selected digit heights vary by one pixel", asyn
   await withSkin(async (skinDirectory) => {
     await writeDigits(skinDirectory, "", (digit) => (digit >= 8 ? 22 : 21))
 
-    assert.equal(
+    expect(
       await readOsuComboScale({
         skinDirectory,
         comboPrefix: "fonts/combo",
         useDoubleResolutionAssets: false,
       }),
-      0.5,
-    )
+    ).toBe(0.5)
   })
 })
 
@@ -89,15 +84,14 @@ test("rejects digit heights that cannot represent one consistent combo scale", a
   await withSkin(async (skinDirectory) => {
     await writeDigits(skinDirectory, "", (digit) => (digit === 9 ? 25 : 21))
 
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         readOsuComboScale({
           skinDirectory,
           comboPrefix: "fonts/combo",
           useDoubleResolutionAssets: false,
-        }),
-      /inconsistent.*combo.*height/i,
-    )
+        }))(),
+    ).rejects.toThrow(/inconsistent.*combo.*height/i)
   })
 })
 
@@ -105,15 +99,14 @@ test("rejects inconsistent present digits even when another digit is absent", as
   await withSkin(async (skinDirectory) => {
     await writeDigits(skinDirectory, "", (digit) => (digit === 8 ? 25 : 21), 9)
 
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         readOsuComboScale({
           skinDirectory,
           comboPrefix: "fonts/combo",
           useDoubleResolutionAssets: false,
-        }),
-      /inconsistent.*combo.*height/i,
-    )
+        }))(),
+    ).rejects.toThrow(/inconsistent.*combo.*height/i)
   })
 })
 
@@ -122,13 +115,13 @@ test("does not reinterpret an invalid selected combo image as a missing font", a
     await writeDigits(skinDirectory, "", () => 42, 9)
     await writeFile(path.join(skinDirectory, "fonts", "combo-0.png"), "not an image")
 
-    await assert.rejects(
-      () =>
+    await expectRejectionSatisfies(
+      (() =>
         readOsuComboScale({
           skinDirectory,
           comboPrefix: "fonts/combo",
           useDoubleResolutionAssets: false,
-        }),
+        }))(),
       (error) =>
         error instanceof Error &&
         /combo digit 0/i.test(error.message) &&

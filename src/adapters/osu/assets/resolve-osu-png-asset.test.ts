@@ -1,8 +1,8 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import { type ResolveOsuPngAssetDependencies, resolveOsuPngAsset } from "./resolve-osu-png-asset.ts"
 
 async function withSkin(run: (skinDirectory: string) => Promise<void>): Promise<void> {
@@ -63,10 +63,10 @@ test("selects the unsuffixed PNG for an implicit standard-density reference", as
 
     const asset = await resolve(skinDirectory, "notes\\pink")
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "standard")
-    assert.equal(asset.rotation, 0)
-    assert.equal(asset.frame, undefined)
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("standard")
+    expect(asset.rotation).toBe(0)
+    expect(asset.frame).toBe(undefined)
   })
 })
 
@@ -77,8 +77,8 @@ test("selects the @2x PNG for an implicit double-density reference", async () =>
 
     const asset = await resolve(skinDirectory, "notes\\pink", true)
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "double")
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("double")
   })
 })
 
@@ -89,8 +89,8 @@ test("uses an explicit @2x reference in standard mode", async () => {
 
     const asset = await resolve(skinDirectory, "notes\\pink@2x")
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "double")
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("double")
   })
 })
 
@@ -100,8 +100,8 @@ test("falls back to the unsuffixed PNG for an implicit double-density reference"
 
     const asset = await resolve(skinDirectory, "notes/pink", true, true)
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "standard")
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("standard")
   })
 })
 
@@ -109,7 +109,7 @@ test("does not fall back to @2x when standard density is selected", async () => 
   await withSkin(async (skinDirectory) => {
     await writePng(skinDirectory, "Notes/Pink@2x.png")
 
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /pink\.png/i)
+    await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(/pink\.png/i)
   })
 })
 
@@ -117,23 +117,27 @@ test("an explicit @2x reference never falls back in standard or high-resolution 
   await withSkin(async (skinDirectory) => {
     await writePng(skinDirectory, "Notes/Pink.png")
 
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink@2x"), /pink@2x\.png/i)
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink@2x", true), /pink@2x\.png/i)
+    await expect((() => resolve(skinDirectory, "notes/pink@2x"))()).rejects.toThrow(/pink@2x\.png/i)
+    await expect((() => resolve(skinDirectory, "notes/pink@2x", true))()).rejects.toThrow(
+      /pink@2x\.png/i,
+    )
   })
 })
 
 test("rejects non-PNG extensions before accessing the skin", async () => {
   await withSkin(async (skinDirectory) => {
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink.jpg"), /PNG.*\.jpg/i)
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink.jpeg"), /PNG.*\.jpeg/i)
+    await expect((() => resolve(skinDirectory, "notes/pink.jpg"))()).rejects.toThrow(/PNG.*\.jpg/i)
+    await expect((() => resolve(skinDirectory, "notes/pink.jpeg"))()).rejects.toThrow(
+      /PNG.*\.jpeg/i,
+    )
   })
 })
 
 test("rejects absolute and traversal logical paths", async () => {
   await withSkin(async (skinDirectory) => {
-    await assert.rejects(() => resolve(skinDirectory, "/notes/pink"), /absolute/i)
-    await assert.rejects(() => resolve(skinDirectory, "C:\\notes\\pink"), /absolute/i)
-    await assert.rejects(() => resolve(skinDirectory, "notes/../pink"), /traversal/i)
+    await expect((() => resolve(skinDirectory, "/notes/pink"))()).rejects.toThrow(/absolute/i)
+    await expect((() => resolve(skinDirectory, "C:\\notes\\pink"))()).rejects.toThrow(/absolute/i)
+    await expect((() => resolve(skinDirectory, "notes/../pink"))()).rejects.toThrow(/traversal/i)
   })
 })
 
@@ -143,7 +147,7 @@ test("resolves mixed-case physical path segments case-insensitively", async () =
 
     const asset = await resolve(skinDirectory, "notes/pink")
 
-    assert.equal(asset.filePath, expected)
+    expect(asset.filePath).toBe(expected)
   })
 })
 
@@ -153,7 +157,9 @@ test.skipIf(process.platform === "win32")(
     await withSkin(async (skinDirectory) => {
       await writePng(skinDirectory, "Notes/Pink.png")
       await writePng(skinDirectory, "Notes/PINK.png")
-      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*pink/i)
+      await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(
+        /ambiguous.*pink/i,
+      )
     })
   },
 )
@@ -164,7 +170,9 @@ test.skipIf(process.platform === "win32")(
     await withSkin(async (skinDirectory) => {
       await writePng(skinDirectory, "Notes/Pink.png")
       await writePng(skinDirectory, "NOTES/Other.png")
-      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*notes/i)
+      await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(
+        /ambiguous.*notes/i,
+      )
     })
   },
 )
@@ -173,7 +181,7 @@ test("rejects a directory selected in place of a PNG file", async () => {
   await withSkin(async (skinDirectory) => {
     await mkdir(path.join(skinDirectory, "Notes", "Pink.png"), { recursive: true })
 
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /regular file/i)
+    await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(/regular file/i)
   })
 })
 
@@ -187,7 +195,9 @@ test.skipIf(process.platform === "win32")(
         await mkdir(path.join(skinDirectory, "Notes"), { recursive: true })
         await symlink(outsidePng, path.join(skinDirectory, "Notes", "Pink.png"), "file")
 
-        await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
+        await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(
+          /outside the skin/i,
+        )
       } finally {
         await rm(outsideDirectory, { recursive: true, force: true })
       }
@@ -208,7 +218,9 @@ test.skipIf(!directorySymlinksAvailable)(
           process.platform === "win32" ? "junction" : "dir",
         )
 
-        await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
+        await expect((() => resolve(skinDirectory, "notes/pink"))()).rejects.toThrow(
+          /outside the skin/i,
+        )
       } finally {
         await rm(outsideDirectory, { recursive: true, force: true })
       }
@@ -305,10 +317,10 @@ async function assertBoundaryCause(
   message: RegExp,
   failure: Error,
 ): Promise<void> {
-  await assert.rejects(operation, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, message)
-    assert.equal(error.cause, failure)
+  await expectRejectionSatisfies(operation, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(message)
+    expect(error.cause).toBe(failure)
     return true
   })
 }

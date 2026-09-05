@@ -1,9 +1,9 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import sharp from "sharp"
+import { expectResolves, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
 import { EtternaNoteSkinWriter } from "./etterna-note-skin-writer.ts"
@@ -34,29 +34,28 @@ test("copies the complete static NoteSkin template and adds width-scaled recepto
 
     await new EtternaNoteSkinWriter(templates).writeSkin(etternaSkin(source), workspace)
 
-    assert.equal(await readFile(path.join(workspace, "NoteSkin.lua"), "utf8"), "return {}")
-    assert.equal(await readFile(path.join(workspace, "metrics.ini"), "utf8"), "[Global]\n")
-    assert.deepEqual(
-      await readFile(path.join(workspace, "Holds", "static-ln.png")),
+    expect(await readFile(path.join(workspace, "NoteSkin.lua"), "utf8")).toBe("return {}")
+    expect(await readFile(path.join(workspace, "metrics.ini"), "utf8")).toBe("[Global]\n")
+    expect(await readFile(path.join(workspace, "Holds", "static-ln.png"))).toStrictEqual(
       Buffer.from([7, 8, 9]),
     )
     const receptorFilenames = await readdir(path.join(workspace, "Receptors"))
-    assert.equal(receptorFilenames.length, 8)
+    expect(receptorFilenames.length).toBe(8)
     for (const filename of receptorFilenames) {
       const metadata = await sharp(path.join(workspace, "Receptors", filename)).metadata()
-      assert.deepEqual(
-        { width: metadata.width, height: metadata.height },
-        { width: 146, height: 243 },
-      )
+      expect({ width: metadata.width, height: metadata.height }).toStrictEqual({
+        width: 146,
+        height: 243,
+      })
     }
     const noteFilenames = await readdir(path.join(workspace, "Notes"))
-    assert.equal(noteFilenames.length, 4)
+    expect(noteFilenames.length).toBe(4)
     for (const filename of noteFilenames) {
       const metadata = await sharp(path.join(workspace, "Notes", filename)).metadata()
-      assert.deepEqual(
-        { width: metadata.width, height: metadata.height },
-        { width: 150, height: 250 },
-      )
+      expect({ width: metadata.width, height: metadata.height }).toStrictEqual({
+        width: 150,
+        height: 250,
+      })
     }
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -85,11 +84,12 @@ test("does not require judgements in an osu-derived Etterna model", async () => 
         .toBuffer(),
     )
 
-    await assert.doesNotReject(() =>
-      new EtternaNoteSkinWriter(templates).writeSkin(
-        etternaSkin(source),
-        path.join(root, "workspace"),
-      ),
+    await expectResolves(
+      (() =>
+        new EtternaNoteSkinWriter(templates).writeSkin(
+          etternaSkin(source),
+          path.join(root, "workspace"),
+        ))(),
     )
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -100,22 +100,19 @@ test("rejects non-Etterna and incomplete models before copying the template", as
   const writer = new EtternaNoteSkinWriter("templates")
   const complete = etternaSkin("source.png")
 
-  await assert.rejects(
-    () => writer.writeSkin({ ...complete, game: "osu" }, "workspace"),
-    /Etterna writer.*osu/i,
-  )
-  await assert.rejects(
-    () => writer.writeSkin({ ...complete, assets: {} }, "workspace"),
-    /does not contain receptors/i,
-  )
-  await assert.rejects(
-    () =>
+  await expect(
+    (() => writer.writeSkin({ ...complete, game: "osu" }, "workspace"))(),
+  ).rejects.toThrow(/Etterna writer.*osu/i)
+  await expect(
+    (() => writer.writeSkin({ ...complete, assets: {} }, "workspace"))(),
+  ).rejects.toThrow(/does not contain receptors/i)
+  await expect(
+    (() =>
       writer.writeSkin(
         { ...complete, assets: { receptors: complete.assets.receptors } },
         "workspace",
-      ),
-    /does not contain tap notes/i,
-  )
+      ))(),
+  ).rejects.toThrow(/does not contain tap notes/i)
 })
 
 test("writes neither asset group when receptor preparation fails", async () => {
@@ -130,14 +127,16 @@ test("writes neither asset group when receptor preparation fails", async () => {
     await writeFile(invalidReceptor, "not a PNG")
     const skin = etternaSkin(source)
     const receptors = skin.assets.receptors
-    assert.ok(receptors)
+    expectTruthy(receptors)
     receptors.left.normal = {
       filePath: invalidReceptor,
       rotation: 0,
       pixelDensity: "standard",
     }
 
-    await assert.rejects(() => new EtternaNoteSkinWriter(templates).writeSkin(skin, workspace))
+    await expect(
+      (() => new EtternaNoteSkinWriter(templates).writeSkin(skin, workspace))(),
+    ).rejects.toThrow()
 
     await assertGeneratedDirectoriesAbsent(workspace)
   } finally {
@@ -155,14 +154,16 @@ test("writes neither asset group when tap-note preparation fails", async () => {
     await writeVisiblePng(source)
     const skin = etternaSkin(source)
     const tapNotes = skin.assets.tapNotes
-    assert.ok(tapNotes)
+    expectTruthy(tapNotes)
     tapNotes.right = {
       filePath: path.join(root, "missing-note.png"),
       rotation: 0,
       pixelDensity: "standard",
     }
 
-    await assert.rejects(() => new EtternaNoteSkinWriter(templates).writeSkin(skin, workspace))
+    await expect(
+      (() => new EtternaNoteSkinWriter(templates).writeSkin(skin, workspace))(),
+    ).rejects.toThrow()
 
     await assertGeneratedDirectoriesAbsent(workspace)
   } finally {
@@ -225,6 +226,8 @@ async function writeVisiblePng(filePath: string): Promise<void> {
 
 async function assertGeneratedDirectoriesAbsent(workspace: string): Promise<void> {
   for (const directory of ["Notes", "Receptors"]) {
-    await assert.rejects(() => readdir(path.join(workspace, directory)), { code: "ENOENT" })
+    await expect((() => readdir(path.join(workspace, directory)))()).rejects.toMatchObject({
+      code: "ENOENT",
+    })
   }
 }

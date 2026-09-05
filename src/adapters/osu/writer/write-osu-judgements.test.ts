@@ -1,8 +1,8 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import {
   type JudgementGrade,
   type JudgementSet,
@@ -37,7 +37,7 @@ test("writes exact osu judgement filenames", async () => {
     },
   })
 
-  assert.deepEqual((await readdir(path.join(outputDirectory, "mania", "judgements"))).sort(), [
+  expect((await readdir(path.join(outputDirectory, "mania", "judgements"))).sort()).toStrictEqual([
     "bad.png",
     "bad@2x.png",
     "good.png",
@@ -51,7 +51,7 @@ test("writes exact osu judgement filenames", async () => {
     "perfect.png",
     "perfect@2x.png",
   ])
-  assert.deepEqual(observedScales, [0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
+  expect(observedScales).toStrictEqual([0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
 })
 
 test("rejects an incomplete judgement set before rendering output", async () => {
@@ -67,8 +67,8 @@ test("rejects an incomplete judgement set before rendering output", async () => 
   }
   let renders = 0
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       writeOsuJudgements({
         judgements: incomplete,
         outputDirectory,
@@ -80,11 +80,10 @@ test("rejects an incomplete judgement set before rendering output", async () => 
             doubleResolution: Buffer.from("hd"),
           }
         },
-      }),
-    /missing.*miss.*judgement/i,
-  )
-  assert.equal(renders, 0)
-  assert.deepEqual(await readdir(outputDirectory), [])
+      }))(),
+  ).rejects.toThrow(/missing.*miss.*judgement/i)
+  expect(renders).toBe(0)
+  expect(await readdir(outputDirectory)).toStrictEqual([])
 })
 
 test("waits for all renders and writes nothing when rendering fails", async () => {
@@ -121,14 +120,14 @@ test("waits for all renders and writes nothing when rendering fails", async () =
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve({
     standardResolution: Buffer.from("sd"),
     doubleResolution: Buffer.from("hd"),
   })
-  await assert.rejects(writing, (error) => error === failure)
-  assert.deepEqual(await readdir(outputDirectory), [])
+  await expectRejectionSatisfies(writing, (error) => error === failure)
+  expect(await readdir(outputDirectory)).toStrictEqual([])
 })
 
 test("waits for all writes before rejecting with the first write failure", async () => {
@@ -168,17 +167,17 @@ test("waits for all writes before rejecting with the first write failure", async
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
+  expect(phase).toBe("started")
 
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => error === failure)
+  await expectRejectionSatisfies(writing, (error) => error === failure)
 })
 
 test("starts all writes and waits for siblings when a writer throws synchronously", async () => {
@@ -219,8 +218,8 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
-  assert.equal(calls, 12)
+  expect(phase).toBe("started")
+  expect(calls).toBe(12)
 
   let settled = false
   void writing.then(
@@ -232,10 +231,10 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
     },
   )
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => error === failure)
+  await expectRejectionSatisfies(writing, (error) => error === failure)
 })
 
 interface Deferred<T> {

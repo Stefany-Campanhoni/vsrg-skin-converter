@@ -1,5 +1,5 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
 import { OsuPngAssetNotFoundError } from "../assets/resolve-osu-png-asset.ts"
@@ -65,13 +65,13 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
   const fallbackSelections: (boolean | undefined)[] = []
   const dependencies = withGenericJudgementResolver({
     readSkinIni: async (skinDirectory) => {
-      assert.equal(skinDirectory, reference.sourcePath)
+      expect(skinDirectory).toBe(reference.sourcePath)
       return { source, filePath: "C:/osu/Skins/Fixture/SKIN.InI" }
     },
     resolveAsset: async (options) => {
       started.push(options.logicalPath)
-      assert.equal(options.skinDirectory, reference.sourcePath)
-      assert.equal(options.useDoubleResolutionAssets, true)
+      expect(options.skinDirectory).toBe(reference.sourcePath)
+      expect(options.useDoubleResolutionAssets).toBe(true)
       fallbackSelections.push(options.fallbackToStandardResolution)
       await Promise.resolve()
       settled.push(options.logicalPath)
@@ -82,7 +82,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
       }
     },
     readComboScale: async (options) => {
-      assert.deepEqual(options, {
+      expect(options).toStrictEqual({
         skinDirectory: reference.sourcePath,
         comboPrefix: "fonts/combo",
         useDoubleResolutionAssets: true,
@@ -96,9 +96,9 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     dependencies,
   ).readSkin(reference)
 
-  assert.deepEqual(started, logicalPaths)
-  assert.deepEqual(settled, logicalPaths)
-  assert.deepEqual(fallbackSelections, [
+  expect(started).toStrictEqual<unknown>(logicalPaths)
+  expect(settled).toStrictEqual<unknown>(logicalPaths)
+  expect(fallbackSelections).toStrictEqual([
     true,
     true,
     true,
@@ -118,9 +118,9 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     undefined,
     undefined,
   ])
-  assert.equal(model.game, "osu")
-  assert.deepEqual(model.metadata, { name: "Parsed Fixture" })
-  assert.deepEqual(model.playfield, {
+  expect(model.game).toBe("osu")
+  expect(model.metadata).toStrictEqual({ name: "Parsed Fixture" })
+  expect(model.playfield).toStrictEqual({
     hitPosition: 436,
     comboPosition: 250,
     judgementPosition: 280,
@@ -130,7 +130,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
     scrollSpeed: 29,
     isDownscroll: false,
   })
-  assert.deepEqual(model.assets.receptors, {
+  expect(model.assets.receptors).toStrictEqual({
     left: {
       normal: asset("receptor-left"),
       pressed: asset("receptor-left-pressed"),
@@ -148,13 +148,13 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
       pressed: asset("receptor-right-pressed"),
     },
   })
-  assert.deepEqual(model.assets.tapNotes, {
+  expect(model.assets.tapNotes).toStrictEqual({
     left: asset("note-left"),
     down: asset("note-down"),
     up: asset("note-up"),
     right: asset("note-right"),
   })
-  assert.deepEqual(model.assets.judgements, {
+  expect(model.assets.judgements).toStrictEqual({
     sourceDensity: 2,
     images: {
       marvelous: asset("judgement-marvelous"),
@@ -165,7 +165,7 @@ test("reads the 4K Mania definition into an osu skin model", async () => {
       miss: asset("judgement-miss"),
     },
   })
-  assert.deepEqual(model.diagnostics, [])
+  expect(model.diagnostics).toStrictEqual([])
 })
 
 test("rejects mixed osu judgement densities", async () => {
@@ -181,7 +181,7 @@ test("rejects mixed osu judgement densities", async () => {
     }),
   )
 
-  await assert.rejects(() => reader.readSkin(reference), /mixed.*judgement.*densit/i)
+  await expect((() => reader.readSkin(reference))()).rejects.toThrow(/mixed.*judgement.*densit/i)
 })
 
 test("uses explicitly referenced @2x judgements when standard density is configured", async () => {
@@ -206,7 +206,7 @@ test("uses explicitly referenced @2x judgements when standard density is configu
 
   const model = await reader.readSkin(reference)
 
-  assert.equal(model.assets.judgements?.sourceDensity, 2)
+  expect(model.assets.judgements?.sourceDensity).toBe(2)
 })
 
 test("resolves absent judgement properties through osu default filenames", async () => {
@@ -241,21 +241,20 @@ test("resolves absent judgement properties through osu default filenames", async
 
   const model = await reader.readSkin(reference)
 
-  assert.deepEqual(
+  expect(
     requestedJudgements.map(({ logicalPath, defaultFileName }) => ({
       logicalPath,
       defaultFileName,
     })),
-    [
-      { logicalPath: undefined, defaultFileName: "mania-hit300g" },
-      { logicalPath: undefined, defaultFileName: "mania-hit300" },
-      { logicalPath: undefined, defaultFileName: "mania-hit200" },
-      { logicalPath: undefined, defaultFileName: "mania-hit100" },
-      { logicalPath: undefined, defaultFileName: "mania-hit50" },
-      { logicalPath: undefined, defaultFileName: "mania-hit0" },
-    ],
-  )
-  assert.equal(model.assets.judgements?.images.miss?.filePath, "mania-hit0.png")
+  ).toStrictEqual([
+    { logicalPath: undefined, defaultFileName: "mania-hit300g" },
+    { logicalPath: undefined, defaultFileName: "mania-hit300" },
+    { logicalPath: undefined, defaultFileName: "mania-hit200" },
+    { logicalPath: undefined, defaultFileName: "mania-hit100" },
+    { logicalPath: undefined, defaultFileName: "mania-hit50" },
+    { logicalPath: undefined, defaultFileName: "mania-hit0" },
+  ])
+  expect(model.assets.judgements?.images.miss?.filePath).toBe("mania-hit0.png")
 })
 
 test("keeps an empty custom judgement set when every selected-density asset is absent", async () => {
@@ -274,7 +273,7 @@ test("keeps an empty custom judgement set when every selected-density asset is a
 
   const model = await reader.readSkin(reference)
 
-  assert.deepEqual(model.assets.judgements, { sourceDensity: 2, images: {} })
+  expect(model.assets.judgements).toStrictEqual({ sourceDensity: 2, images: {} })
 })
 
 test("preserves found custom judgements and leaves only absent grades for target fallback", async () => {
@@ -304,7 +303,7 @@ test("preserves found custom judgements and leaves only absent grades for target
 
   const model = await reader.readSkin(reference)
 
-  assert.deepEqual(model.assets.judgements, {
+  expect(model.assets.judgements).toStrictEqual({
     sourceDensity: 1,
     images: {
       perfect: {
@@ -335,8 +334,8 @@ test("does not reinterpret unsafe judgement resolution failures as missing asset
     },
   )
 
-  await assert.rejects(
-    () => reader.readSkin(reference),
+  await expectRejectionSatisfies(
+    (() => reader.readSkin(reference))(),
     (error) => error instanceof Error && error.cause === unsafePathFailure,
   )
 })
@@ -354,7 +353,7 @@ test("rejects a judgement whose resolved density is missing", async () => {
     }),
   )
 
-  await assert.rejects(() => reader.readSkin(reference), /missing.*judgement.*densit/i)
+  await expect((() => reader.readSkin(reference))()).rejects.toThrow(/missing.*judgement.*densit/i)
 })
 
 test("rejects references from another game before reading inputs", async () => {
@@ -372,11 +371,10 @@ test("rejects references from another game before reading inputs", async () => {
     }),
   )
 
-  await assert.rejects(
-    () => reader.readSkin({ ...reference, game: "etterna" }),
+  await expect((() => reader.readSkin({ ...reference, game: "etterna" }))()).rejects.toThrow(
     /osu reader.*etterna/i,
   )
-  assert.equal(readStarted, false)
+  expect(readStarted).toBe(false)
 })
 
 test("reads the last Name from duplicate General sections", async () => {
@@ -394,7 +392,7 @@ test("reads the last Name from duplicate General sections", async () => {
 
   const model = await reader.readSkin(reference)
 
-  assert.deepEqual(model.metadata, { name: "Conflicting Name" })
+  expect(model.metadata).toStrictEqual({ name: "Conflicting Name" })
 })
 
 test("uses the skin folder name when the General Name property is missing", async () => {
@@ -411,7 +409,7 @@ test("uses the skin folder name when the General Name property is missing", asyn
 
   const model = await reader.readSkin(reference)
 
-  assert.deepEqual(model.metadata, { name: "Fixture" })
+  expect(model.metadata).toStrictEqual({ name: "Fixture" })
 })
 
 test("settles all eighteen assets and reports the first input-order failure with context", async () => {
@@ -437,7 +435,7 @@ test("settles all eighteen assets and reports the first input-order failure with
   const reading = reader.readSkin(reference)
   await Promise.resolve()
   await Promise.resolve()
-  assert.deepEqual(started, logicalPaths)
+  expect(started).toStrictEqual<unknown>(logicalPaths)
 
   pending.get("receptor-left-pressed")?.reject(firstFailure)
   pending.get("note-left")?.reject(laterFailure)
@@ -455,16 +453,16 @@ test("settles all eighteen assets and reports the first input-order failure with
     readingSettled = true
   })
   await Promise.resolve()
-  assert.equal(readingSettled, false)
+  expect(readingSettled).toBe(false)
 
   pending.get("note-right")?.resolve({ filePath: "note-right.png", rotation: 0 })
   await Promise.resolve()
-  assert.equal(readingSettled, false)
+  expect(readingSettled).toBe(false)
   comboScale.resolve(1)
 
-  await assert.rejects(reading, (error) => {
-    assert.match(String(error), /receptors\.left\.pressed/)
-    assert.equal((error as Error).cause, firstFailure)
+  await expectRejectionSatisfies(reading, (error) => {
+    expect(String(error)).toMatch(/receptors\.left\.pressed/)
+    expect((error as Error).cause).toBe(firstFailure)
     return true
   })
 })

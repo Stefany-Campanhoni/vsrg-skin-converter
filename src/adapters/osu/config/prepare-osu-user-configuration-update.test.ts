@@ -1,9 +1,9 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import {
   prepareOsuUserConfigurationUpdate,
   writeOsuUserConfigurationUpdate,
@@ -17,9 +17,9 @@ test("finds the current user's mixed-case CFG and replaces its only ManiaSpeed w
 
     const update = await prepareOsuUserConfigurationUpdate(osuRoot, "Stefany", 29)
 
-    assert.equal(update.targetPath, targetPath)
-    assert.equal(update.content, "Username = Stefany\r\n  ManiaSpeed = 29\r\nVolume = 80\r\n")
-    assert.deepEqual(update.expectation, {
+    expect(update.targetPath).toBe(targetPath)
+    expect(update.content).toBe("Username = Stefany\r\n  ManiaSpeed = 29\r\nVolume = 80\r\n")
+    expect(update.expectation).toStrictEqual({
       state: "sha256",
       sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
     })
@@ -30,7 +30,7 @@ test("preserves horizontal whitespace after the ManiaSpeed value", async () => {
   await withOsuRoot(async (osuRoot) => {
     const update = await prepareFromSource(osuRoot, "ManiaSpeed = 10   \r\n")
 
-    assert.equal(update.content, "ManiaSpeed = 29   \r\n")
+    expect(update.content).toBe("ManiaSpeed = 29   \r\n")
   })
 })
 
@@ -43,12 +43,12 @@ test("ignores matching names that are not immediate regular files", async () => 
     readFile: async () => Buffer.from("ManiaSpeed=10\n"),
   })
 
-  assert.equal(update.targetPath, path.join("C:/osu!", "osu!.Stefany.cfg"))
+  expect(update.targetPath).toBe(path.join("C:/osu!", "osu!.Stefany.cfg"))
 })
 
 test("rejects ambiguous case-insensitive regular CFG matches before opening either file", async () => {
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
         readDirectory: async () => [
           { name: "OSU!.Stefany.CFG", isFile: () => true },
@@ -57,9 +57,8 @@ test("rejects ambiguous case-insensitive regular CFG matches before opening eith
         readFile: async () => {
           throw new Error("must not read an ambiguous CFG")
         },
-      }),
-    /exactly one osu! user configuration.*osu!\.Stefany\.cfg/i,
-  )
+      }))(),
+  ).rejects.toThrow(/exactly one osu! user configuration.*osu!\.Stefany\.cfg/i)
 })
 
 test("rejects CFGs without exactly one ManiaSpeed assignment", async () => {
@@ -67,10 +66,9 @@ test("rejects CFGs without exactly one ManiaSpeed assignment", async () => {
     const targetPath = path.join(osuRoot, "osu!.Stefany.cfg")
     for (const source of ["Username = Stefany\n", "ManiaSpeed = 10\nManiaSpeed = 11\n"]) {
       await writeFile(targetPath, source)
-      await assert.rejects(
-        () => prepareOsuUserConfigurationUpdate(osuRoot, "Stefany", 29),
-        /exactly one ManiaSpeed assignment.*osu!\.Stefany\.cfg/i,
-      )
+      await expect(
+        (() => prepareOsuUserConfigurationUpdate(osuRoot, "Stefany", 29))(),
+      ).rejects.toThrow(/exactly one ManiaSpeed assignment.*osu!\.Stefany\.cfg/i)
     }
   })
 })
@@ -80,16 +78,14 @@ test("rejects missing or malformed Windows usernames and non-positive integer ta
     await writeFile(path.join(osuRoot, "osu!.Stefany.cfg"), "ManiaSpeed = 10\n")
 
     for (const username of [undefined, "", "Stefany\nAdmin"]) {
-      await assert.rejects(
-        () => prepareOsuUserConfigurationUpdate(osuRoot, username, 29),
-        /Windows username/i,
-      )
+      await expect(
+        (() => prepareOsuUserConfigurationUpdate(osuRoot, username, 29))(),
+      ).rejects.toThrow(/Windows username/i)
     }
     for (const maniaSpeed of [0, -1, 29.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-      await assert.rejects(
-        () => prepareOsuUserConfigurationUpdate(osuRoot, "Stefany", maniaSpeed),
-        /positive integer ManiaSpeed/i,
-      )
+      await expect(
+        (() => prepareOsuUserConfigurationUpdate(osuRoot, "Stefany", maniaSpeed))(),
+      ).rejects.toThrow(/positive integer ManiaSpeed/i)
     }
   })
 })
@@ -110,64 +106,68 @@ test("explains how to create a missing current-user CFG after discovery or openi
 test("wraps directory-listing and CFG-reading failures with their path and cause", async () => {
   const failure = new Error("access denied")
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
         readDirectory: async () => {
           throw failure
         },
         readFile: async () => Buffer.from(""),
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /list.*C:\/osu!/i)
-      assert.equal(error.cause, failure)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/list.*C:\/osu!/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
         readDirectory: async () => [{ name: "osu!.Stefany.cfg", isFile: () => true }],
         readFile: async () => {
           throw failure
         },
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /read.*osu!\.Stefany\.cfg/i)
-      assert.equal(error.cause, failure)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/read.*osu!\.Stefany\.cfg/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
 })
 
 test("wraps null and undefined filesystem failures with their path and original cause", async () => {
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
         readDirectory: async () => {
           throw null
         },
         readFile: async () => Buffer.from(""),
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /list.*C:\/osu!/i)
-      assert.equal(error.cause, null)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/list.*C:\/osu!/i)
+      expect(error.cause).toBe(null)
       return true
     },
   )
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
         readDirectory: async () => [{ name: "osu!.Stefany.cfg", isFile: () => true }],
         readFile: async () => {
           throw undefined
         },
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /read.*osu!\.Stefany\.cfg/i)
-      assert.equal(error.cause, undefined)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/read.*osu!\.Stefany\.cfg/i)
+      expect(error.cause).toBe(undefined)
       return true
     },
   )
@@ -178,7 +178,7 @@ test("writes the prepared UTF-8 content and wraps write failures with their outp
     const update = await prepareFromSource(osuRoot, "ManiaSpeed = 10\n")
     const outputFile = path.join(osuRoot, "staged.cfg")
     await writeOsuUserConfigurationUpdate(outputFile, update)
-    assert.equal(await readFile(outputFile, "utf8"), "ManiaSpeed = 29\n")
+    expect(await readFile(outputFile, "utf8")).toBe("ManiaSpeed = 29\n")
   })
 
   const failure = new Error("disk full")
@@ -187,16 +187,17 @@ test("writes the prepared UTF-8 content and wraps write failures with their outp
     content: "ManiaSpeed = 29\n",
     expectation: { state: "sha256", sha256: "a".repeat(64) } as const,
   }
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       writeOsuUserConfigurationUpdate("C:/staging/osu!.Stefany.cfg", update, {
         writeFile: async () => {
           throw failure
         },
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /write.*C:\/staging\/osu!\.Stefany\.cfg/i)
-      assert.equal(error.cause, failure)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/write.*C:\/staging\/osu!\.Stefany\.cfg/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
@@ -208,10 +209,11 @@ async function prepareFromSource(osuRoot: string, source: string) {
 }
 
 async function assertMissingTarget(action: () => Promise<unknown>): Promise<void> {
-  await assert.rejects(action, (error: Error) => {
-    assert.match(error.message, /Stefany/)
-    assert.match(error.message, /osu!\.Stefany\.cfg/i)
-    assert.match(error.message, /start osu! at least once/i)
+  await expectRejectionSatisfies(action, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/Stefany/)
+    expect(error.message).toMatch(/osu!\.Stefany\.cfg/i)
+    expect(error.message).toMatch(/start osu! at least once/i)
     return true
   })
 }

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -22,7 +21,7 @@ test("resolves assets case-insensitively without an extension", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.deepEqual(resolver.resolveAssets("_down", "go receptor"), [
+    expect(resolver.resolveAssets("_down", "go receptor")).toStrictEqual([
       { filePath: expected, columns: 1, rows: 1 },
     ])
   })
@@ -35,7 +34,7 @@ test("extracts sprite layout metadata from decorated filenames", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.deepEqual(resolver.resolveAssets("_down", "Go Receptor Go"), [
+    expect(resolver.resolveAssets("_down", "Go Receptor Go")).toStrictEqual([
       { filePath: expected, columns: 2, rows: 1 },
     ])
   })
@@ -48,7 +47,7 @@ test("matches StepMania wildcard suffixes after the requested logical name", asy
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.deepEqual(resolver.resolveAssets("_down", "Go Receptor"), [
+    expect(resolver.resolveAssets("_down", "Go Receptor")).toStrictEqual([
       { filePath: expected, columns: 2, rows: 1 },
     ])
   })
@@ -62,7 +61,7 @@ test("does not interpret res metadata as a spritesheet layout", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.deepEqual(resolver.resolveAssets("", "Receptors/release left"), [
+    expect(resolver.resolveAssets("", "Receptors/release left")).toStrictEqual([
       { filePath: expected, columns: 1, rows: 1 },
     ])
   })
@@ -75,7 +74,7 @@ test("accepts a logical texture name that already includes its extension", async
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.deepEqual(resolver.resolveAssets("Receptor 4x1 (doubleres).png"), [
+    expect(resolver.resolveAssets("Receptor 4x1 (doubleres).png")).toStrictEqual([
       { filePath: expected, columns: 4, rows: 1 },
     ])
   })
@@ -89,7 +88,7 @@ test("follows receptor redirections", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.equal(await resolver.resolveReceptorLua("up"), expected)
+    expect(await resolver.resolveReceptorLua("up")).toBe(expected)
   })
 })
 
@@ -101,8 +100,8 @@ test("resolves external Lua files for arbitrary elements", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    assert.equal(await resolver.resolveElementLua("down", "Tap Note"), expected)
-    assert.equal(await resolver.resolveElementLua("up", "Tap Note"), expected)
+    expect(await resolver.resolveElementLua("down", "Tap Note")).toBe(expected)
+    expect(await resolver.resolveElementLua("up", "Tap Note")).toBe(expected)
   })
 })
 
@@ -113,7 +112,7 @@ test("applies cycle and skin-boundary checks to arbitrary elements", async () =>
 
     const resolver = await createSkinFileResolver(directory)
 
-    await assert.rejects(() => resolver.resolveElementLua("up", "Tap Note"), /cycle/i)
+    await expect((() => resolver.resolveElementLua("up", "Tap Note"))()).rejects.toThrow(/cycle/i)
   })
 
   await withSkin(async (directory) => {
@@ -121,7 +120,9 @@ test("applies cycle and skin-boundary checks to arbitrary elements", async () =>
 
     const resolver = await createSkinFileResolver(directory)
 
-    await assert.rejects(() => resolver.resolveElementLua("down", "Tap Note"), /outside the skin/i)
+    await expect((() => resolver.resolveElementLua("down", "Tap Note"))()).rejects.toThrow(
+      /outside the skin/i,
+    )
   })
 })
 
@@ -132,7 +133,7 @@ test("rejects redirection cycles", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    await assert.rejects(() => resolver.resolveReceptorLua("up"), /cycle/i)
+    await expect((() => resolver.resolveReceptorLua("up"))()).rejects.toThrow(/cycle/i)
   })
 })
 
@@ -142,7 +143,7 @@ test("does not resolve paths outside the skin", async () => {
 
     const resolver = await createSkinFileResolver(directory)
 
-    await assert.rejects(() => resolver.resolveReceptorLua("down"), /outside the skin/i)
-    assert.deepEqual(resolver.resolveAssets("../outside"), [])
+    await expect((() => resolver.resolveReceptorLua("down"))()).rejects.toThrow(/outside the skin/i)
+    expect(resolver.resolveAssets("../outside")).toStrictEqual([])
   })
 })

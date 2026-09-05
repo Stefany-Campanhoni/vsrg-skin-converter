@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../tests/support/expectations.ts"
 import { resizeImageExact } from "./resize-image-exact.ts"
 
 test("stretches a non-square PNG to the exact requested dimensions", async () => {
@@ -17,7 +17,7 @@ test("stretches a non-square PNG to the exact requested dimensions", async () =>
 
   const resized = await resizeImageExact(source, { width: 150, height: 150 })
 
-  assert.deepEqual(await imageSize(resized), { width: 150, height: 150 })
+  expect(await imageSize(resized)).toStrictEqual({ width: 150, height: 150 })
 })
 
 test("preserves transparency at the requested dimensions", async () => {
@@ -35,8 +35,8 @@ test("preserves transparency at the requested dimensions", async () => {
   const resized = await resizeImageExact(source, { width: 150, height: 150 })
   const { data, info } = await sharp(resized).raw().toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 150, height: 150 })
-  assert.ok([...data.filter((_, index) => index % 4 === 3)].every((alpha) => alpha === 0))
+  expect({ width: info.width, height: info.height }).toStrictEqual({ width: 150, height: 150 })
+  expectTruthy([...data.filter((_, index) => index % 4 === 3)].every((alpha) => alpha === 0))
 })
 
 test("rejects invalid dimensions before decoding the image", async () => {
@@ -54,20 +54,19 @@ test("rejects invalid dimensions before decoding the image", async () => {
   ] as const) {
     const size = field === "width" ? { width: value, height: 1 } : { width: 1, height: value }
 
-    await assert.rejects(
-      () => resizeImageExact(Buffer.from("invalid"), size),
+    await expect((() => resizeImageExact(Buffer.from("invalid"), size))()).rejects.toThrow(
       new RegExp(field, "i"),
     )
   }
 })
 
 test("retains undecodable image errors as the cause of contextual resize errors", async () => {
-  await assert.rejects(
-    () => resizeImageExact(Buffer.from("invalid"), { width: 146, height: 146 }),
+  await expectRejectionSatisfies(
+    (() => resizeImageExact(Buffer.from("invalid"), { width: 146, height: 146 }))(),
     (error) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /resize image.*146.*146/i)
-      assert.ok(error.cause instanceof Error)
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/resize image.*146.*146/i)
+      expectTruthy(error.cause instanceof Error)
       return true
     },
   )
@@ -75,7 +74,7 @@ test("retains undecodable image errors as the cause of contextual resize errors"
 
 async function imageSize(image: Buffer): Promise<{ width: number; height: number }> {
   const { width, height } = await sharp(image).metadata()
-  assert.ok(width !== undefined)
-  assert.ok(height !== undefined)
+  expectTruthy(width !== undefined)
+  expectTruthy(height !== undefined)
   return { width, height }
 }

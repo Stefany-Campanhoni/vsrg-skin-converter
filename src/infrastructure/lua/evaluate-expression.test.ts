@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import luaparse, { type Expression, type LocalStatement } from "luaparse"
+import { expectTruthy } from "../../../tests/support/expectations.ts"
 import { evaluateLuaString, readLuaStringLiteral } from "./evaluate-expression.ts"
 
 function parseExpression(source: string): Expression {
@@ -8,12 +8,12 @@ function parseExpression(source: string): Expression {
   const statement = chunk.body[0] as LocalStatement
   const expression = statement.init[0]
 
-  assert.ok(expression)
+  expectTruthy(expression)
   return expression
 }
 
 test("evaluates string literals", () => {
-  assert.equal(evaluateLuaString(parseExpression('"Go Receptor"'), {}), "Go Receptor")
+  expect(evaluateLuaString(parseExpression('"Go Receptor"'), {})).toBe("Go Receptor")
 })
 
 test("decodes Lua 5.3 string literals while preserving Unicode", () => {
@@ -28,25 +28,24 @@ test("decodes Lua 5.3 string literals while preserving Unicode", () => {
   ] as const
 
   for (const { raw, expected } of cases) {
-    assert.equal(readLuaStringLiteral({ type: "StringLiteral", value: null, raw }), expected)
+    expect(readLuaStringLiteral({ type: "StringLiteral", value: null, raw })).toBe(expected)
   }
 })
 
 test("resolves controlled identifiers", () => {
-  assert.equal(evaluateLuaString(parseExpression("Button"), { Button: "Down" }), "Down")
+  expect(evaluateLuaString(parseExpression("Button"), { Button: "Down" })).toBe("Down")
 })
 
 test("concatenates supported string expressions", () => {
-  assert.equal(
+  expect(
     evaluateLuaString(parseExpression('Button .. " " .. Element'), {
       Button: "Down",
       Element: "Receptor",
     }),
-    "Down Receptor",
-  )
+  ).toBe("Down Receptor")
 })
 
 test("does not evaluate calls or unknown identifiers", () => {
-  assert.equal(evaluateLuaString(parseExpression('os.execute("anything")'), {}), undefined)
-  assert.equal(evaluateLuaString(parseExpression("Unknown"), {}), undefined)
+  expect(evaluateLuaString(parseExpression('os.execute("anything")'), {})).toBe(undefined)
+  expect(evaluateLuaString(parseExpression("Unknown"), {})).toBe(undefined)
 })

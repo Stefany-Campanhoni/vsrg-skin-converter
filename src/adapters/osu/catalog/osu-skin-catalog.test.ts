@@ -1,8 +1,8 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { OsuSkinCatalog } from "./osu-skin-catalog.ts"
 
 test("lists immediate osu skins by their General names", async () => {
@@ -14,7 +14,7 @@ test("lists immediate osu skins by their General names", async () => {
   await writeFile(path.join(skinsRoot, "unrelated.txt"), "ignored")
   await mkdir(path.join(skinsRoot, "Folder Name", "Nested Skin"))
 
-  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+  expect(await new OsuSkinCatalog().listSkins(osuRoot)).toStrictEqual([
     {
       game: "osu",
       name: "Another Name",
@@ -37,7 +37,7 @@ test("ignores skin directories without a skin.ini", async () => {
   await mkdir(path.join(skinsRoot, "Missing Ini"), { recursive: true })
   await writeSkin(skinsRoot, "Valid Skin", "skin.ini", "Valid Skin")
 
-  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+  expect(await new OsuSkinCatalog().listSkins(osuRoot)).toStrictEqual([
     {
       game: "osu",
       name: "Valid Skin",
@@ -54,7 +54,7 @@ test("uses the skin folder name when the General Name property is missing", asyn
   await mkdir(skinDirectory, { recursive: true })
   await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName-General: Wrong Property")
 
-  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+  expect(await new OsuSkinCatalog().listSkins(osuRoot)).toStrictEqual([
     {
       game: "osu",
       name: "Folder Fallback",
@@ -77,7 +77,7 @@ test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async () => {
     ]),
   )
 
-  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+  expect(await new OsuSkinCatalog().listSkins(osuRoot)).toStrictEqual([
     {
       game: "osu",
       name: "UTF-16 Fixture",
@@ -96,8 +96,8 @@ test.skipIf(process.platform === "win32")(
     await mkdir(skinDirectory, { recursive: true })
     await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: First")
     await writeFile(path.join(skinDirectory, "SKIN.INI"), "[General]\nName: Second")
-    await assert.rejects(
-      () => new OsuSkinCatalog().listSkins(osuRoot),
+    await expectRejectionSatisfies(
+      (() => new OsuSkinCatalog().listSkins(osuRoot))(),
       (error) =>
         error instanceof Error &&
         error.cause instanceof Error &&
@@ -112,8 +112,8 @@ test("does not treat a directory named skin.ini as the required regular file", a
   const skinDirectory = path.join(osuRoot, "Skins", "Directory Ini")
   await mkdir(path.join(skinDirectory, "skin.ini"), { recursive: true })
 
-  await assert.rejects(
-    () => new OsuSkinCatalog().listSkins(osuRoot),
+  await expectRejectionSatisfies(
+    (() => new OsuSkinCatalog().listSkins(osuRoot))(),
     (error) =>
       error instanceof Error &&
       error.cause instanceof Error &&
@@ -131,7 +131,7 @@ test.skipIf(process.platform === "win32")(
     await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: Valid")
     await mkdir(path.join(skinDirectory, "SKIN.INI"))
 
-    await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
+    await expect((() => new OsuSkinCatalog().listSkins(osuRoot))()).rejects.toThrow(/Mixed Ini/)
   },
 )
 
@@ -145,7 +145,7 @@ test("lists a skin with duplicate General sections by its last Name", async () =
     "[General]\nName: First Name\n[gEnErAl]\nName: Second Name",
   )
 
-  assert.deepEqual(await new OsuSkinCatalog().listSkins(osuRoot), [
+  expect(await new OsuSkinCatalog().listSkins(osuRoot)).toStrictEqual([
     {
       game: "osu",
       name: "Second Name",

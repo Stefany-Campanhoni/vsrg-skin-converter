@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { askConfirm } from "./prompts.ts"
 
 test("returns explicit confirmation choices unchanged", async () => {
@@ -11,11 +10,14 @@ test("returns explicit confirmation choices unchanged", async () => {
         return choice
       },
       isCancel: () => false,
-      cancel: () => assert.fail("explicit choices must not cancel the prompt flow"),
+      cancel: () =>
+        (() => {
+          throw new Error("explicit choices must not cancel the prompt flow")
+        })(),
     })
 
-    assert.equal(result, choice)
-    assert.equal(receivedMessage, "Replace the existing NoteSkin?")
+    expect(result).toBe(choice)
+    expect(receivedMessage).toBe("Replace the existing NoteSkin?")
   }
 })
 
@@ -31,6 +33,6 @@ test("uses the standard cancellation path when confirmation is cancelled", async
     },
   })
 
-  assert.equal(result, undefined)
-  assert.equal(cancellationMessage, "bye bye...")
+  expect(result).toBe(undefined)
+  expect(cancellationMessage).toBe("bye bye...")
 })

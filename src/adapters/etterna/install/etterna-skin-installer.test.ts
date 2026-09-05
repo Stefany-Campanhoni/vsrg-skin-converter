@@ -1,9 +1,9 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { access, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type {
   OutputSetPublisher,
   OutputSetTarget,
@@ -56,22 +56,22 @@ test("prepares and publishes NoteSkin, profile, judgement, and assets config as 
   const dependencies: EtternaSkinInstallerDependencies = {
     allocateProfileIdentity: async (actualGameRoot) => {
       calls.push("allocate")
-      assert.equal(actualGameRoot, gameRoot)
+      expect(actualGameRoot).toBe(gameRoot)
       return { id: "00000004", guid: "0123456789abcdef" }
     },
     noteSkinWriter: {
       writeSkin: async (skin, workspace) => {
         calls.push("write NoteSkin")
-        assert.equal(skin, etternaSkin)
-        assert.equal(workspace, "noteskin-staging")
+        expect(skin).toBe(etternaSkin)
+        expect(workspace).toBe("noteskin-staging")
       },
     },
     profileWriter: {
       writeProfile: async (skin, workspace, configuration) => {
         calls.push("write profile")
-        assert.equal(skin, etternaSkin)
-        assert.equal(workspace, "profile-staging")
-        assert.deepEqual(configuration, {
+        expect(skin).toBe(etternaSkin)
+        expect(workspace).toBe("profile-staging")
+        expect(configuration).toStrictEqual({
           profileName: "CFG Username",
           guid: "0123456789abcdef",
           theme: "Rebirth",
@@ -81,32 +81,31 @@ test("prepares and publishes NoteSkin, profile, judgement, and assets config as 
     judgementWriter: {
       writeJudgement: async (skin, stagingFile) => {
         calls.push("write judgement")
-        assert.equal(skin, etternaSkin)
-        assert.equal(stagingFile, "judgement-staging")
+        expect(skin).toBe(etternaSkin)
+        expect(stagingFile).toBe("judgement-staging")
       },
     },
     assetsConfigWriter: {
       prepareUpdate: async (filePath, guid, relativeJudgementPath) => {
         calls.push("prepare config")
-        assert.equal(filePath, path.join(gameRoot, "Save", "Rebirth_settings", "assetsConfig.lua"))
-        assert.equal(guid, "0123456789abcdef")
-        assert.equal(
-          relativeJudgementPath,
+        expect(filePath).toBe(path.join(gameRoot, "Save", "Rebirth_settings", "assetsConfig.lua"))
+        expect(guid).toBe("0123456789abcdef")
+        expect(relativeJudgementPath).toBe(
           "Assets/Judgments/Converted Skin (osu!) - 0123456789abcdef 1x6 (Doubleres).png",
         )
         return preparedUpdate
       },
       writeUpdate: async (stagingFile, update) => {
         calls.push("write config")
-        assert.equal(stagingFile, "config-staging")
-        assert.equal(update, preparedUpdate)
+        expect(stagingFile).toBe("config-staging")
+        expect(update).toBe(preparedUpdate)
       },
     },
     publisher: {
       publish: async (targets) => {
         calls.push("publish")
         publishedTargets = targets
-        assert.equal(targets.length, 4)
+        expect(targets.length).toBe(4)
         await targets[0]?.build("noteskin-staging")
         await targets[1]?.build("profile-staging")
         await targets[2]?.build("judgement-staging")
@@ -126,7 +125,7 @@ test("prepares and publishes NoteSkin, profile, judgement, and assets config as 
     dependencies,
   ).installSkin(etternaSkin)
 
-  assert.deepEqual(calls, [
+  expect(calls).toStrictEqual([
     "allocate",
     "prepare config",
     "publish",
@@ -135,8 +134,8 @@ test("prepares and publishes NoteSkin, profile, judgement, and assets config as 
     "write judgement",
     "write config",
   ])
-  assert.ok(publishedTargets)
-  assert.deepEqual(
+  expectTruthy(publishedTargets)
+  expect(
     publishedTargets.map((target) => ({
       kind: target.kind,
       targetPath: target.targetPath,
@@ -144,42 +143,41 @@ test("prepares and publishes NoteSkin, profile, judgement, and assets config as 
       policy: target.policy,
       expectedContent: target.kind === "file" ? target.expectedContent : undefined,
     })),
-    [
-      {
-        kind: "directory",
-        targetPath: path.join(gameRoot, "NoteSkins", "dance", "Converted Skin (osu!)"),
-        allowedRoot: path.join(gameRoot, "NoteSkins", "dance"),
-        policy: "must-not-exist",
-        expectedContent: undefined,
-      },
-      {
-        kind: "directory",
-        targetPath: path.join(gameRoot, "Save", "LocalProfiles", "00000004"),
-        allowedRoot: path.join(gameRoot, "Save", "LocalProfiles"),
-        policy: "must-not-exist",
-        expectedContent: undefined,
-      },
-      {
-        kind: "file",
-        targetPath: path.join(
-          gameRoot,
-          "Assets",
-          "Judgments",
-          "Converted Skin (osu!) - 0123456789abcdef 1x6 (Doubleres).png",
-        ),
-        allowedRoot: path.join(gameRoot, "Assets", "Judgments"),
-        policy: "must-not-exist",
-        expectedContent: undefined,
-      },
-      {
-        kind: "file",
-        targetPath: path.join(gameRoot, "Save", "Rebirth_settings", "assetsConfig.lua"),
-        allowedRoot: path.join(gameRoot, "Save", "Rebirth_settings"),
-        policy: "replace-existing",
-        expectedContent: preparedUpdate.expectation,
-      },
-    ],
-  )
+  ).toStrictEqual([
+    {
+      kind: "directory",
+      targetPath: path.join(gameRoot, "NoteSkins", "dance", "Converted Skin (osu!)"),
+      allowedRoot: path.join(gameRoot, "NoteSkins", "dance"),
+      policy: "must-not-exist",
+      expectedContent: undefined,
+    },
+    {
+      kind: "directory",
+      targetPath: path.join(gameRoot, "Save", "LocalProfiles", "00000004"),
+      allowedRoot: path.join(gameRoot, "Save", "LocalProfiles"),
+      policy: "must-not-exist",
+      expectedContent: undefined,
+    },
+    {
+      kind: "file",
+      targetPath: path.join(
+        gameRoot,
+        "Assets",
+        "Judgments",
+        "Converted Skin (osu!) - 0123456789abcdef 1x6 (Doubleres).png",
+      ),
+      allowedRoot: path.join(gameRoot, "Assets", "Judgments"),
+      policy: "must-not-exist",
+      expectedContent: undefined,
+    },
+    {
+      kind: "file",
+      targetPath: path.join(gameRoot, "Save", "Rebirth_settings", "assetsConfig.lua"),
+      allowedRoot: path.join(gameRoot, "Save", "Rebirth_settings"),
+      policy: "replace-existing",
+      expectedContent: preparedUpdate.expectation,
+    },
+  ])
 })
 
 test("authorizes replacement only for the expected NoteSkin target", async () => {
@@ -201,7 +199,7 @@ test("authorizes replacement only for the expected NoteSkin target", async () =>
     dependenciesWith(publisher),
   ).installSkin(etternaSkin)
 
-  assert.deepEqual(policies, [
+  expect(policies).toStrictEqual([
     "replace-existing",
     "must-not-exist",
     "must-not-exist",
@@ -222,8 +220,8 @@ test("rejects a non-Etterna model before allocating an identity or publishing", 
     return { id: "00000004", guid: "0123456789abcdef" }
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       new EtternaSkinInstaller(
         {
           gameRoot,
@@ -233,12 +231,11 @@ test("rejects a non-Etterna model before allocating an identity or publishing", 
           overwriteExistingNoteSkin: false,
         },
         dependencies,
-      ).installSkin({ ...etternaSkin, game: "osu" }),
-    /Etterna installer.*osu/i,
-  )
+      ).installSkin({ ...etternaSkin, game: "osu" }))(),
+  ).rejects.toThrow(/Etterna installer.*osu/i)
 
-  assert.equal(allocationStarted, false)
-  assert.equal(publicationStarted, false)
+  expect(allocationStarted).toBe(false)
+  expect(publicationStarted).toBe(false)
 })
 
 test("rejects an absent-target A to B skin mutation before side effects", async () => {
@@ -263,8 +260,8 @@ test("rejects an absent-target A to B skin mutation before side effects", async 
     },
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       new EtternaSkinInstaller(
         {
           gameRoot,
@@ -274,13 +271,12 @@ test("rejects an absent-target A to B skin mutation before side effects", async 
           overwriteExistingNoteSkin: false,
         },
         guardedDependencies,
-      ).installSkin({ ...etternaSkin, metadata: { name: "Parsed skin.ini Name B" } }),
-    /does not match the expected NoteSkin name/i,
-  )
+      ).installSkin({ ...etternaSkin, metadata: { name: "Parsed skin.ini Name B" } }))(),
+  ).rejects.toThrow(/does not match the expected NoteSkin name/i)
 
-  assert.equal(allocationStarted, false)
-  assert.equal(publicationStarted, false)
-  assert.equal(writerStarted, false)
+  expect(allocationStarted).toBe(false)
+  expect(publicationStarted).toBe(false)
+  expect(writerStarted).toBe(false)
 })
 
 test("rejects missing judgements before identity allocation or publication", async () => {
@@ -296,8 +292,8 @@ test("rejects missing judgements before identity allocation or publication", asy
     return { id: "00000004", guid: "0123456789abcdef" }
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       new EtternaSkinInstaller(
         {
           gameRoot,
@@ -307,11 +303,13 @@ test("rejects missing judgements before identity allocation or publication", asy
           overwriteExistingNoteSkin: false,
         },
         dependencies,
-      ).installSkin({ ...etternaSkin, assets: { ...etternaSkin.assets, judgements: undefined } }),
-    /does not contain judgements/i,
-  )
-  assert.equal(allocated, false)
-  assert.equal(published, false)
+      ).installSkin({
+        ...etternaSkin,
+        assets: { ...etternaSkin.assets, judgements: undefined },
+      }))(),
+  ).rejects.toThrow(/does not contain judgements/i)
+  expect(allocated).toBe(false)
+  expect(published).toBe(false)
 })
 
 test("prepares assetsConfig before publication and propagates preparation failure", async () => {
@@ -326,8 +324,8 @@ test("prepares assetsConfig before publication and propagates preparation failur
     throw failure
   }
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       new EtternaSkinInstaller(
         {
           gameRoot,
@@ -337,10 +335,10 @@ test("prepares assetsConfig before publication and propagates preparation failur
           overwriteExistingNoteSkin: false,
         },
         dependencies,
-      ).installSkin(etternaSkin),
+      ).installSkin(etternaSkin))(),
     (error) => error === failure,
   )
-  assert.equal(published, false)
+  expect(published).toBe(false)
 })
 
 test("production composition uses the NoteSkin and profile template subdirectories", async () => {
@@ -370,18 +368,16 @@ test("production composition uses the NoteSkin and profile template subdirectori
     const noteSkinDirectory = path.join(root, "NoteSkins", "dance", skin.metadata.name)
     await access(path.join(noteSkinDirectory, "NoteSkin.lua"))
     await access(path.join(noteSkinDirectory, "metrics.ini"))
-    assert.ok((await readdir(path.join(noteSkinDirectory, "Holds"))).length > 0)
-    assert.ok((await readdir(path.join(noteSkinDirectory, "Misc"))).length > 0)
-    assert.equal((await readdir(path.join(noteSkinDirectory, "Receptors"))).length, 8)
-    assert.equal((await readdir(path.join(noteSkinDirectory, "Notes"))).length, 4)
+    expectTruthy((await readdir(path.join(noteSkinDirectory, "Holds"))).length > 0)
+    expectTruthy((await readdir(path.join(noteSkinDirectory, "Misc"))).length > 0)
+    expect((await readdir(path.join(noteSkinDirectory, "Receptors"))).length).toBe(8)
+    expect((await readdir(path.join(noteSkinDirectory, "Notes"))).length).toBe(4)
 
     const profileDirectory = path.join(root, "Save", "LocalProfiles", "00000004")
-    assert.match(
-      await readFile(path.join(profileDirectory, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(profileDirectory, "Etterna.xml"), "utf8")).toMatch(
       /0123456789abcdef/,
     )
-    assert.match(
-      await readFile(path.join(profileDirectory, "Editable.ini"), "utf8"),
+    expect(await readFile(path.join(profileDirectory, "Editable.ini"), "utf8")).toMatch(
       /CFG Username/,
     )
     await access(path.join(profileDirectory, "Type.ini"))

@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -8,13 +7,12 @@ import { extractEtternaCmod, readEtternaCmod } from "./read-etterna-cmod.ts"
 const profilePath = "C:/Etterna/Save/LocalProfiles/00000001/Etterna.xml"
 
 test("extracts the dance CMod from the DefaultModifiers element", () => {
-  assert.equal(
+  expect(
     extractEtternaCmod(
       "<Stats><GeneralData><DefaultModifiers><dance>C888, Reverse, Overhead, Pink</dance></DefaultModifiers></GeneralData></Stats>",
       profilePath,
     ),
-    888,
-  )
+  ).toBe(888)
 })
 
 test("rejects missing, duplicated, fractional, zero, and negative dance CMods with the profile path", () => {
@@ -26,30 +24,26 @@ test("rejects missing, duplicated, fractional, zero, and negative dance CMods wi
     "<Stats><DefaultModifiers><dance>C0</dance></DefaultModifiers></Stats>",
     "<Stats><DefaultModifiers><dance>C-1</dance></DefaultModifiers></Stats>",
   ]) {
-    assert.throws(() => extractEtternaCmod(source, profilePath), /Etterna\.xml/i)
+    expect(() => extractEtternaCmod(source, profilePath)).toThrow(/Etterna\.xml/i)
   }
 })
 
 test("rejects a valid CMod mixed with a malformed CMod candidate", () => {
-  assert.throws(
-    () =>
-      extractEtternaCmod(
-        "<Stats><DefaultModifiers><dance>C888, C29.5, Reverse</dance></DefaultModifiers></Stats>",
-        profilePath,
-      ),
-    /CMod.*Etterna\.xml/i,
-  )
+  expect(() =>
+    extractEtternaCmod(
+      "<Stats><DefaultModifiers><dance>C888, C29.5, Reverse</dance></DefaultModifiers></Stats>",
+      profilePath,
+    ),
+  ).toThrow(/CMod.*Etterna\.xml/i)
 })
 
 test("rejects a CMod outside the safe-integer range with the profile path", () => {
-  assert.throws(
-    () =>
-      extractEtternaCmod(
-        "<Stats><DefaultModifiers><dance>C9007199254740992, Reverse</dance></DefaultModifiers></Stats>",
-        profilePath,
-      ),
-    /positive integer CMod.*safe-integer.*Etterna\.xml/i,
-  )
+  expect(() =>
+    extractEtternaCmod(
+      "<Stats><DefaultModifiers><dance>C9007199254740992, Reverse</dance></DefaultModifiers></Stats>",
+      profilePath,
+    ),
+  ).toThrow(/positive integer CMod.*safe-integer.*Etterna\.xml/i)
 })
 
 test("rejects nested DefaultModifiers and dance elements with the profile path", () => {
@@ -57,18 +51,17 @@ test("rejects nested DefaultModifiers and dance elements with the profile path",
     "<Stats><DefaultModifiers><DefaultModifiers><dance>C888</dance></DefaultModifiers></DefaultModifiers></Stats>",
     "<Stats><DefaultModifiers><dance>C888<dance>C900</dance></dance></DefaultModifiers></Stats>",
   ]) {
-    assert.throws(() => extractEtternaCmod(source, profilePath), /Etterna\.xml/i)
+    expect(() => extractEtternaCmod(source, profilePath)).toThrow(/Etterna\.xml/i)
   }
 })
 
 test("ignores element-like XML inside comments and reads CMod text from CDATA", () => {
-  assert.equal(
+  expect(
     extractEtternaCmod(
       "<Stats><!-- <DefaultModifiers><dance>C800</dance></DefaultModifiers> --><DefaultModifiers><dance><![CDATA[C888, Reverse]]></dance></DefaultModifiers></Stats>",
       profilePath,
     ),
-    888,
-  )
+  ).toBe(888)
 })
 
 test("reads the selected profile Etterna.xml", async () => {
@@ -81,5 +74,5 @@ test("reads the selected profile Etterna.xml", async () => {
     "<Stats><DefaultModifiers><dance>C777, Reverse</dance></DefaultModifiers></Stats>",
   )
 
-  assert.equal(await readEtternaCmod(gameRoot, "selected-profile"), 777)
+  expect(await readEtternaCmod(gameRoot, "selected-profile")).toBe(777)
 })

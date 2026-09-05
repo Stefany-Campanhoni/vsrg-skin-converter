@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import sharp from "sharp"
+import { expectTruthy } from "../../../tests/support/expectations.ts"
 import { resizeImageProportionally } from "./resize-image.ts"
 
 async function createRgbaPng(): Promise<Buffer> {
@@ -16,30 +16,31 @@ test("resizes RGBA PNGs proportionally with rounded dimensions and preserved alp
 
   const scaled = await resizeImageProportionally(image, 0.6)
   const scaledMetadata = await sharp(scaled).metadata()
-  assert.deepEqual(
-    { width: scaledMetadata.width, height: scaledMetadata.height },
-    { width: 6, height: 4 },
-  )
+  expect({ width: scaledMetadata.width, height: scaledMetadata.height }).toStrictEqual({
+    width: 6,
+    height: 4,
+  })
   const scaledRaw = await sharp(scaled).raw().toBuffer({ resolveWithObject: true })
-  assert.ok(
+  expectTruthy(
     [...scaledRaw.data.filter((_, index) => index % 4 === 3)].every((alpha) => alpha === 127),
   )
 
   const minimum = await resizeImageProportionally(image, 0.01)
   const minimumMetadata = await sharp(minimum).metadata()
-  assert.deepEqual(
-    { width: minimumMetadata.width, height: minimumMetadata.height },
-    { width: 1, height: 1 },
-  )
+  expect({ width: minimumMetadata.width, height: minimumMetadata.height }).toStrictEqual({
+    width: 1,
+    height: 1,
+  })
 })
 
 test("rejects non-positive and non-finite scales", async () => {
   const image = await createRgbaPng()
 
-  await assert.rejects(() => resizeImageProportionally(image, 0), /positive finite/i)
-  await assert.rejects(() => resizeImageProportionally(image, Number.NaN), /positive finite/i)
-  await assert.rejects(
-    () => resizeImageProportionally(image, Number.POSITIVE_INFINITY),
+  await expect((() => resizeImageProportionally(image, 0))()).rejects.toThrow(/positive finite/i)
+  await expect((() => resizeImageProportionally(image, Number.NaN))()).rejects.toThrow(
     /positive finite/i,
   )
+  await expect(
+    (() => resizeImageProportionally(image, Number.POSITIVE_INFINITY))(),
+  ).rejects.toThrow(/positive finite/i)
 })

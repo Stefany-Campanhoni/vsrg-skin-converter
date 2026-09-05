@@ -1,8 +1,8 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectTruthy } from "../../../../../tests/support/expectations.ts"
 import { loadNoteSkinContext } from "../note-skin-context.ts"
 import { analyzeEtternaNotes } from "./analyze-notes.ts"
 
@@ -45,11 +45,11 @@ test("resolves one inline tap-note texture per column", async () => {
   await withSkin(files, async (directory) => {
     const result = await analyzeSkin(directory)
 
-    assert.match(result.notes.left.filePath, /_Left Tap Note/)
-    assert.match(result.notes.down.filePath, /_Down Tap Note/)
-    assert.match(result.notes.up.filePath, /_Up Tap Note/)
-    assert.match(result.notes.right.filePath, /_Right Tap Note/)
-    assert.equal(result.notes.left.frame, undefined)
+    expect(result.notes.left.filePath).toMatch(/_Left Tap Note/)
+    expect(result.notes.down.filePath).toMatch(/_Down Tap Note/)
+    expect(result.notes.up.filePath).toMatch(/_Up Tap Note/)
+    expect(result.notes.right.filePath).toMatch(/_Right Tap Note/)
+    expect(result.notes.left.frame).toBe(undefined)
   })
 })
 
@@ -71,16 +71,15 @@ test("uses edge and middle frames from one shared 1xN sheet and applies enabled 
     async (directory) => {
       const result = await analyzeSkin(directory)
 
-      assert.equal(result.notes.left.frame?.index, 0)
-      assert.equal(result.notes.down.frame?.index, 1)
-      assert.equal(result.notes.up.frame?.index, 1)
-      assert.equal(result.notes.right.frame?.index, 0)
-      assert.deepEqual(
+      expect(result.notes.left.frame?.index).toBe(0)
+      expect(result.notes.down.frame?.index).toBe(1)
+      expect(result.notes.up.frame?.index).toBe(1)
+      expect(result.notes.right.frame?.index).toBe(0)
+      expect(
         Object.fromEntries(
           Object.entries(result.notes).map(([direction, note]) => [direction, note.rotation]),
         ),
-        { left: 90, down: 0, up: 180, right: 270 },
-      )
+      ).toStrictEqual({ left: 90, down: 0, up: 180, right: 270 })
     },
   )
 })
@@ -107,11 +106,11 @@ test("uses frame zero from each Lua-selected 1xN sheet when more than one sheet 
     async (directory) => {
       const result = await analyzeSkin(directory)
 
-      assert.match(result.notes.left.filePath, /_Down Tap Note/)
-      assert.match(result.notes.up.filePath, /_Up Tap Note/)
+      expect(result.notes.left.filePath).toMatch(/_Down Tap Note/)
+      expect(result.notes.up.filePath).toMatch(/_Up Tap Note/)
       for (const note of Object.values(result.notes)) {
-        assert.equal(note.frame?.index, 0)
-        assert.equal(note.rotation, 0)
+        expect(note.frame?.index).toBe(0)
+        expect(note.rotation).toBe(0)
       }
     },
   )
@@ -137,9 +136,9 @@ test("resolves tap notes loaded directly by the NoteSkin Load function", async (
     async (directory) => {
       const result = await analyzeSkin(directory)
 
-      assert.match(result.notes.left.filePath, /_Down Tap Note/)
-      assert.equal(result.notes.left.frame?.index, 0)
-      assert.equal(result.notes.down.frame?.index, 1)
+      expect(result.notes.left.filePath).toMatch(/_Down Tap Note/)
+      expect(result.notes.left.frame?.index).toBe(0)
+      expect(result.notes.down.frame?.index).toBe(1)
     },
   )
 })
@@ -161,7 +160,7 @@ test("uses frame zero from a shared MxN sheet when M is greater than one", async
       const result = await analyzeSkin(directory)
 
       for (const note of Object.values(result.notes)) {
-        assert.deepEqual(note.frame, { index: 0, columns: 3, rows: 8 })
+        expect(note.frame).toStrictEqual({ index: 0, columns: 3, rows: 8 })
       }
     },
   )
@@ -184,8 +183,8 @@ test("warns when a Lua texture query resolves more than one physical image", asy
     async (directory) => {
       const result = await analyzeSkin(directory)
 
-      assert.ok(result.diagnostics.length >= 1)
-      assert.match(result.diagnostics[0]?.message ?? "", /alternatives/i)
+      expectTruthy(result.diagnostics.length >= 1)
+      expect(result.diagnostics[0]?.message ?? "").toMatch(/alternatives/i)
     },
   )
 })
@@ -200,7 +199,7 @@ test("reports the direction when a tap note cannot be resolved", async () => {
       "_Down Tap Note.png": "",
     },
     async (directory) => {
-      await assert.rejects(() => analyzeSkin(directory), /direction left/i)
+      await expect((() => analyzeSkin(directory))()).rejects.toThrow(/direction left/i)
     },
   )
 })
