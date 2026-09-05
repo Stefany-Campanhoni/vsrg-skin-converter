@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
 import { judgementGrades } from "../../../domain/judgement.ts"
 import { analyzeEtternaJudgementSheet } from "./analyze-etterna-judgement-sheet.ts"
@@ -39,9 +39,9 @@ async function writeJudgementSheet(
     .toFile(filePath)
 }
 
-test("analyzes supported judgement layouts and rejects invalid sheets", async (t) => {
+test("analyzes supported judgement layouts and rejects invalid sheets", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-sheet-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const oneBySixPath = path.join(directory, "Fixture 1x6.png")
   const twoBySixDoubleresPath = path.join(directory, "Fixture 2x6 (Doubleres).png")

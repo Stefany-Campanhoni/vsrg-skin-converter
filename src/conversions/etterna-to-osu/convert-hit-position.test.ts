@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import { test } from "node:test"
 import { getHitPosition } from "./convert-hit-position.ts"
 
 test("converts an Etterna hit position with the osu calibration offset", () => {

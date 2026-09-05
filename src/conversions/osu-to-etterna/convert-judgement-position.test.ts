@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { getEtternaJudgementPosition } from "./convert-judgement-position.ts"
 
 test("converts osu judgement positions to Etterna coordinates", () => {

@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { allocateEtternaProfileIdentity } from "./allocate-etterna-profile-identity.ts"
 
 async function withGameRoot(run: (root: string) => Promise<void>): Promise<void> {

@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
 import {
   installRuntimeDependencies,
@@ -20,9 +20,9 @@ async function runtimeFixture() {
   }
 }
 
-test("downloads once, verifies the pinned hash, and returns node.exe", async (context) => {
+test("downloads once, verifies the pinned hash, and returns node.exe", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   const events: unknown[] = []
@@ -81,9 +81,9 @@ test("downloads once, verifies the pinned hash, and returns node.exe", async (co
   ])
 })
 
-test("reuses a cached archive only after verifying its hash", async (context) => {
+test("reuses a cached archive only after verifying its hash", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   await writeFile(fixture.archivePath, "cached")
@@ -118,9 +118,9 @@ test("reuses a cached archive only after verifying its hash", async (context) =>
   assert.deepEqual(hashed, [fixture.archivePath, path.join(fixture.extractionRoot, "node.exe")])
 })
 
-test("rejects a mismatched archive without extracting it", async (context) => {
+test("rejects a mismatched archive without extracting it", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   let extracted = false
@@ -144,9 +144,9 @@ test("rejects a mismatched archive without extracting it", async (context) => {
   assert.equal(extracted, false)
 })
 
-test("rejects an extracted runtime without the regular node.exe file", async (context) => {
+test("rejects an extracted runtime without the regular node.exe file", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   await writeFile(fixture.archivePath, "cached")
@@ -182,9 +182,9 @@ for (const staleCase of [
   "tampered node.exe",
   "wrong node version",
 ] as const) {
-  test(`reextracts a cached runtime with ${staleCase}`, async (context) => {
+  test(`reextracts a cached runtime with ${staleCase}`, async () => {
     const fixture = await runtimeFixture()
-    context.after(() => rm(fixture.root, { recursive: true }))
+    onTestFinished(() => rm(fixture.root, { recursive: true }))
     await writeFile(fixture.archivePath, "cached archive")
     await mkdir(fixture.extractionRoot)
     await writeFile(path.join(fixture.extractionRoot, "node.exe"), "cached node")
@@ -233,9 +233,9 @@ for (const staleCase of [
   })
 }
 
-test("rejects acquire paths outside the explicit controlled root before mutation", async (context) => {
+test("rejects acquire paths outside the explicit controlled root before mutation", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-ownership-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const controlledRoot = path.join(root, "controlled")
   const archivePath = path.join(root, "outside", nodeRuntime.archiveName)
   const extractionRoot = path.join(root, "outside", `node-v${nodeRuntime.version}-win-x64`)
@@ -271,9 +271,9 @@ test("rejects acquire paths outside the explicit controlled root before mutation
   assert.equal(callbackInvoked, false)
 })
 
-test("installs the isolated Windows x64 Sharp dependency tree", async (context) => {
+test("installs the isolated Windows x64 Sharp dependency tree", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-sharp-test-"))
-  context.after(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
+  onTestFinished(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   const installationRoot = path.join(root, "installed")
   await mkdir(sourcePackageDirectory)
@@ -303,9 +303,9 @@ test("installs the isolated Windows x64 Sharp dependency tree", async (context) 
   assert.equal(result, path.join(installationRoot, "node_modules"))
 })
 
-test("rejects missing Sharp runtime trees and retains the command failure cause", async (context) => {
+test("rejects missing Sharp runtime trees and retains the command failure cause", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-sharp-failure-test-"))
-  context.after(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
+  onTestFinished(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
@@ -348,9 +348,9 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
 })
 
 for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
-  test(`restores the previous runtime installation when ${failedBoundary} rename fails`, async (context) => {
+  test(`restores the previous runtime installation when ${failedBoundary} rename fails`, async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-rollback-test-"))
-    context.after(() => rm(root, { recursive: true }))
+    onTestFinished(() => rm(root, { recursive: true }))
     const sourcePackageDirectory = path.join(root, "source")
     const controlledRoot = path.join(root, "controlled")
     const installationRoot = path.join(controlledRoot, "installed")
@@ -395,9 +395,9 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
   })
 }
 
-test("retains the runtime recovery backup when restoration fails", async (context) => {
+test("retains the runtime recovery backup when restoration fails", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-recovery-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   const controlledRoot = path.join(root, "controlled")
   const installationRoot = path.join(controlledRoot, "installed")
@@ -442,9 +442,9 @@ test("retains the runtime recovery backup when restoration fails", async (contex
   assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
 })
 
-test("rejects runtime installation outside the explicit controlled root before mutation", async (context) => {
+test("rejects runtime installation outside the explicit controlled root before mutation", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-ownership-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
@@ -474,12 +474,13 @@ test("rejects runtime installation outside the explicit controlled root before m
   assert.equal(callbackInvoked, false)
 })
 
-test("executes the npm command wrapper on Windows without spawn EINVAL", {
-  skip: process.platform !== "win32",
-}, async () => {
-  await runRuntimeCommand({
-    executable: "npm.cmd",
-    args: ["--version"],
-    cwd: process.cwd(),
-  })
-})
+test.skipIf(process.platform !== "win32")(
+  "executes the npm command wrapper on Windows without spawn EINVAL",
+  async () => {
+    await runRuntimeCommand({
+      executable: "npm.cmd",
+      args: ["--version"],
+      cwd: process.cwd(),
+    })
+  },
+)

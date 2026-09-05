@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { readEtternaJudgementSelection } from "./read-etterna-judgement-selection.ts"
 
 interface SelectionFixture {
@@ -32,7 +32,7 @@ async function createSelectionFixture(
   }
 }
 
-test("selects the GUID-specific judgement file", async (context) => {
+test("selects the GUID-specific judgement file", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -44,7 +44,7 @@ test("selects the GUID-specific judgement file", async (context) => {
   `,
     ["selected 1x6.png", "default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -52,7 +52,7 @@ test("selects the GUID-specific judgement file", async (context) => {
   assert.deepEqual(result.diagnostics, [])
 })
 
-test("ignores Unicode in unselected judgement mappings", async (context) => {
+test("ignores Unicode in unselected judgement mappings", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -65,7 +65,7 @@ test("ignores Unicode in unselected judgement mappings", async (context) => {
   `,
     ["selected 1x6.png", "default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -73,7 +73,7 @@ test("ignores Unicode in unselected judgement mappings", async (context) => {
   assert.deepEqual(result.diagnostics, [])
 })
 
-test("selects a judgement whose path contains Unicode", async (context) => {
+test("selects a judgement whose path contains Unicode", async () => {
   const filename = "陽気 ⌈Lite⌋ 1x6.png"
   const fixture = await createSelectionFixture(
     `
@@ -86,7 +86,7 @@ test("selects a judgement whose path contains Unicode", async (context) => {
   `,
     [filename, "default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -94,7 +94,7 @@ test("selects a judgement whose path contains Unicode", async (context) => {
   assert.deepEqual(result.diagnostics, [])
 })
 
-test("selects a Unicode judgement encoded as hexadecimal UTF-8 bytes", async (context) => {
+test("selects a Unicode judgement encoded as hexadecimal UTF-8 bytes", async () => {
   const filename = "気 1x6.png"
   const fixture = await createSelectionFixture(
     String.raw`
@@ -107,7 +107,7 @@ test("selects a Unicode judgement encoded as hexadecimal UTF-8 bytes", async (co
   `,
     [filename, "default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -115,22 +115,22 @@ test("selects a Unicode judgement encoded as hexadecimal UTF-8 bytes", async (co
   assert.deepEqual(result.diagnostics, [])
 })
 
-test("reads judgement configuration from the selected theme settings", async (context) => {
+test("reads judgement configuration from the selected theme settings", async () => {
   const fixture = await createSelectionFixture(
     `return { judgment = { default = "Assets/Judgments/default 1x6.png" } }`,
     ["default 1x6.png"],
     "Custom",
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Custom")
 
   assert.equal(path.basename(result.filePath), "default 1x6.png")
 })
 
-test("adds the selected assetsConfig path and cause when configuration reading fails", async (context) => {
+test("adds the selected assetsConfig path and cause when configuration reading fails", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-config-failure-"))
-  context.after(() => rm(root, { recursive: true, force: true }))
+  onTestFinished(() => rm(root, { recursive: true, force: true }))
   const configPath = path.join(root, "Save", "Custom_settings", "assetsConfig.lua")
 
   await assert.rejects(
@@ -140,14 +140,14 @@ test("adds the selected assetsConfig path and cause when configuration reading f
   )
 })
 
-test("uses the default and warns when the GUID mapping is absent", async (context) => {
+test("uses the default and warns when the GUID mapping is absent", async () => {
   const fixture = await createSelectionFixture(
     `
     return { judgment = { default = "Assets/Judgments/default 1x6.png" } }
   `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -163,7 +163,7 @@ test("uses the default and warns when the GUID mapping is absent", async (contex
   ])
 })
 
-test("uses the default and warns when the selected file is missing", async (context) => {
+test("uses the default and warns when the selected file is missing", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -175,7 +175,7 @@ test("uses the default and warns when the selected file is missing", async (cont
   `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")
 
@@ -191,7 +191,7 @@ test("uses the default and warns when the selected file is missing", async (cont
   ])
 })
 
-test("rejects traversal encoded with decimal Lua escapes", async (context) => {
+test("rejects traversal encoded with decimal Lua escapes", async () => {
   const fixture = await createSelectionFixture(
     String.raw`
       return {
@@ -203,7 +203,7 @@ test("rejects traversal encoded with decimal Lua escapes", async (context) => {
     `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   await assert.rejects(
     () => readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth"),
@@ -211,7 +211,7 @@ test("rejects traversal encoded with decimal Lua escapes", async (context) => {
   )
 })
 
-test("rejects traversal encoded with hexadecimal Lua escapes", async (context) => {
+test("rejects traversal encoded with hexadecimal Lua escapes", async () => {
   const fixture = await createSelectionFixture(
     String.raw`
       return {
@@ -223,7 +223,7 @@ test("rejects traversal encoded with hexadecimal Lua escapes", async (context) =
     `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   await assert.rejects(
     () => readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth"),
@@ -231,14 +231,14 @@ test("rejects traversal encoded with hexadecimal Lua escapes", async (context) =
   )
 })
 
-test("rejects unsafe paths and unusable defaults", async (context) => {
+test("rejects unsafe paths and unusable defaults", async () => {
   const unsafe = await createSelectionFixture(
     `
     return { judgment = { fixtureguid = "../outside.png", default = "Assets/Judgments/default 1x6.png" } }
   `,
     ["default 1x6.png"],
   )
-  context.after(unsafe.cleanup)
+  onTestFinished(unsafe.cleanup)
   await assert.rejects(
     () => readEtternaJudgementSelection(unsafe.root, "fixtureguid", "Rebirth"),
     /unsafe.*judgement.*path/i,
@@ -250,14 +250,14 @@ test("rejects unsafe paths and unusable defaults", async (context) => {
   `,
     [],
   )
-  context.after(missingDefault.cleanup)
+  onTestFinished(missingDefault.cleanup)
   await assert.rejects(
     () => readEtternaJudgementSelection(missingDefault.root, "fixtureguid", "Rebirth"),
     /default.*does not exist/i,
   )
 })
 
-test("rejects an unsafe default even when the selected file exists", async (context) => {
+test("rejects an unsafe default even when the selected file exists", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -269,7 +269,7 @@ test("rejects an unsafe default even when the selected file exists", async (cont
   `,
     ["selected 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   await assert.rejects(
     () => readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth"),
@@ -277,9 +277,9 @@ test("rejects an unsafe default even when the selected file exists", async (cont
   )
 })
 
-test("rejects malformed configuration with its path", async (context) => {
+test("rejects malformed configuration with its path", async () => {
   const fixture = await createSelectionFixture("return { judgment = {", [])
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   await assert.rejects(
     () => readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth"),
@@ -287,7 +287,7 @@ test("rejects malformed configuration with its path", async (context) => {
   )
 })
 
-test("rejects absolute paths and unsupported image extensions", async (context) => {
+test("rejects absolute paths and unsupported image extensions", async () => {
   const absolute = await createSelectionFixture(
     `
     return {
@@ -299,7 +299,7 @@ test("rejects absolute paths and unsupported image extensions", async (context) 
   `,
     ["default 1x6.png"],
   )
-  context.after(absolute.cleanup)
+  onTestFinished(absolute.cleanup)
   await assert.rejects(
     () => readEtternaJudgementSelection(absolute.root, "fixtureguid", "Rebirth"),
     /unsafe.*judgement.*path/i,
@@ -316,14 +316,14 @@ test("rejects absolute paths and unsupported image extensions", async (context) 
   `,
     ["selected.gif", "default 1x6.png"],
   )
-  context.after(unsupported.cleanup)
+  onTestFinished(unsupported.cleanup)
   await assert.rejects(
     () => readEtternaJudgementSelection(unsupported.root, "fixtureguid", "Rebirth"),
     /unsupported.*judgement.*image/i,
   )
 })
 
-test("requires a usable default even when the selected file exists", async (context) => {
+test("requires a usable default even when the selected file exists", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -335,7 +335,7 @@ test("requires a usable default even when the selected file exists", async (cont
   `,
     ["selected 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
 
   await assert.rejects(
     () => readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth"),
@@ -343,7 +343,7 @@ test("requires a usable default even when the selected file exists", async (cont
   )
 })
 
-test("rejects a selected file whose real path escapes the game root", async (context) => {
+test("rejects a selected file whose real path escapes the game root", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -355,9 +355,9 @@ test("rejects a selected file whose real path escapes the game root", async (con
   `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
   const outside = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-outside-"))
-  context.after(() => rm(outside, { recursive: true, force: true }))
+  onTestFinished(() => rm(outside, { recursive: true, force: true }))
   await writeFile(path.join(outside, "outside.png"), Buffer.from("outside"))
   await symlink(outside, path.join(fixture.root, "Assets", "Judgments", "escape"), "junction")
 
@@ -367,7 +367,7 @@ test("rejects a selected file whose real path escapes the game root", async (con
   )
 })
 
-test("uses the default when the selected path is not a regular file", async (context) => {
+test("uses the default when the selected path is not a regular file", async () => {
   const fixture = await createSelectionFixture(
     `
     return {
@@ -379,7 +379,7 @@ test("uses the default when the selected path is not a regular file", async (con
   `,
     ["default 1x6.png"],
   )
-  context.after(fixture.cleanup)
+  onTestFinished(fixture.cleanup)
   await mkdir(path.join(fixture.root, "Assets", "Judgments", "selected.png"))
 
   const result = await readEtternaJudgementSelection(fixture.root, "fixtureguid", "Rebirth")

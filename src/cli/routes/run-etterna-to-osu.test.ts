@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { EtternaProfile } from "../../adapters/etterna/profile/etterna-profile-catalog.ts"
 import type { ConvertAndInstallSkinRequest } from "../../application/conversion/convert-and-install-skin.ts"
 import type { ConvertSkinRequest } from "../../application/conversion/convert-skin.ts"

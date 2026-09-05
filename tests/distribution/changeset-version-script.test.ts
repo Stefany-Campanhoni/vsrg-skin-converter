@@ -1,9 +1,9 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 import packageJson from "../../package.json" with { type: "json" }

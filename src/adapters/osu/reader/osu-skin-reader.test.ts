@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
 import { OsuPngAssetNotFoundError } from "../assets/resolve-osu-png-asset.ts"

@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { directoryExists, resolveInstallationDirectory } from "./installation-directory.ts"
 
 test("uses the default installation without prompting when it exists", async () => {
@@ -59,9 +59,9 @@ test("opens the picker without inspecting an unavailable default", async () => {
   assert.deepEqual(checkedDirectories, ["D:/Games/osu!"])
 })
 
-test("accepts directories but rejects files and missing paths", async (context) => {
+test("accepts directories but rejects files and missing paths", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "installation-directory-"))
-  context.after(() => rm(temporaryDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(temporaryDirectory, { recursive: true, force: true }))
   const filePath = path.join(temporaryDirectory, "file.txt")
   await writeFile(filePath, "fixture")
 

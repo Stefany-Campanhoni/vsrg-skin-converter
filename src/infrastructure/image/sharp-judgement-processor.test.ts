@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
 import type { ImageAsset } from "../../domain/image.ts"
 import { renderJudgementImageVariants } from "./sharp-judgement-processor.ts"
@@ -48,9 +48,9 @@ async function alphaAt(buffer: Buffer, x: number, y: number): Promise<number> {
   return alpha
 }
 
-test("renders scaled standard-density judgement images at SD and HD sizes", async (t) => {
+test("renders scaled standard-density judgement images at SD and HD sizes", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "standard.png"), 6, 4)
   const variants = await renderJudgementImageVariants(asset, 1, 0.675)
@@ -59,9 +59,9 @@ test("renders scaled standard-density judgement images at SD and HD sizes", asyn
   assert.deepEqual(await dimensions(variants.doubleResolution), { width: 8, height: 5 })
 })
 
-test("renders scaled double-density judgement images with rounded dimensions", async (t) => {
+test("renders scaled double-density judgement images with rounded dimensions", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "double.png"), 9, 7)
   const variants = await renderJudgementImageVariants(asset, 2, 0.675)
@@ -70,9 +70,9 @@ test("renders scaled double-density judgement images with rounded dimensions", a
   assert.deepEqual(await dimensions(variants.doubleResolution), { width: 6, height: 5 })
 })
 
-test("preserves unscaled standard-density judgement output", async (t) => {
+test("preserves unscaled standard-density judgement output", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "standard.png"), 6, 4)
   const variants = await renderJudgementImageVariants(asset, 1, 1)

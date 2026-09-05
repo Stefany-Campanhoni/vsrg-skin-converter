@@ -1,7 +1,7 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { fileURLToPath } from "node:url"
 import { resolveApplicationRoot } from "../application-root.ts"
 import { etternaTemplatesPath, osuTemplatesPath, resolveOsuSkinOutputPath } from "./paths.ts"

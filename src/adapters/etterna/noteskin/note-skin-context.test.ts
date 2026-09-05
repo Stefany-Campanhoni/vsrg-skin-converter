@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { loadNoteSkinContext } from "./note-skin-context.ts"
 
 test("loads shared redirects, rotations, rotation flags, and inline functions", async () => {

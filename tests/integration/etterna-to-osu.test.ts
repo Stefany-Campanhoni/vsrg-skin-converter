@@ -1,8 +1,8 @@
+import { afterAll, beforeAll, describe, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
 import { EtternaSkinReader } from "../../src/adapters/etterna/reader/etterna-skin-reader.ts"
 import {
@@ -22,23 +22,40 @@ import {
 
 const originalOsuConfiguration = "ManiaSpeed = 10\nUnrelatedProperty = keep me\n"
 
-test("Etterna-to-osu production installation", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-conversion-"))
-  const gameRoot = path.join(directory, "Etterna")
-  const skinDirectory = path.join(gameRoot, "NoteSkins", "dance", "Fixture Skin")
-  const profileRoot = path.join(gameRoot, "Save", "LocalProfiles", "00000000")
-  const profileDirectory = path.join(profileRoot, "Rebirth_settings")
-  const assetsSettingsDirectory = path.join(gameRoot, "Save", "Rebirth_settings")
-  const judgementDirectory = path.join(gameRoot, "Assets", "Judgments")
-  const judgementPath = path.join(judgementDirectory, "Fixture Judgment 2x6 (Doubleres).png")
-  const defaultJudgementPath = path.join(judgementDirectory, "default 1x6 (Doubleres).png")
-  const templatesDirectory = path.join(directory, "templates")
-  const osuRoot = path.join(directory, "osu!")
-  const osuConfigurationPath = path.join(osuRoot, "osu!.Stefany.cfg")
-  const outputDirectory = path.join(osuRoot, "Skins", "Fixture Skin")
+describe("Etterna-to-osu production installation", () => {
+  let directory = ""
+  let gameRoot = ""
+  let skinDirectory = ""
+  let profileRoot = ""
+  let profileDirectory = ""
+  let assetsSettingsDirectory = ""
+  let judgementDirectory = ""
+  let judgementPath = ""
+  let defaultJudgementPath = ""
+  let templatesDirectory = ""
+  let osuRoot = ""
+  let osuConfigurationPath = ""
+  let outputDirectory = ""
   const longNoteBody = Buffer.from([10, 20, 30, 40])
   const longNoteTail = Buffer.from([50, 60, 70])
-  try {
+  let installFixture: (
+    publisher?: TransactionalOutputSetPublisher,
+  ) => ReturnType<typeof convertAndInstallSkin>
+
+  beforeAll(async () => {
+    directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-conversion-"))
+    gameRoot = path.join(directory, "Etterna")
+    skinDirectory = path.join(gameRoot, "NoteSkins", "dance", "Fixture Skin")
+    profileRoot = path.join(gameRoot, "Save", "LocalProfiles", "00000000")
+    profileDirectory = path.join(profileRoot, "Rebirth_settings")
+    assetsSettingsDirectory = path.join(gameRoot, "Save", "Rebirth_settings")
+    judgementDirectory = path.join(gameRoot, "Assets", "Judgments")
+    judgementPath = path.join(judgementDirectory, "Fixture Judgment 2x6 (Doubleres).png")
+    defaultJudgementPath = path.join(judgementDirectory, "default 1x6 (Doubleres).png")
+    templatesDirectory = path.join(directory, "templates")
+    osuRoot = path.join(directory, "osu!")
+    osuConfigurationPath = path.join(osuRoot, "osu!.Stefany.cfg")
+    outputDirectory = path.join(osuRoot, "Skins", "Fixture Skin")
     await mkdir(path.join(skinDirectory, "Receptors"), {
       recursive: true,
     })
@@ -179,7 +196,7 @@ test("Etterna-to-osu production installation", async (t) => {
       .png()
       .toFile(path.join(templatesDirectory, "receptor-base.png"))
 
-    const installFixture = (
+    installFixture = (
       publisher: TransactionalOutputSetPublisher = new TransactionalOutputSetPublisher(),
     ) =>
       convertAndInstallSkin(
@@ -220,143 +237,140 @@ test("Etterna-to-osu production installation", async (t) => {
           conversions: new ConversionRegistry([new EtternaToOsuConversion()]),
         },
       )
+  })
 
-    await t.test("converts an Etterna skin into a fully replaced osu workspace", async () => {
-      const result = await installFixture()
+  test("converts and installs the complete production fixture", async () => {
+    const result = await installFixture()
 
-      assert.equal(
-        await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-        "Name: Fixture Skin\nHitPosition: 433\nComboPosition: 209\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
-      )
-      assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
-      assert.equal(
-        await readFile(osuConfigurationPath, "utf8"),
-        "ManiaSpeed = 28\nUnrelatedProperty = keep me\n",
-      )
-      const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
-      const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
-      assert.deepEqual(
-        { width: receptor.info.width, height: receptor.info.height },
-        { width: 150, height: 366 },
-      )
-      assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
-        left: 0,
-        top: 96,
-        right: 149,
-        bottom: 196,
+    assert.equal(
+      await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
+      "Name: Fixture Skin\nHitPosition: 433\nComboPosition: 209\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
+    )
+    assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
+    assert.equal(
+      await readFile(osuConfigurationPath, "utf8"),
+      "ManiaSpeed = 28\nUnrelatedProperty = keep me\n",
+    )
+    const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
+    const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
+    assert.deepEqual(
+      { width: receptor.info.width, height: receptor.info.height },
+      { width: 150, height: 366 },
+    )
+    assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
+      left: 0,
+      top: 96,
+      right: 149,
+      bottom: 196,
+    })
+    await assert.rejects(
+      () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
+      { code: "ENOENT" },
+    )
+    const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
+    assert.deepEqual({ width: note.width, height: note.height }, { width: 32, height: 24 })
+    assert.deepEqual(
+      await readFile(path.join(outputDirectory, "mania", "lns", "body.png")),
+      longNoteBody,
+    )
+    assert.deepEqual(
+      await readFile(path.join(outputDirectory, "mania", "lns", "tail.png")),
+      longNoteTail,
+    )
+    for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
+      await assert.rejects(() => readFile(path.join(outputDirectory, filename)), {
+        code: "ENOENT",
       })
-      await assert.rejects(
-        () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
-        { code: "ENOENT" },
-      )
-      const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
-      assert.deepEqual({ width: note.width, height: note.height }, { width: 32, height: 24 })
-      assert.deepEqual(
-        await readFile(path.join(outputDirectory, "mania", "lns", "body.png")),
-        longNoteBody,
-      )
-      assert.deepEqual(
-        await readFile(path.join(outputDirectory, "mania", "lns", "tail.png")),
-        longNoteTail,
-      )
-      for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
-        await assert.rejects(() => readFile(path.join(outputDirectory, filename)), {
-          code: "ENOENT",
-        })
-      }
-      const judgementOutputDirectory = path.join(outputDirectory, "mania", "judgements")
-      assert.deepEqual((await readdir(judgementOutputDirectory)).sort(), [
-        "bad.png",
-        "bad@2x.png",
-        "good.png",
-        "good@2x.png",
-        "great.png",
-        "great@2x.png",
-        "marvelous.png",
-        "marvelous@2x.png",
-        "miss.png",
-        "miss@2x.png",
-        "perfect.png",
-        "perfect@2x.png",
-      ])
-      const expectedLeftColors = Object.fromEntries(
-        judgementGrades.map((grade, index) => [grade, leftColors[index]]),
-      ) as Record<JudgementGrade, (typeof leftColors)[number]>
+    }
+    const judgementOutputDirectory = path.join(outputDirectory, "mania", "judgements")
+    assert.deepEqual((await readdir(judgementOutputDirectory)).sort(), [
+      "bad.png",
+      "bad@2x.png",
+      "good.png",
+      "good@2x.png",
+      "great.png",
+      "great@2x.png",
+      "marvelous.png",
+      "marvelous@2x.png",
+      "miss.png",
+      "miss@2x.png",
+      "perfect.png",
+      "perfect@2x.png",
+    ])
+    const expectedLeftColors = Object.fromEntries(
+      judgementGrades.map((grade, index) => [grade, leftColors[index]]),
+    ) as Record<JudgementGrade, (typeof leftColors)[number]>
 
-      for (const [grade, color] of Object.entries(expectedLeftColors)) {
-        for (const [suffix, expectedDimensions] of [
-          [".png", { width: 3, height: 2 }],
-          ["@2x.png", { width: 5, height: 4 }],
-        ] as const) {
-          const { data, info } = await sharp(
-            path.join(judgementOutputDirectory, `${grade}${suffix}`),
+    for (const [grade, color] of Object.entries(expectedLeftColors)) {
+      for (const [suffix, expectedDimensions] of [
+        [".png", { width: 3, height: 2 }],
+        ["@2x.png", { width: 5, height: 4 }],
+      ] as const) {
+        const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+        assert.deepEqual({ width: info.width, height: info.height }, expectedDimensions)
+        const offset = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4
+        assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
+      }
+    }
+    for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
+      for (const [suffix, expectedDimensions] of [
+        [".png", { width: 6, height: 4 }],
+        ["@2x.png", { width: 12, height: 7 }],
+      ] as const) {
+        const image = await sharp(
+          path.join(outputDirectory, `combo-${character}${suffix}`),
+        ).metadata()
+        assert.deepEqual({ width: image.width, height: image.height }, expectedDimensions)
+      }
+    }
+    assert.deepEqual(result.diagnostics, [])
+  })
+
+  test("rolls back the skin when the osu configuration promotion fails", async () => {
+    await rm(outputDirectory, { recursive: true, force: true })
+    await mkdir(outputDirectory, { recursive: true })
+    const oldSkinMarker = path.join(outputDirectory, "old-skin.txt")
+    await writeFile(oldSkinMarker, "old skin")
+    await writeFile(osuConfigurationPath, originalOsuConfiguration)
+    let injectedFailure = false
+    let observedPromotedSkin = false
+    const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
+      rename: async (source, destination) => {
+        if (!injectedFailure && destination === osuConfigurationPath) {
+          injectedFailure = true
+          assert.match(
+            await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
+            /^Name: Fixture Skin$/m,
           )
-            .raw()
-            .toBuffer({ resolveWithObject: true })
-          assert.deepEqual({ width: info.width, height: info.height }, expectedDimensions)
-          const offset = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4
-          assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
+          observedPromotedSkin = true
+          throw new Error("fixture CFG promotion failure")
         }
-      }
-      for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
-        for (const [suffix, expectedDimensions] of [
-          [".png", { width: 6, height: 4 }],
-          ["@2x.png", { width: 12, height: 7 }],
-        ] as const) {
-          const image = await sharp(
-            path.join(outputDirectory, `combo-${character}${suffix}`),
-          ).metadata()
-          assert.deepEqual({ width: image.width, height: image.height }, expectedDimensions)
-        }
-      }
-      assert.deepEqual(result.diagnostics, [])
-    })
+        await rename(source, destination)
+      },
+    }
 
-    await t.test("restores both an old osu skin and its CFG when CFG promotion fails", async () => {
-      await rm(outputDirectory, { recursive: true, force: true })
-      await mkdir(outputDirectory, { recursive: true })
-      const oldSkinMarker = path.join(outputDirectory, "old-skin.txt")
-      await writeFile(oldSkinMarker, "old skin")
-      await writeFile(osuConfigurationPath, originalOsuConfiguration)
-      let injectedFailure = false
-      let observedPromotedSkin = false
-      const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
-        rename: async (source, destination) => {
-          if (!injectedFailure && destination === osuConfigurationPath) {
-            injectedFailure = true
-            assert.match(
-              await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
-              /^Name: Fixture Skin$/m,
-            )
-            observedPromotedSkin = true
-            throw new Error("fixture CFG promotion failure")
-          }
-          await rename(source, destination)
-        },
-      }
+    await assert.rejects(
+      () => installFixture(new TransactionalOutputSetPublisher(fileSystem)),
+      (error) =>
+        error instanceof Error &&
+        error.cause instanceof Error &&
+        error.cause.message === "fixture CFG promotion failure",
+    )
 
-      await assert.rejects(
-        () => installFixture(new TransactionalOutputSetPublisher(fileSystem)),
-        (error) =>
-          error instanceof Error &&
-          error.cause instanceof Error &&
-          error.cause.message === "fixture CFG promotion failure",
-      )
+    assert.equal(injectedFailure, true)
+    assert.equal(observedPromotedSkin, true)
+    assert.equal(await readFile(oldSkinMarker, "utf8"), "old skin")
+    assert.deepEqual(await readdir(outputDirectory), ["old-skin.txt"])
+    assert.equal(await readFile(osuConfigurationPath, "utf8"), originalOsuConfiguration)
+    assert.deepEqual((await readdir(path.join(osuRoot, "Skins"))).filter(isTransactionArtifact), [])
+    assert.deepEqual((await readdir(osuRoot)).filter(isTransactionArtifact), [])
+  })
 
-      assert.equal(injectedFailure, true)
-      assert.equal(observedPromotedSkin, true)
-      assert.equal(await readFile(oldSkinMarker, "utf8"), "old skin")
-      assert.deepEqual(await readdir(outputDirectory), ["old-skin.txt"])
-      assert.equal(await readFile(osuConfigurationPath, "utf8"), originalOsuConfiguration)
-      assert.deepEqual(
-        (await readdir(path.join(osuRoot, "Skins"))).filter(isTransactionArtifact),
-        [],
-      )
-      assert.deepEqual((await readdir(osuRoot)).filter(isTransactionArtifact), [])
-    })
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
+  afterAll(async () => {
+    if (directory) await rm(directory, { recursive: true, force: true })
+  })
 })
 
 const leftColors = [

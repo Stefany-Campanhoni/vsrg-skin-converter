@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { getOsuManiaSpeed } from "./convert-scroll-speed.ts"
 
 test("converts Etterna CMod to ManiaSpeed", () => {

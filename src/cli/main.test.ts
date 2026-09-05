@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { type CliDependencies, runCli } from "./main.ts"
 
 test("offers both source games and dispatches the Etterna source route", async () => {

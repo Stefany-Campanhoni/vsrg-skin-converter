@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import luaparse, { type Expression, type LocalStatement } from "luaparse"
 import { evaluateLuaString, readLuaStringLiteral } from "./evaluate-expression.ts"
 
@@ -19,7 +19,7 @@ test("evaluates string literals", () => {
 test("decodes Lua 5.3 string literals while preserving Unicode", () => {
   const cases = [
     { raw: '"陽気 ⌈Lite⌋"', expected: "陽気 ⌈Lite⌋" },
-    { raw: String.raw`"陽\u{6c17}"`, expected: "陽気" },
+    { raw: '"陽\\u{6c17}"', expected: "陽気" },
     { raw: String.raw`"\xE6\xB0\x97"`, expected: "気" },
     { raw: String.raw`"\230\176\151"`, expected: "気" },
     { raw: String.raw`"A\065\x42\n\t\\\""`, expected: 'AAB\n\t\\"' },

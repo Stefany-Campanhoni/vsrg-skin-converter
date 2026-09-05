@@ -1,13 +1,13 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { OsuSkinCatalog } from "./osu-skin-catalog.ts"
 
-test("lists immediate osu skins by their General names", async (context) => {
+test("lists immediate osu skins by their General names", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinsRoot = path.join(osuRoot, "Skins")
   await writeSkin(skinsRoot, "Folder Name", "Skin.InI", "Fixture Name")
   await writeSkin(skinsRoot, "Another Folder", "skin.ini", "Another Name")
@@ -30,9 +30,9 @@ test("lists immediate osu skins by their General names", async (context) => {
   ])
 })
 
-test("ignores skin directories without a skin.ini", async (context) => {
+test("ignores skin directories without a skin.ini", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "invalid-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinsRoot = path.join(osuRoot, "Skins")
   await mkdir(path.join(skinsRoot, "Missing Ini"), { recursive: true })
   await writeSkin(skinsRoot, "Valid Skin", "skin.ini", "Valid Skin")
@@ -47,9 +47,9 @@ test("ignores skin directories without a skin.ini", async (context) => {
   ])
 })
 
-test("uses the skin folder name when the General Name property is missing", async (context) => {
+test("uses the skin folder name when the General Name property is missing", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "fallback-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "Folder Fallback")
   await mkdir(skinDirectory, { recursive: true })
   await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName-General: Wrong Property")
@@ -64,9 +64,9 @@ test("uses the skin folder name when the General Name property is missing", asyn
   ])
 })
 
-test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async (context) => {
+test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "utf16-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "UTF-16 Skin")
   await mkdir(skinDirectory, { recursive: true })
   await writeFile(
@@ -87,30 +87,28 @@ test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async (contex
   ])
 })
 
-test("rejects duplicate case-insensitive skin.ini files", async (context) => {
-  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
-  const skinDirectory = path.join(osuRoot, "Skins", "Duplicate Ini")
-  await mkdir(skinDirectory, { recursive: true })
-  await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: First")
-  await writeFile(path.join(skinDirectory, "SKIN.INI"), "[General]\nName: Second")
-  if ((await readdir(skinDirectory)).length < 2) {
-    context.skip("The current filesystem treats case-only filenames as identical")
-    return
-  }
+test.skipIf(process.platform === "win32")(
+  "rejects duplicate case-insensitive skin.ini files",
+  async () => {
+    const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-osu-skin-catalog-"))
+    onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
+    const skinDirectory = path.join(osuRoot, "Skins", "Duplicate Ini")
+    await mkdir(skinDirectory, { recursive: true })
+    await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: First")
+    await writeFile(path.join(skinDirectory, "SKIN.INI"), "[General]\nName: Second")
+    await assert.rejects(
+      () => new OsuSkinCatalog().listSkins(osuRoot),
+      (error) =>
+        error instanceof Error &&
+        error.cause instanceof Error &&
+        /exactly one skin\.ini/i.test(error.cause.message),
+    )
+  },
+)
 
-  await assert.rejects(
-    () => new OsuSkinCatalog().listSkins(osuRoot),
-    (error) =>
-      error instanceof Error &&
-      error.cause instanceof Error &&
-      /exactly one skin\.ini/i.test(error.cause.message),
-  )
-})
-
-test("does not treat a directory named skin.ini as the required regular file", async (context) => {
+test("does not treat a directory named skin.ini as the required regular file", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "directory-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "Directory Ini")
   await mkdir(path.join(skinDirectory, "skin.ini"), { recursive: true })
 
@@ -123,28 +121,23 @@ test("does not treat a directory named skin.ini as the required regular file", a
   )
 })
 
-test("rejects a skin.ini file alongside a case-variant skin.ini directory", async (context) => {
-  const osuRoot = await mkdtemp(path.join(os.tmpdir(), "mixed-osu-skin-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
-  const skinDirectory = path.join(osuRoot, "Skins", "Mixed Ini")
-  await mkdir(skinDirectory, { recursive: true })
-  await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: Valid")
-  try {
+test.skipIf(process.platform === "win32")(
+  "rejects a skin.ini file alongside a case-variant skin.ini directory",
+  async () => {
+    const osuRoot = await mkdtemp(path.join(os.tmpdir(), "mixed-osu-skin-catalog-"))
+    onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
+    const skinDirectory = path.join(osuRoot, "Skins", "Mixed Ini")
+    await mkdir(skinDirectory, { recursive: true })
+    await writeFile(path.join(skinDirectory, "skin.ini"), "[General]\nName: Valid")
     await mkdir(path.join(skinDirectory, "SKIN.INI"))
-  } catch (error) {
-    if (error instanceof Error && "code" in error && error.code === "EEXIST") {
-      context.skip("The current filesystem treats case-only filenames as identical")
-      return
-    }
-    throw error
-  }
 
-  await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
-})
+    await assert.rejects(() => new OsuSkinCatalog().listSkins(osuRoot), /Mixed Ini/)
+  },
+)
 
-test("lists a skin with duplicate General sections by its last Name", async (context) => {
+test("lists a skin with duplicate General sections by its last Name", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "duplicate-general-osu-catalog-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   const skinDirectory = path.join(osuRoot, "Skins", "Duplicate General")
   await mkdir(skinDirectory, { recursive: true })
   await writeFile(

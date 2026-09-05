@@ -1,6 +1,6 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
-import test from "node:test"
 import { fileURLToPath } from "node:url"
 
 test("prints the complete error stack when started through the dev script", async () => {
@@ -11,7 +11,7 @@ test("prints the complete error stack when started through the dev script", asyn
   })
 
   assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /Error: Unknown argument: --unknown[\s\S]+\s+at /)
+  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("prints the complete error stack when started with --verbose", async () => {
@@ -22,7 +22,7 @@ test("prints the complete error stack when started with --verbose", async () => 
   })
 
   assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /Error: Unknown argument: --unknown[\s\S]+\s+at /)
+  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("prints the complete error stack when --verbose is repeated", async () => {
@@ -33,7 +33,7 @@ test("prints the complete error stack when --verbose is repeated", async () => {
   })
 
   assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /Error: Unknown argument: --unknown[\s\S]+\s+at /)
+  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("keeps error output concise outside the dev script", async () => {

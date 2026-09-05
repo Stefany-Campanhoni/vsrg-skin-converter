@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { invokeAsPromise, settleAll } from "./settle-all.ts"
 
 test("invokes a task immediately and converts a synchronous throw into a rejection", async () => {

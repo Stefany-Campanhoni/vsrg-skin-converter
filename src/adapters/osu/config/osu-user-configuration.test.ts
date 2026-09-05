@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { listOsuUserConfigurations, parseOsuUserConfiguration } from "./osu-user-configuration.ts"
 
 test("uses the active fullscreen resolution and marks larger displays as double resolution", () => {
@@ -153,9 +153,9 @@ test("rejects empty and multiline usernames with the configuration path", () => 
   )
 })
 
-test("lists immediate osu user configurations by username", async (context) => {
+test("lists immediate osu user configurations by username", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "osu-configurations-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   await writeConfiguration(osuRoot, "osu!.Alice.cfg", "Alice")
   await writeConfiguration(osuRoot, "osu!.Bob.CFG", "Bob")
   await writeConfiguration(osuRoot, "osu!.cfg", "Ignored")
@@ -182,9 +182,9 @@ test("lists immediate osu user configurations by username", async (context) => {
   ])
 })
 
-test("rejects an osu root that contains no user configurations", async (context) => {
+test("rejects an osu root that contains no user configurations", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "empty-osu-configurations-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
 
   await assert.rejects(
     () => listOsuUserConfigurations(osuRoot),

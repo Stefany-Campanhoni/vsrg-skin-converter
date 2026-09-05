@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { extractEtternaCmod, readEtternaCmod } from "./read-etterna-cmod.ts"
 
 const profilePath = "C:/Etterna/Save/LocalProfiles/00000001/Etterna.xml"
@@ -71,9 +71,9 @@ test("ignores element-like XML inside comments and reads CMod text from CDATA", 
   )
 })
 
-test("reads the selected profile Etterna.xml", async (context) => {
+test("reads the selected profile Etterna.xml", async () => {
   const gameRoot = await mkdtemp(path.join(os.tmpdir(), "etterna-cmod-"))
-  context.after(() => rm(gameRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(gameRoot, { recursive: true, force: true }))
   const profileDirectory = path.join(gameRoot, "Save", "LocalProfiles", "selected-profile")
   await mkdir(profileDirectory, { recursive: true })
   await writeFile(

@@ -1,9 +1,9 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { fileURLToPath } from "node:url"
 import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
@@ -55,13 +55,11 @@ function runLauncher(
   })
 }
 
-test("runs the real portable package from an external cwd and a path containing spaces", {
-  timeout: 180_000,
-}, async (context) => {
+test("runs the real portable package from an external cwd and a path containing spaces", async () => {
   const projectRoot = fileURLToPath(new URL("../../", import.meta.url))
   const releasePaths = getReleasePaths(projectRoot, packageJson.version)
   const temporaryRoot = await mkdtemp(path.join(os.tmpdir(), "Portable Build With Spaces "))
-  context.after(() => rm(temporaryRoot, { recursive: true }))
+  onTestFinished(() => rm(temporaryRoot, { recursive: true }))
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
   const bundlePath = path.join(temporaryRoot, "bundle", "app.mjs")
   const nodeExecutablePath = await acquireNodeRuntime({
@@ -118,4 +116,4 @@ test("runs the real portable package from an external cwd and a path containing 
     (await readFile(path.join(packageRoot, "templates", "etterna", "noteskin", "NoteSkin.lua")))
       .length > 0,
   )
-})
+}, 180_000)

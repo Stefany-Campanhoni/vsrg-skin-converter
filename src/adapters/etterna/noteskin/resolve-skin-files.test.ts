@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { createSkinFileResolver } from "./resolve-skin-files.ts"
 
 async function withSkin(run: (directory: string) => Promise<void>): Promise<void> {
