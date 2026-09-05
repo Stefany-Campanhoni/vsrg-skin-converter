@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { resolveOsuJudgementAsset } from "./resolve-osu-judgement-asset.ts"
 
 async function withSkin(run: (skinDirectory: string) => Promise<void>): Promise<void> {

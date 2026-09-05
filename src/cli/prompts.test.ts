@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { askConfirm } from "./prompts.ts"
 
 test("returns explicit confirmation choices unchanged", async () => {

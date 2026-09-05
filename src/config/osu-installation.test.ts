@@ -1,6 +1,6 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import path from "node:path"
-import test from "node:test"
 import { resolveDefaultOsuInstallationDirectory } from "./osu-installation.ts"
 
 test("resolves the default osu! installation from LOCALAPPDATA", () => {

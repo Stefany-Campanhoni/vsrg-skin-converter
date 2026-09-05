@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { detectVersionRelease } from "../../.ci/release/detect-version-release.ts"
 
 const stableChangelog = "# vsrg-skin-converter\n\n## 0.2.0\n\n### Minor Changes\n"

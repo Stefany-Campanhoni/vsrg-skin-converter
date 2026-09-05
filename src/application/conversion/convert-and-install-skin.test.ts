@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { SkinModel, SkinReference } from "../../domain/skin.ts"
 import type { SkinInstaller } from "../ports/skin-installer.ts"
 import type { SkinReader } from "../ports/skin-reader.ts"

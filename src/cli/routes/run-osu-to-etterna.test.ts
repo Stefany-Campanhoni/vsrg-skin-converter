@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { OsuUserConfiguration } from "../../adapters/osu/config/osu-user-configuration.ts"
 import type { ConvertAndInstallSkinRequest } from "../../application/conversion/convert-and-install-skin.ts"
 import type { SkinInstaller } from "../../application/ports/skin-installer.ts"

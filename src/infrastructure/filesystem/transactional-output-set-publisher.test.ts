@@ -1,3 +1,4 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { createHash } from "node:crypto"
 import {
@@ -15,7 +16,6 @@ import {
 } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import type {
   OutputFileTarget,
   OutputSetTarget,
@@ -78,6 +78,24 @@ function isLinkCapabilityError(error: unknown): boolean {
   )
 }
 
+async function supportsDirectoryAliases(): Promise<boolean> {
+  const root = await makeRoot()
+  const targetDirectory = path.join(root, "target")
+  const alias = path.join(root, "alias")
+  try {
+    await mkdir(targetDirectory)
+    await symlink(targetDirectory, alias, process.platform === "win32" ? "junction" : "dir")
+    return true
+  } catch (error) {
+    if (isLinkCapabilityError(error)) return false
+    throw error
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}
+
+const directoryAliasesAvailable = await supportsDirectoryAliases()
+
 function aggregateErrors(error: AggregateError): readonly unknown[] {
   return error.errors as readonly unknown[]
 }
@@ -99,118 +117,85 @@ test("rejects an empty output set", async () => {
   await assert.rejects(() => new TransactionalOutputSetPublisher().publish([]), /at least one/i)
 })
 
-test("rejects unsafe targets and allowed roots before starting a builder", async (context) => {
-  const root = await makeRoot()
-  let builds = 0
-  const build = async () => {
-    builds += 1
-  }
+const unsafeTargetCases = [
+  "filesystem target root",
+  "filesystem allowed root",
+  "target equal to allowed root",
+  "target outside allowed root",
+] as const
 
-  try {
-    const cases: readonly [string, OutputSetTarget][] = [
-      [
-        "filesystem target root",
-        {
-          ...target(root, "valid", "replace-existing", build),
-          targetPath: path.parse(root).root,
-        },
-      ],
-      [
-        "filesystem allowed root",
-        target(path.parse(root).root, "valid", "replace-existing", build),
-      ],
-      [
-        "target equal to allowed root",
-        { ...target(root, "valid", "replace-existing", build), targetPath: root },
-      ],
-      [
-        "target outside allowed root",
-        {
-          ...target(root, "valid", "replace-existing", build),
-          targetPath: path.join(path.dirname(root), "outside"),
-        },
-      ],
-    ]
-
-    for (const [name, unsafeTarget] of cases) {
-      await context.test(name, async () => {
-        await assert.rejects(
-          () => new TransactionalOutputSetPublisher().publish([unsafeTarget]),
-          /unsafe|outside|root/i,
-        )
-      })
+for (const caseName of unsafeTargetCases) {
+  test(`rejects ${caseName} before starting a builder`, async () => {
+    const root = await makeRoot()
+    let builds = 0
+    const build = async () => {
+      builds += 1
     }
 
-    assert.equal(builds, 0)
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
+    try {
+      const unsafeTarget: OutputSetTarget = (() => {
+        switch (caseName) {
+          case "filesystem target root":
+            return {
+              ...target(root, "valid", "replace-existing", build),
+              targetPath: path.parse(root).root,
+            }
+          case "filesystem allowed root":
+            return target(path.parse(root).root, "valid", "replace-existing", build)
+          case "target equal to allowed root":
+            return { ...target(root, "valid", "replace-existing", build), targetPath: root }
+          case "target outside allowed root":
+            return {
+              ...target(root, "valid", "replace-existing", build),
+              targetPath: path.join(path.dirname(root), "outside"),
+            }
+        }
+      })()
 
-test("rejects duplicate and overlapping targets before starting builders", async (context) => {
-  const root = await makeRoot()
-  let builds = 0
-  const build = async () => {
-    builds += 1
-  }
+      await assert.rejects(
+        () => new TransactionalOutputSetPublisher().publish([unsafeTarget]),
+        /unsafe|outside|root/i,
+      )
+      assert.equal(builds, 0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+}
 
-  try {
-    const output = path.join(root, "output")
-    const cases: readonly [string, readonly OutputSetTarget[]][] = [
-      [
-        "duplicates",
-        [
-          {
-            kind: "directory",
-            targetPath: output,
-            allowedRoot: root,
-            policy: "replace-existing",
-            build,
-          },
-          {
-            kind: "directory",
-            targetPath: path.join(root, ".", "output"),
-            allowedRoot: root,
-            policy: "must-not-exist",
-            build,
-          },
-        ],
-      ],
-      [
-        "overlap",
-        [
-          {
-            kind: "directory",
-            targetPath: output,
-            allowedRoot: root,
-            policy: "replace-existing",
-            build,
-          },
-          {
-            kind: "directory",
-            targetPath: path.join(output, "child"),
-            allowedRoot: root,
-            policy: "must-not-exist",
-            build,
-          },
-        ],
-      ],
-    ]
-
-    for (const [name, unsafeTargets] of cases) {
-      await context.test(name, async () => {
-        await assert.rejects(
-          () => new TransactionalOutputSetPublisher().publish(unsafeTargets),
-          /duplicate|overlap/i,
-        )
-      })
+for (const caseName of ["duplicate", "overlapping"] as const) {
+  test(`rejects ${caseName} targets before starting builders`, async () => {
+    const root = await makeRoot()
+    let builds = 0
+    const build = async () => {
+      builds += 1
     }
 
-    assert.equal(builds, 0)
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
+    try {
+      const output = path.join(root, "output")
+      const secondTargetPath =
+        caseName === "duplicate" ? path.join(root, ".", "output") : path.join(output, "child")
+      const unsafeTargets: readonly OutputSetTarget[] = [
+        target(root, "output", "replace-existing", build),
+        {
+          kind: "directory",
+          targetPath: secondTargetPath,
+          allowedRoot: root,
+          policy: "must-not-exist",
+          build,
+        },
+      ]
+
+      await assert.rejects(
+        () => new TransactionalOutputSetPublisher().publish(unsafeTargets),
+        /duplicate|overlap/i,
+      )
+      assert.equal(builds, 0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+}
 
 test("rejects an existing must-not-exist target before starting any builder", async () => {
   const root = await makeRoot()
@@ -364,55 +349,53 @@ test("publishes replace-existing and must-not-exist targets and removes transact
   }
 })
 
-test("restores every previous target when any rename boundary fails", async (context) => {
-  for (const failingRename of [1, 2, 3, 4]) {
-    await context.test(`rename ${failingRename}`, async () => {
-      const root = await makeRoot()
-      const first = target(root, "first", "replace-existing", async (workspace) => {
-        await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([10, 11]))
-      })
-      const second = target(root, "second", "replace-existing", async (workspace) => {
-        await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([12, 13]))
-      })
-      const firstBytes = Buffer.from([0, 1, 2, 255])
-      const secondBytes = Buffer.from([3, 4, 5, 254])
-      const boundaryFailure = new Error(`rename ${failingRename} failed`)
-      let renameCount = 0
-      const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
-        rename: async (source, destination) => {
-          renameCount += 1
-          if (renameCount === failingRename) {
-            throw boundaryFailure
-          }
-          await rename(source, destination)
-        },
-      }
-
-      try {
-        await mkdir(first.targetPath)
-        await mkdir(second.targetPath)
-        await writeFile(path.join(first.targetPath, "current.bin"), firstBytes)
-        await writeFile(path.join(second.targetPath, "current.bin"), secondBytes)
-
-        await assert.rejects(
-          () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
-          (error) => {
-            assert(error instanceof Error)
-            assert.match(error.message, /rename|back up|promote/i)
-            assert.equal(error.cause, boundaryFailure)
-            return true
-          },
-        )
-
-        assert.deepEqual(await readFile(path.join(first.targetPath, "current.bin")), firstBytes)
-        assert.deepEqual(await readFile(path.join(second.targetPath, "current.bin")), secondBytes)
-        await assertOnlyTargets(root, ["first", "second"])
-      } finally {
-        await rm(root, { recursive: true, force: true })
-      }
+for (const failingRename of [1, 2, 3, 4]) {
+  test(`restores every previous target when rename boundary ${failingRename} fails`, async () => {
+    const root = await makeRoot()
+    const first = target(root, "first", "replace-existing", async (workspace) => {
+      await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([10, 11]))
     })
-  }
-})
+    const second = target(root, "second", "replace-existing", async (workspace) => {
+      await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([12, 13]))
+    })
+    const firstBytes = Buffer.from([0, 1, 2, 255])
+    const secondBytes = Buffer.from([3, 4, 5, 254])
+    const boundaryFailure = new Error(`rename ${failingRename} failed`)
+    let renameCount = 0
+    const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
+      rename: async (source, destination) => {
+        renameCount += 1
+        if (renameCount === failingRename) {
+          throw boundaryFailure
+        }
+        await rename(source, destination)
+      },
+    }
+
+    try {
+      await mkdir(first.targetPath)
+      await mkdir(second.targetPath)
+      await writeFile(path.join(first.targetPath, "current.bin"), firstBytes)
+      await writeFile(path.join(second.targetPath, "current.bin"), secondBytes)
+
+      await assert.rejects(
+        () => new TransactionalOutputSetPublisher(fileSystem).publish([first, second]),
+        (error) => {
+          assert(error instanceof Error)
+          assert.match(error.message, /rename|back up|promote/i)
+          assert.equal(error.cause, boundaryFailure)
+          return true
+        },
+      )
+
+      assert.deepEqual(await readFile(path.join(first.targetPath, "current.bin")), firstBytes)
+      assert.deepEqual(await readFile(path.join(second.targetPath, "current.bin")), secondBytes)
+      await assertOnlyTargets(root, ["first", "second"])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+}
 
 test("removes a newly promoted profile and restores a NoteSkin when a later promotion fails", async () => {
   const root = await makeRoot()
@@ -586,179 +569,159 @@ test("atomically refuses a must-not-exist target created immediately before prom
   }
 })
 
-test("rejects a target that escapes its allowed root through a directory alias", async (context) => {
-  const root = await makeRoot()
-  const allowedRoot = path.join(root, "allowed")
-  const outside = path.join(root, "outside")
-  const alias = path.join(allowedRoot, "escape")
-  let builds = 0
+test.skipIf(!directoryAliasesAvailable)(
+  "rejects a target that escapes its allowed root through a directory alias",
+  async () => {
+    const root = await makeRoot()
+    const allowedRoot = path.join(root, "allowed")
+    const outside = path.join(root, "outside")
+    const alias = path.join(allowedRoot, "escape")
+    let builds = 0
 
-  try {
-    await mkdir(allowedRoot)
-    await mkdir(outside)
     try {
+      await mkdir(allowedRoot)
+      await mkdir(outside)
       await symlink(outside, alias, process.platform === "win32" ? "junction" : "dir")
-    } catch (error) {
-      if (isLinkCapabilityError(error)) {
-        context.skip(`directory aliases are unavailable: ${String(error)}`)
-        return
-      }
-      throw error
+
+      await assert.rejects(
+        () =>
+          new TransactionalOutputSetPublisher().publish([
+            target(allowedRoot, path.join("escape", "output"), "replace-existing", async () => {
+              builds += 1
+            }),
+          ]),
+        /physical|outside allowed root|alias/i,
+      )
+      assert.equal(builds, 0)
+      assert.deepEqual(await readdir(outside), [])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+)
+
+test.skipIf(!directoryAliasesAvailable)(
+  "rejects physically duplicate targets reached through different aliases",
+  async () => {
+    const root = await makeRoot()
+    const allowedRoot = path.join(root, "allowed")
+    const realDirectory = path.join(allowedRoot, "real")
+    const alias = path.join(allowedRoot, "alias")
+    let builds = 0
+    const build = async () => {
+      builds += 1
     }
 
-    await assert.rejects(
-      () =>
-        new TransactionalOutputSetPublisher().publish([
-          target(allowedRoot, path.join("escape", "output"), "replace-existing", async () => {
-            builds += 1
-          }),
-        ]),
-      /physical|outside allowed root|alias/i,
-    )
-    assert.equal(builds, 0)
-    assert.deepEqual(await readdir(outside), [])
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
-
-test("rejects physically duplicate targets reached through different aliases", async (context) => {
-  const root = await makeRoot()
-  const allowedRoot = path.join(root, "allowed")
-  const realDirectory = path.join(allowedRoot, "real")
-  const alias = path.join(allowedRoot, "alias")
-  let builds = 0
-  const build = async () => {
-    builds += 1
-  }
-
-  try {
-    await mkdir(realDirectory, { recursive: true })
     try {
+      await mkdir(realDirectory, { recursive: true })
       await symlink(realDirectory, alias, process.platform === "win32" ? "junction" : "dir")
-    } catch (error) {
-      if (isLinkCapabilityError(error)) {
-        context.skip(`directory aliases are unavailable: ${String(error)}`)
-        return
-      }
-      throw error
+
+      await assert.rejects(
+        () =>
+          new TransactionalOutputSetPublisher().publish([
+            target(allowedRoot, path.join("real", "output"), "replace-existing", build),
+            target(allowedRoot, path.join("alias", "output"), "replace-existing", build),
+          ]),
+        /physical.*duplicate|duplicate.*physical/i,
+      )
+      assert.equal(builds, 0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+)
+
+test.skipIf(!directoryAliasesAvailable)(
+  "rejects physically overlapping targets reached through an alias",
+  async () => {
+    const root = await makeRoot()
+    const allowedRoot = path.join(root, "allowed")
+    const realDirectory = path.join(allowedRoot, "real")
+    const alias = path.join(allowedRoot, "alias")
+    let builds = 0
+    const build = async () => {
+      builds += 1
     }
 
-    await assert.rejects(
-      () =>
-        new TransactionalOutputSetPublisher().publish([
-          target(allowedRoot, path.join("real", "output"), "replace-existing", build),
-          target(allowedRoot, path.join("alias", "output"), "replace-existing", build),
-        ]),
-      /physical.*duplicate|duplicate.*physical/i,
-    )
-    assert.equal(builds, 0)
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
-
-test("rejects physically overlapping targets reached through an alias", async (context) => {
-  const root = await makeRoot()
-  const allowedRoot = path.join(root, "allowed")
-  const realDirectory = path.join(allowedRoot, "real")
-  const alias = path.join(allowedRoot, "alias")
-  let builds = 0
-  const build = async () => {
-    builds += 1
-  }
-
-  try {
-    await mkdir(realDirectory, { recursive: true })
     try {
+      await mkdir(realDirectory, { recursive: true })
       await symlink(realDirectory, alias, process.platform === "win32" ? "junction" : "dir")
-    } catch (error) {
-      if (isLinkCapabilityError(error)) {
-        context.skip(`directory aliases are unavailable: ${String(error)}`)
-        return
-      }
-      throw error
+
+      await assert.rejects(
+        () =>
+          new TransactionalOutputSetPublisher().publish([
+            target(allowedRoot, "real", "replace-existing", build),
+            target(allowedRoot, path.join("alias", "child"), "replace-existing", build),
+          ]),
+        /physical.*overlap|overlap.*physical/i,
+      )
+      assert.equal(builds, 0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
     }
+  },
+)
 
-    await assert.rejects(
-      () =>
-        new TransactionalOutputSetPublisher().publish([
-          target(allowedRoot, "real", "replace-existing", build),
-          target(allowedRoot, path.join("alias", "child"), "replace-existing", build),
-        ]),
-      /physical.*overlap|overlap.*physical/i,
-    )
-    assert.equal(builds, 0)
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
+test.skipIf(!directoryAliasesAvailable)(
+  "rechecks physical containment after a parent alias appears during preparation",
+  async () => {
+    const root = await makeRoot()
+    const allowedRoot = path.join(root, "allowed")
+    const outside = path.join(root, "outside")
+    const alias = path.join(allowedRoot, "late-alias")
+    const probe = path.join(allowedRoot, "alias-probe")
+    let aliasInspections = 0
+    let outsideNestedWasCreated = false
+    let builds = 0
 
-test("rechecks physical containment after a parent alias appears during preparation", async (context) => {
-  const root = await makeRoot()
-  const allowedRoot = path.join(root, "allowed")
-  const outside = path.join(root, "outside")
-  const alias = path.join(allowedRoot, "late-alias")
-  const probe = path.join(allowedRoot, "alias-probe")
-  let aliasInspections = 0
-  let outsideNestedWasCreated = false
-  let builds = 0
-
-  try {
-    await mkdir(allowedRoot)
-    await mkdir(outside)
     try {
+      await mkdir(allowedRoot)
+      await mkdir(outside)
       await symlink(outside, probe, process.platform === "win32" ? "junction" : "dir")
       await rm(probe, { force: true })
-    } catch (error) {
-      if (isLinkCapabilityError(error)) {
-        context.skip(`directory aliases are unavailable: ${String(error)}`)
-        return
-      }
-      throw error
-    }
 
-    const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
-      lstat: async (candidate) => {
-        if (candidate === alias) {
-          aliasInspections += 1
-          if (aliasInspections === 2) {
-            await symlink(outside, alias, process.platform === "win32" ? "junction" : "dir")
+      const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
+        lstat: async (candidate) => {
+          if (candidate === alias) {
+            aliasInspections += 1
+            if (aliasInspections === 2) {
+              await symlink(outside, alias, process.platform === "win32" ? "junction" : "dir")
+            }
           }
-        }
-        return lstat(candidate)
-      },
-      mkdir: async (candidate, options) => {
-        const created = await mkdir(candidate, options)
-        if (candidate === path.join(alias, "nested")) {
-          outsideNestedWasCreated = await exists(path.join(outside, "nested"))
-        }
-        return created
-      },
-    }
+          return lstat(candidate)
+        },
+        mkdir: async (candidate, options) => {
+          const created = await mkdir(candidate, options)
+          if (candidate === path.join(alias, "nested")) {
+            outsideNestedWasCreated = await exists(path.join(outside, "nested"))
+          }
+          return created
+        },
+      }
 
-    await assert.rejects(
-      () =>
-        new TransactionalOutputSetPublisher(fileSystem).publish([
-          target(
-            allowedRoot,
-            path.join("late-alias", "nested", "output"),
-            "replace-existing",
-            async () => {
-              builds += 1
-            },
-          ),
-        ]),
-      /physical|outside allowed root|alias/i,
-    )
-    assert.equal(aliasInspections >= 2, true)
-    assert.equal(outsideNestedWasCreated, false)
-    assert.equal(builds, 0)
-    assert.deepEqual(await readdir(outside), [])
-  } finally {
-    await rm(root, { recursive: true, force: true })
-  }
-})
+      await assert.rejects(
+        () =>
+          new TransactionalOutputSetPublisher(fileSystem).publish([
+            target(
+              allowedRoot,
+              path.join("late-alias", "nested", "output"),
+              "replace-existing",
+              async () => {
+                builds += 1
+              },
+            ),
+          ]),
+        /physical|outside allowed root|alias/i,
+      )
+      assert.equal(aliasInspections >= 2, true)
+      assert.equal(outsideNestedWasCreated, false)
+      assert.equal(builds, 0)
+      assert.deepEqual(await readdir(outside), [])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  },
+)
 
 test("rolls back a must-not-exist target when moving a staged entry fails", async () => {
   const root = await makeRoot()

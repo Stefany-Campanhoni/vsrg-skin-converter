@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { createWindowsRelease } from "../../.ci/release/create-windows-release.ts"
 import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
 
@@ -40,6 +40,31 @@ async function verificationFixture() {
   return { root, packageRoot, sourceTemplatesRoot }
 }
 
+function isLinkCapabilityError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    (error.code === "EPERM" || error.code === "EACCES" || error.code === "ENOSYS")
+  )
+}
+
+async function supportsDirectoryAliases(): Promise<boolean> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-portable-link-probe-"))
+  try {
+    const targetDirectory = path.join(root, "target")
+    await mkdir(targetDirectory)
+    await symlink(targetDirectory, path.join(root, "alias"), "junction")
+    return true
+  } catch (error) {
+    if (isLinkCapabilityError(error)) return false
+    throw error
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}
+
+const directoryAliasesAvailable = await supportsDirectoryAliases()
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
@@ -60,22 +85,22 @@ async function assertInvalidEntry(
   )
 }
 
-test("accepts the exact supported package manifest and matching templates", async (context) => {
+test("accepts the exact supported package manifest and matching templates", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await verifyWindowsPortable({ ...fixture, runRuntimeChecks: false })
 })
 
-test("names a missing required entry and the package root", async (context) => {
+test("names a missing required entry and the package root", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await rm(path.join(fixture.packageRoot, "app.mjs"))
   await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, "app.mjs")
 })
 
-test("rejects forbidden development artifacts and unexpected node executables", async (context) => {
+test("rejects forbidden development artifacts and unexpected node executables", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   for (const entry of [
     "unexpected.ts",
     "node_modules/sharp/internal.test.js",
@@ -94,42 +119,36 @@ test("rejects forbidden development artifacts and unexpected node executables", 
   }
 })
 
-test("rejects unexpected package entries", async (context) => {
+test("rejects unexpected package entries", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await writeFixture(path.join(fixture.packageRoot, "debug.log"), "unexpected")
   await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, "debug.log")
 })
 
-test("rejects a packaged template whose bytes differ from the source", async (context) => {
+test("rejects a packaged template whose bytes differ from the source", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   const entry = "templates/osu/template.ini"
   await writeFile(path.join(fixture.packageRoot, entry), "changed")
   await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, entry)
 })
 
-test("rejects symlinks in the portable package", async (context) => {
+test.skipIf(!directoryAliasesAvailable)("rejects symlinks in the portable package", async () => {
   const fixture = await verificationFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   const entry = "node_modules/sharp/link"
-  try {
-    await symlink(
-      path.join(fixture.packageRoot, "node_modules", "@img"),
-      path.join(fixture.packageRoot, entry),
-      "junction",
-    )
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EPERM")
-      return context.skip("symlinks unavailable")
-    throw error
-  }
+  await symlink(
+    path.join(fixture.packageRoot, "node_modules", "@img"),
+    path.join(fixture.packageRoot, entry),
+    "junction",
+  )
   await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, entry)
 })
 
-test("publishes a versioned ZIP and checksum only after independent extraction verification", async (context) => {
+test("publishes a versioned ZIP and checksum only after independent extraction verification", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
   const packageRoot = path.join(root, "build", packageDirectoryName)
   const releaseRoot = path.join(root, "release")
@@ -175,9 +194,9 @@ test("publishes a versioned ZIP and checksum only after independent extraction v
   assert.match(calls.at(-1) ?? "", new RegExp(`^verify:.*${escapeRegex(packageDirectoryName)}$`))
 })
 
-test("preserves the previous ZIP and checksum when extracted verification fails", async (context) => {
+test("preserves the previous ZIP and checksum when extracted verification fails", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-failure-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
   const packageRoot = path.join(root, "build", packageDirectoryName)
   const releaseRoot = path.join(root, "release")
@@ -223,9 +242,9 @@ for (const failedBoundary of [
   "publish ZIP",
   "publish checksum",
 ] as const) {
-  test(`rolls back the previous release pair when ${failedBoundary} rename fails`, async (context) => {
+  test(`rolls back the previous release pair when ${failedBoundary} rename fails`, async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-rollback-test-"))
-    context.after(() => rm(root, { recursive: true }))
+    onTestFinished(() => rm(root, { recursive: true }))
     const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
     const packageRoot = path.join(root, "build", packageDirectoryName)
     const releaseRoot = path.join(root, "release")
@@ -280,9 +299,9 @@ for (const failedBoundary of [
   })
 }
 
-test("retains both recovery backups when rollback cannot restore the previous pair", async (context) => {
+test("retains both recovery backups when rollback cannot restore the previous pair", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-recovery-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
   const packageRoot = path.join(root, "build", packageDirectoryName)
   const releaseRoot = path.join(root, "release")

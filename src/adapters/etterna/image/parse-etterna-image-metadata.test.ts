@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { parseEtternaImageMetadata } from "./parse-etterna-image-metadata.ts"
 
 test("parses Etterna layout and double-resolution decorations", () => {

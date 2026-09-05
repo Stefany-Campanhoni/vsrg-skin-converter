@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { SkinModel } from "../../domain/skin.ts"
 import { OsuToEtternaConversion } from "./osu-to-etterna-conversion.ts"
 

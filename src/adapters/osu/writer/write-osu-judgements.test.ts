@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import {
   type JudgementGrade,
   type JudgementSet,
@@ -18,9 +18,9 @@ const judgements: JudgementSet = {
   ) as JudgementSet["images"],
 }
 
-test("writes exact osu judgement filenames", async (t) => {
+test("writes exact osu judgement filenames", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
 
   const observedScales: number[] = []
   await writeOsuJudgements({
@@ -54,9 +54,9 @@ test("writes exact osu judgement filenames", async (t) => {
   assert.deepEqual(observedScales, [0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
 })
 
-test("rejects an incomplete judgement set before rendering output", async (t) => {
+test("rejects an incomplete judgement set before rendering output", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const incomplete: JudgementSet = {
     sourceDensity: 1,
     images: Object.fromEntries(
@@ -87,9 +87,9 @@ test("rejects an incomplete judgement set before rendering output", async (t) =>
   assert.deepEqual(await readdir(outputDirectory), [])
 })
 
-test("waits for all renders and writes nothing when rendering fails", async (t) => {
+test("waits for all renders and writes nothing when rendering fails", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<JudgementImageVariants>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact judgement render failure")
@@ -131,9 +131,9 @@ test("waits for all renders and writes nothing when rendering fails", async (t) 
   assert.deepEqual(await readdir(outputDirectory), [])
 })
 
-test("waits for all writes before rejecting with the first write failure", async (t) => {
+test("waits for all writes before rejecting with the first write failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<void>()
   const writesStarted = deferred<void>()
   const failure = new Error("exact judgement write failure")
@@ -181,9 +181,9 @@ test("waits for all writes before rejecting with the first write failure", async
   await assert.rejects(writing, (error) => error === failure)
 })
 
-test("starts all writes and waits for siblings when a writer throws synchronously", async (t) => {
+test("starts all writes and waits for siblings when a writer throws synchronously", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<void>()
   const writesStarted = deferred<void>()
   const failure = new Error("exact synchronous judgement write failure")

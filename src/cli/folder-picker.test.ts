@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { createDirectoryPicker, parseSelectedDirectory } from "./folder-picker.ts"
 
 test("returns the selected directory", () => {

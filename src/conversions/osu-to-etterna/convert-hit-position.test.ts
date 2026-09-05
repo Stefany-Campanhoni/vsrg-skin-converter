@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { getEtternaHitPosition } from "./convert-hit-position.ts"
 
 test("converts osu hit positions to Etterna coordinates", () => {

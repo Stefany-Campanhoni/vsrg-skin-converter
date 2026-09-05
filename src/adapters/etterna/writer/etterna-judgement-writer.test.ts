@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import type { ImageAsset } from "../../../domain/image.ts"
 import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"

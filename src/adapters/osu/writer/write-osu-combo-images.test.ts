@@ -1,14 +1,14 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
 import { writeOsuComboImages } from "./write-osu-combo-images.ts"
 
-test("resizes every copied osu combo image with rounded proportional dimensions", async (t) => {
+test("resizes every copied osu combo image with rounded proportional dimensions", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-combo-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
 
   const expectedFilenames: string[] = []
   for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {

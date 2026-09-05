@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { getEtternaReceptorSize } from "./convert-receptor-size.ts"
 
 test("converts an osu average column width to an Etterna receptor size", () => {

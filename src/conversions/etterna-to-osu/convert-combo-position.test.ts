@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { getComboPosition } from "./convert-combo-position.ts"
 
 test("converts Etterna combo position with the osu calibration offset", () => {

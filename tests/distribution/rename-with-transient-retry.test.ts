@@ -1,5 +1,5 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import test from "node:test"
 import { renameWithTransientRetry } from "../../.ci/release/rename-with-transient-retry.ts"
 
 function fileSystemError(code: string, message: string): NodeJS.ErrnoException {

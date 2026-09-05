@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
-import { mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { type ResolveOsuPngAssetDependencies, resolveOsuPngAsset } from "./resolve-osu-png-asset.ts"
 
 async function withSkin(run: (skinDirectory: string) => Promise<void>): Promise<void> {
@@ -20,6 +20,27 @@ async function writePng(skinDirectory: string, relativePath: string): Promise<st
   await writeFile(filePath, "png")
   return filePath
 }
+
+async function supportsDirectorySymlinks(): Promise<boolean> {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-symlink-probe-"))
+  try {
+    const targetDirectory = path.join(root, "target")
+    await mkdir(targetDirectory)
+    await symlink(
+      targetDirectory,
+      path.join(root, "alias"),
+      process.platform === "win32" ? "junction" : "dir",
+    )
+    return true
+  } catch (error) {
+    if (isSymlinkPermissionError(error)) return false
+    throw error
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+}
+
+const directorySymlinksAvailable = await supportsDirectorySymlinks()
 
 function resolve(
   skinDirectory: string,
@@ -126,33 +147,27 @@ test("resolves mixed-case physical path segments case-insensitively", async () =
   })
 })
 
-test("rejects ambiguous case-insensitive file matches", async (t) => {
-  await withSkin(async (skinDirectory) => {
-    await writePng(skinDirectory, "Notes/Pink.png")
-    await writePng(skinDirectory, "Notes/PINK.png")
-    const entries = await readdir(path.join(skinDirectory, "Notes"))
-    if (entries.length < 2) {
-      t.skip("The current filesystem treats case-only filenames as identical")
-      return
-    }
+test.skipIf(process.platform === "win32")(
+  "rejects ambiguous case-insensitive file matches",
+  async () => {
+    await withSkin(async (skinDirectory) => {
+      await writePng(skinDirectory, "Notes/Pink.png")
+      await writePng(skinDirectory, "Notes/PINK.png")
+      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*pink/i)
+    })
+  },
+)
 
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*pink/i)
-  })
-})
-
-test("rejects ambiguous case-insensitive directory segments", async (t) => {
-  await withSkin(async (skinDirectory) => {
-    await writePng(skinDirectory, "Notes/Pink.png")
-    await writePng(skinDirectory, "NOTES/Other.png")
-    const entries = await readdir(skinDirectory)
-    if (entries.length < 2) {
-      t.skip("The current filesystem treats case-only directory names as identical")
-      return
-    }
-
-    await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*notes/i)
-  })
-})
+test.skipIf(process.platform === "win32")(
+  "rejects ambiguous case-insensitive directory segments",
+  async () => {
+    await withSkin(async (skinDirectory) => {
+      await writePng(skinDirectory, "Notes/Pink.png")
+      await writePng(skinDirectory, "NOTES/Other.png")
+      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /ambiguous.*notes/i)
+    })
+  },
+)
 
 test("rejects a directory selected in place of a PNG file", async () => {
   await withSkin(async (skinDirectory) => {
@@ -162,54 +177,44 @@ test("rejects a directory selected in place of a PNG file", async () => {
   })
 })
 
-test("rejects a selected symlink whose real target escapes the skin", async (t) => {
-  await withSkin(async (skinDirectory) => {
-    const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-outside-"))
-    try {
-      const outsidePng = await writePng(outsideDirectory, "Pink.png")
-      await mkdir(path.join(skinDirectory, "Notes"), { recursive: true })
+test.skipIf(process.platform === "win32")(
+  "rejects a selected symlink whose real target escapes the skin",
+  async () => {
+    await withSkin(async (skinDirectory) => {
+      const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-outside-"))
       try {
+        const outsidePng = await writePng(outsideDirectory, "Pink.png")
+        await mkdir(path.join(skinDirectory, "Notes"), { recursive: true })
         await symlink(outsidePng, path.join(skinDirectory, "Notes", "Pink.png"), "file")
-      } catch (error) {
-        if (isSymlinkPermissionError(error)) {
-          t.skip("Creating symlinks requires unavailable Windows privileges")
-          return
-        }
-        throw error
+
+        await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
+      } finally {
+        await rm(outsideDirectory, { recursive: true, force: true })
       }
+    })
+  },
+)
 
-      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
-    } finally {
-      await rm(outsideDirectory, { recursive: true, force: true })
-    }
-  })
-})
-
-test("rejects an intermediate directory symlink that escapes the skin", async (t) => {
-  await withSkin(async (skinDirectory) => {
-    const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-outside-"))
-    try {
-      await writePng(outsideDirectory, "Pink.png")
+test.skipIf(!directorySymlinksAvailable)(
+  "rejects an intermediate directory symlink that escapes the skin",
+  async () => {
+    await withSkin(async (skinDirectory) => {
+      const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-outside-"))
       try {
+        await writePng(outsideDirectory, "Pink.png")
         await symlink(
           outsideDirectory,
           path.join(skinDirectory, "Notes"),
           process.platform === "win32" ? "junction" : "dir",
         )
-      } catch (error) {
-        if (isSymlinkPermissionError(error)) {
-          t.skip("Creating symlinks requires unavailable Windows privileges")
-          return
-        }
-        throw error
-      }
 
-      await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
-    } finally {
-      await rm(outsideDirectory, { recursive: true, force: true })
-    }
-  })
-})
+        await assert.rejects(() => resolve(skinDirectory, "notes/pink"), /outside the skin/i)
+      } finally {
+        await rm(outsideDirectory, { recursive: true, force: true })
+      }
+    })
+  },
+)
 
 test("preserves the exact root realpath failure as the contextual error cause", async () => {
   const failure = new Error("exact root realpath failure")

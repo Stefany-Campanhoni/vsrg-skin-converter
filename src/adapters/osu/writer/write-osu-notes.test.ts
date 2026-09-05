@@ -1,8 +1,8 @@
+import { test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { writeOsuNotes } from "./write-osu-notes.ts"
 

@@ -1,8 +1,8 @@
+import { onTestFinished, test } from "bun:test"
 import assert from "node:assert/strict"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
 
 async function writeFixture(file: string, contents: string): Promise<string> {
@@ -73,9 +73,9 @@ async function listFiles(root: string): Promise<string[]> {
     .sort()
 }
 
-test("assembles exactly the supported portable package with byte-identical templates", async (context) => {
+test("assembles exactly the supported portable package with byte-identical templates", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
 
   const portable = await assembleWindowsPortable({
     ...fixture,
@@ -118,9 +118,9 @@ test("assembles exactly the supported portable package with byte-identical templ
   )
 })
 
-test("preserves a previous package and removes staging when assembly fails", async (context) => {
+test("preserves a previous package and removes staging when assembly fails", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await mkdir(fixture.packageRoot, { recursive: true })
   await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
 
@@ -140,9 +140,9 @@ test("preserves a previous package and removes staging when assembly fails", asy
   )
 })
 
-test("retries a transient Windows sharing violation while promoting staging", async (context) => {
+test("retries a transient Windows sharing violation while promoting staging", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   let promotionAttempts = 0
   const events: string[] = []
 
@@ -172,9 +172,9 @@ test("retries a transient Windows sharing violation while promoting staging", as
   assert.deepEqual(events, ["rename", "delay:50", "rename"])
 })
 
-test("retains the previous package backup when rollback restoration fails", async (context) => {
+test("retains the previous package backup when rollback restoration fails", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await mkdir(fixture.packageRoot, { recursive: true })
   await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
   const token = "recovery"
@@ -210,9 +210,9 @@ test("retains the previous package backup when rollback restoration fails", asyn
   assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
 })
 
-test("rejects package output outside the explicit controlled root before mutation", async (context) => {
+test("rejects package output outside the explicit controlled root before mutation", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   const outsidePackageRoot = path.join(fixture.root, "outside", path.basename(fixture.packageRoot))
   let renamed = false
   let callbackInvoked = false
