@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { spawn } from "node:child_process"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
@@ -12,6 +11,7 @@ import { installRuntimeDependencies } from "../../.ci/release/install-runtime-de
 import { getReleasePaths } from "../../.ci/release/release-config.ts"
 import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
 import packageJson from "../../package.json" with { type: "json" }
+import { expectTruthy } from "../support/expectations.ts"
 
 interface LauncherResult {
   readonly stdout: string
@@ -90,29 +90,29 @@ test("runs the real portable package from an external cwd and a path containing 
   })
 
   const version = await runLauncher(portable.launcher, ["--version"], os.tmpdir())
-  assert.deepEqual(version, {
+  expect(version).toStrictEqual({
     stdout: `${packageJson.version}\n`,
     stderr: "",
     code: 0,
     timedOut: false,
   })
   const help = await runLauncher(portable.launcher, ["--help"], os.tmpdir())
-  assert.equal(help.code, 0)
-  assert.equal(help.timedOut, false)
-  assert.match(help.stdout, /Usage: vsrg-skin-converter\.cmd/)
-  assert.equal(help.stderr, "")
+  expect(help.code).toBe(0)
+  expect(help.timedOut).toBe(false)
+  expect(help.stdout).toMatch(/Usage: vsrg-skin-converter\.cmd/)
+  expect(help.stderr).toBe("")
   const invalid = await runLauncher(portable.launcher, ["--unknown"], os.tmpdir(), 5_000)
-  assert.equal(invalid.timedOut, false)
-  assert.equal(invalid.code, 1)
-  assert.match(invalid.stderr, /Unknown argument: --unknown/)
-  assert.match(invalid.stderr, /exited with code 1/)
+  expect(invalid.timedOut).toBe(false)
+  expect(invalid.code).toBe(1)
+  expect(invalid.stderr).toMatch(/Unknown argument: --unknown/)
+  expect(invalid.stderr).toMatch(/exited with code 1/)
   await verifyWindowsPortable({
     packageRoot,
     sourceTemplatesRoot: path.join(projectRoot, "src", "templates"),
     expectedVersion: packageJson.version,
   })
-  assert.ok((await readFile(path.join(packageRoot, "templates", "osu", "skin.ini"))).length > 0)
-  assert.ok(
+  expectTruthy((await readFile(path.join(packageRoot, "templates", "osu", "skin.ini"))).length > 0)
+  expectTruthy(
     (await readFile(path.join(packageRoot, "templates", "etterna", "noteskin", "NoteSkin.lua")))
       .length > 0,
   )

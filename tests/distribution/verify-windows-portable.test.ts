@@ -1,10 +1,10 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { createWindowsRelease } from "../../.ci/release/create-windows-release.ts"
 import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function writeFixture(file: string, value = file): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true })
@@ -74,12 +74,12 @@ async function assertInvalidEntry(
   sourceTemplatesRoot: string,
   entry: string,
 ): Promise<void> {
-  await assert.rejects(
+  await expectRejectionSatisfies(
     verifyWindowsPortable({ packageRoot, sourceTemplatesRoot, runRuntimeChecks: false }),
     (error: unknown) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, new RegExp(escapeRegex(entry), "i"))
-      assert.match(error.message, new RegExp(escapeRegex(packageRoot), "i"))
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(new RegExp(escapeRegex(entry), "i"))
+      expect(error.message).toMatch(new RegExp(escapeRegex(packageRoot), "i"))
       return true
     },
   )
@@ -185,13 +185,13 @@ test("publishes a versioned ZIP and checksum only after independent extraction v
     },
   })
 
-  assert.deepEqual(artifact, { zipPath, checksumPath, sha256 })
-  assert.equal(await readFile(zipPath, "utf8"), "zip")
-  assert.equal(await readFile(checksumPath, "utf8"), `${sha256}  ${path.basename(zipPath)}\n`)
-  assert.equal(calls[0], `verify:${packageRoot}`)
-  assert.match(calls[1] ?? "", new RegExp(`^compress:${escapeRegex(packageRoot)}:`))
-  assert.equal(calls.filter((call) => call.startsWith("hash:")).length, 2)
-  assert.match(calls.at(-1) ?? "", new RegExp(`^verify:.*${escapeRegex(packageDirectoryName)}$`))
+  expect(artifact).toStrictEqual({ zipPath, checksumPath, sha256 })
+  expect(await readFile(zipPath, "utf8")).toBe("zip")
+  expect(await readFile(checksumPath, "utf8")).toBe(`${sha256}  ${path.basename(zipPath)}\n`)
+  expect(calls[0]).toBe(`verify:${packageRoot}`)
+  expect(calls[1] ?? "").toMatch(new RegExp(`^compress:${escapeRegex(packageRoot)}:`))
+  expect(calls.filter((call) => call.startsWith("hash:")).length).toBe(2)
+  expect(calls.at(-1) ?? "").toMatch(new RegExp(`^verify:.*${escapeRegex(packageDirectoryName)}$`))
 })
 
 test("preserves the previous ZIP and checksum when extracted verification fails", async () => {
@@ -208,7 +208,7 @@ test("preserves the previous ZIP and checksum when extracted verification fails"
   let verificationCount = 0
   const cause = new Error("extracted package invalid")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     createWindowsRelease({
       packageRoot,
       packageDirectoryName,
@@ -232,8 +232,8 @@ test("preserves the previous ZIP and checksum when extracted verification fails"
     (error: unknown) => error === cause,
   )
 
-  assert.equal(await readFile(zipPath, "utf8"), "previous zip")
-  assert.equal(await readFile(checksumPath, "utf8"), "previous checksum")
+  expect(await readFile(zipPath, "utf8")).toBe("previous zip")
+  expect(await readFile(checksumPath, "utf8")).toBe("previous checksum")
 })
 
 for (const failedBoundary of [
@@ -258,7 +258,7 @@ for (const failedBoundary of [
     await writeFixture(checksumPath, "previous checksum")
     const cause = new Error(`failed ${failedBoundary}`)
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       createWindowsRelease({
         packageRoot,
         packageDirectoryName,
@@ -294,8 +294,8 @@ for (const failedBoundary of [
       (error: unknown) => error === cause,
     )
 
-    assert.equal(await readFile(zipPath, "utf8"), "previous zip")
-    assert.equal(await readFile(checksumPath, "utf8"), "previous checksum")
+    expect(await readFile(zipPath, "utf8")).toBe("previous zip")
+    expect(await readFile(checksumPath, "utf8")).toBe("previous checksum")
   })
 }
 
@@ -316,7 +316,7 @@ test("retains both recovery backups when rollback cannot restore the previous pa
   const publicationCause = new Error("failed checksum publication")
   const restorationCause = new Error("failed ZIP restoration")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     createWindowsRelease({
       packageRoot,
       packageDirectoryName,
@@ -343,13 +343,13 @@ test("retains both recovery backups when rollback cannot restore the previous pa
       },
     }),
     (error: unknown) => {
-      assert.ok(error instanceof AggregateError)
-      assert.equal(error.cause, publicationCause)
-      assert.deepEqual(error.errors, [publicationCause, restorationCause])
+      expectTruthy(error instanceof AggregateError)
+      expect(error.cause).toBe(publicationCause)
+      expect(error.errors).toStrictEqual([publicationCause, restorationCause])
       return true
     },
   )
 
-  assert.equal(await readFile(zipBackup, "utf8"), "previous zip")
-  assert.equal(await readFile(checksumBackup, "utf8"), "previous checksum")
+  expect(await readFile(zipBackup, "utf8")).toBe("previous zip")
+  expect(await readFile(checksumBackup, "utf8")).toBe("previous checksum")
 })

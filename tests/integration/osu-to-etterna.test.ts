@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { access, mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -40,6 +39,7 @@ import {
   type TransactionalOutputSetFileSystem,
   TransactionalOutputSetPublisher,
 } from "../../src/infrastructure/filesystem/transactional-output-set-publisher.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 const directions = ["left", "down", "up", "right"] as const
 const directionTitles: Readonly<Record<ColumnDirection, string>> = {
@@ -138,7 +138,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
     const noteSkinDirectory = path.join(fixture.etternaRoot, "NoteSkins", "dance", fixture.skinName)
     const profileDirectory = path.join(fixture.etternaRoot, "Save", "LocalProfiles", "00000004")
 
-    assert.deepEqual(result.diagnostics, [])
+    expect(result.diagnostics).toStrictEqual([])
     await assertStaticNoteSkinTemplate(noteSkinDirectory)
     for (const direction of directions) {
       const title = directionTitles[direction]
@@ -156,20 +156,19 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
           .ensureAlpha()
           .toBuffer({ resolveWithObject: true })
 
-        assert.deepEqual(
-          { width: output.info.width, height: output.info.height },
-          { width: 146, height: convertedReceptorHeights[direction] },
-        )
+        expect({ width: output.info.width, height: output.info.height }).toStrictEqual({
+          width: 146,
+          height: convertedReceptorHeights[direction],
+        })
         const expectedColor = receptorColors[direction][state]
-        assert.deepEqual(
+        expect(
           rgbaAt(
             output.data,
             output.info.width,
             Math.floor(output.info.width / 2),
             Math.floor(output.info.height / 2),
           ),
-          [expectedColor.r, expectedColor.g, expectedColor.b, 255],
-        )
+        ).toStrictEqual([expectedColor.r, expectedColor.g, expectedColor.b, 255])
       }
 
       const noteOutput = path.join(
@@ -181,12 +180,12 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
         .raw()
         .ensureAlpha()
         .toBuffer({ resolveWithObject: true })
-      assert.deepEqual(
-        { width: output.info.width, height: output.info.height },
-        { width: 150, height: convertedNoteHeights[direction] },
-      )
+      expect({ width: output.info.width, height: output.info.height }).toStrictEqual({
+        width: 150,
+        height: convertedNoteHeights[direction],
+      })
       const expectedColor = noteColors[direction]
-      assert.deepEqual(rgbaAt(output.data, output.info.width, 75, 75), [
+      expect(rgbaAt(output.data, output.info.width, 75, 75)).toStrictEqual([
         expectedColor.r,
         expectedColor.g,
         expectedColor.b,
@@ -194,7 +193,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
       ])
     }
 
-    assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Receptors"))).sort(), [
+    expect((await readdir(path.join(noteSkinDirectory, "Receptors"))).sort()).toStrictEqual([
       "pressed Down (res 64x50).png",
       "pressed Left (res 64x48).png",
       "pressed Right (res 64x52).png",
@@ -204,7 +203,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
       "release Right (res 64x52).png",
       "release Up (res 64x51).png",
     ])
-    assert.deepEqual((await readdir(path.join(noteSkinDirectory, "Notes"))).sort(), [
+    expect((await readdir(path.join(noteSkinDirectory, "Notes"))).sort()).toStrictEqual([
       "_Down Tap Note (res 64x50).png",
       "_Left Tap Note (res 64x48).png",
       "_Right Tap Note (res 64x52).png",
@@ -217,39 +216,37 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
       path.join(profileDirectory, "Rebirth_settings", "playerConfig.lua"),
       "utf8",
     )
-    assert.deepEqual((await readdir(profileDirectory)).sort(), [
+    expect((await readdir(profileDirectory)).sort()).toStrictEqual([
       "Editable.ini",
       "Etterna.xml",
       "Rebirth_settings",
       "Type.ini",
     ])
-    assert.deepEqual(
-      await readFile(path.join(profileDirectory, "Type.ini")),
+    expect(await readFile(path.join(profileDirectory, "Type.ini"))).toStrictEqual(
       await readFile(path.join(etternaTemplatesPath, "profile", "Type.ini")),
     )
-    assert.match(editable, /DisplayName=Alice/)
-    assert.match(xml, /<DisplayName>Alice<\/DisplayName>/)
-    assert.match(xml, /<dance>C902, Reverse, Overhead, General Name<\/dance>/)
+    expect(editable).toMatch(/DisplayName=Alice/)
+    expect(xml).toMatch(/<DisplayName>Alice<\/DisplayName>/)
+    expect(xml).toMatch(/<dance>C902, Reverse, Overhead, General Name<\/dance>/)
     const guid = /<Guid>([^<]+)<\/Guid>/.exec(xml)?.[1]
-    assert.match(guid ?? "", /^[0-9a-f]{16}$/)
-    assert.notEqual(guid, existingGuid)
-    assert.match(playerConfig, /NoteFieldY= -2(?:,|\s)/)
-    assert.match(playerConfig, /ComboY= 21(?:,|\s)/)
-    assert.match(playerConfig, /JudgmentY= 40(?:,|\s)/)
-    assert.match(playerConfig, /ReceptorSize= 106(?:,|\s)/)
-    assert.match(playerConfig, /ComboZoom= 0\.5(?:,|\s)/)
-    assert.match(playerConfig, /ConvertedAspectRatio= true(?:,|\s)/)
-    assert.match(playerConfig, /CurrentHeight= 720(?:,|\s)/)
-    assert.match(playerConfig, /CurrentWidth= 1280(?:,|\s)/)
-    assert.ok(guid)
+    expect(guid ?? "").toMatch(/^[0-9a-f]{16}$/)
+    expect(guid).not.toBe(existingGuid)
+    expect(playerConfig).toMatch(/NoteFieldY= -2(?:,|\s)/)
+    expect(playerConfig).toMatch(/ComboY= 21(?:,|\s)/)
+    expect(playerConfig).toMatch(/JudgmentY= 40(?:,|\s)/)
+    expect(playerConfig).toMatch(/ReceptorSize= 106(?:,|\s)/)
+    expect(playerConfig).toMatch(/ComboZoom= 0\.5(?:,|\s)/)
+    expect(playerConfig).toMatch(/ConvertedAspectRatio= true(?:,|\s)/)
+    expect(playerConfig).toMatch(/CurrentHeight= 720(?:,|\s)/)
+    expect(playerConfig).toMatch(/CurrentWidth= 1280(?:,|\s)/)
+    expectTruthy(guid)
     const judgementFilename = `${fixture.skinName} - ${guid} 1x6 (Doubleres).png`
     const judgementDirectory = path.join(fixture.etternaRoot, "Assets", "Judgments")
-    assert.deepEqual(await readdir(judgementDirectory), [judgementFilename])
+    expect(await readdir(judgementDirectory)).toStrictEqual([judgementFilename])
     await assertJudgementSheet(path.join(judgementDirectory, judgementFilename))
 
     const assetsConfig = await readFile(fixture.assetsConfigPath, "utf8")
-    assert.match(
-      assetsConfig,
+    expect(assetsConfig).toMatch(
       new RegExp(`\\["${guid}"\\] = "Assets/Judgments/${escapeRegExp(judgementFilename)}"`),
     )
     for (const preserved of [
@@ -259,7 +256,7 @@ test("converts a high-resolution 4K osu! skin into an Etterna NoteSkin and profi
       'default = "Assets/Judgments/default 1x6 (Doubleres).png"',
       'toasty = { default = "Assets/Toasties/default" }',
     ]) {
-      assert.equal(assetsConfig.includes(preserved), true, preserved)
+      expect(assetsConfig.includes(preserved), preserved).toBe(true)
     }
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
@@ -296,7 +293,7 @@ for (const density of ["standard", "double"] as const) {
             .toBuffer({ resolveWithObject: true })
           const expectedColor = defaultReceptorColors[assetGroup][state]
 
-          assert.deepEqual(rgbaAt(output.data, output.info.width, 73, 73), [
+          expect(rgbaAt(output.data, output.info.width, 73, 73)).toStrictEqual([
             expectedColor.r,
             expectedColor.g,
             expectedColor.b,
@@ -311,7 +308,7 @@ for (const density of ["standard", "double"] as const) {
           .ensureAlpha()
           .toBuffer({ resolveWithObject: true })
         const expectedNoteColor = defaultNoteColors[assetGroup]
-        assert.deepEqual(rgbaAt(noteOutput.data, noteOutput.info.width, 75, 75), [
+        expect(rgbaAt(noteOutput.data, noteOutput.info.width, 75, 75)).toStrictEqual([
           expectedNoteColor.r,
           expectedNoteColor.g,
           expectedNoteColor.b,
@@ -353,13 +350,13 @@ test("fails when both densities of a required osu 4K default asset are absent", 
   try {
     await rm(path.join(fixture.skinDirectory, "mania-note2@2x.png"))
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       () => convertFixture(fixture),
       (error) => {
-        assert.ok(error instanceof Error)
-        assert.match(error.message, /tapNotes\.down.*mania-note2/i)
-        assert.ok(error.cause instanceof Error)
-        assert.match(error.cause.message, /mania-note2\.png.*not found/i)
+        expectTruthy(error instanceof Error)
+        expect(error.message).toMatch(/tapNotes\.down.*mania-note2/i)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.message).toMatch(/mania-note2\.png.*not found/i)
         return true
       },
     )
@@ -375,13 +372,13 @@ test("does not replace a missing explicit 4K asset with an available default", a
     useMissingExplicitNoteReference: true,
   })
   try {
-    await assert.rejects(
+    await expectRejectionSatisfies(
       () => convertFixture(fixture),
       (error) => {
-        assert.ok(error instanceof Error)
-        assert.match(error.message, /tapNotes\.left.*missing-note/i)
-        assert.ok(error.cause instanceof Error)
-        assert.match(error.cause.message, /missing-note\.png.*not found/i)
+        expectTruthy(error instanceof Error)
+        expect(error.message).toMatch(/tapNotes\.left.*missing-note/i)
+        expectTruthy(error.cause instanceof Error)
+        expect(error.cause.message).toMatch(/missing-note\.png.*not found/i)
         return true
       },
     )
@@ -438,8 +435,8 @@ test("preserves downscroll by omitting Reverse from the generated Etterna profil
     )
     const dance = /<dance>([^<]+)<\/dance>/.exec(xml)?.[1]
 
-    assert.match(dance ?? "", /^C902,\s+Overhead, General Name$/)
-    assert.doesNotMatch(dance ?? "", /\bReverse\b/)
+    expect(dance ?? "").toMatch(/^C902,\s+Overhead, General Name$/)
+    expect(dance ?? "").not.toMatch(/\bReverse\b/)
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
   }
@@ -463,7 +460,11 @@ test("declining an overwrite leaves the NoteSkin unchanged and creates no profil
       resolveInstallationDirectory: async (defaultDirectory) => defaultDirectory,
       listOsuUserConfigurations: async () => configurations,
       selectOsuUserConfiguration: async (options) =>
-        selectOsuUserConfiguration(options, async () => assert.fail("single CFG must not prompt")),
+        selectOsuUserConfiguration(options, async () =>
+          (() => {
+            throw new Error("single CFG must not prompt")
+          })(),
+        ),
       listSkins: async () => references,
       selectSkin: async () => references[0]?.sourcePath,
       readEtternaTheme,
@@ -473,21 +474,35 @@ test("declining an overwrite leaves the NoteSkin unchanged and creates no profil
         confirmationMessage = message
         return false
       },
-      createReader: () => assert.fail("decline must happen before reader construction"),
-      createInstaller: () => assert.fail("decline must happen before installer construction"),
-      convertAndInstallSkin: async () => assert.fail("decline must happen before conversion"),
-      writeLine: () => assert.fail("decline must not show success message"),
-      warn: () => assert.fail("decline must not emit conversion diagnostics"),
+      createReader: () =>
+        (() => {
+          throw new Error("decline must happen before reader construction")
+        })(),
+      createInstaller: () =>
+        (() => {
+          throw new Error("decline must happen before installer construction")
+        })(),
+      convertAndInstallSkin: async () =>
+        (() => {
+          throw new Error("decline must happen before conversion")
+        })(),
+      writeLine: () =>
+        (() => {
+          throw new Error("decline must not show success message")
+        })(),
+      warn: () =>
+        (() => {
+          throw new Error("decline must not emit conversion diagnostics")
+        })(),
     })
 
-    assert.equal(confirmationMessage, `${fixture.skinName} already exists. Overwrite it?`)
-    assert.equal(await readFile(markerPath, "utf8"), "keep me")
-    assert.equal(
+    expect(confirmationMessage).toBe(`${fixture.skinName} already exists. Overwrite it?`)
+    expect(await readFile(markerPath, "utf8")).toBe("keep me")
+    expect(
       await pathExists(path.join(fixture.etternaRoot, "Save", "LocalProfiles", "00000004")),
-      false,
-    )
-    assert.equal(await readFile(fixture.assetsConfigPath, "utf8"), originalAssetsConfig)
-    assert.equal(await pathExists(path.join(fixture.etternaRoot, "Assets", "Judgments")), false)
+    ).toBe(false)
+    expect(await readFile(fixture.assetsConfigPath, "utf8")).toBe(originalAssetsConfig)
+    expect(await pathExists(path.join(fixture.etternaRoot, "Assets", "Judgments"))).toBe(false)
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
   }
@@ -519,7 +534,11 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
       resolveInstallationDirectory: async (defaultDirectory) => defaultDirectory,
       listOsuUserConfigurations: async () => configurations,
       selectOsuUserConfiguration: async (options) =>
-        selectOsuUserConfiguration(options, async () => assert.fail("single CFG must not prompt")),
+        selectOsuUserConfiguration(options, async () =>
+          (() => {
+            throw new Error("single CFG must not prompt")
+          })(),
+        ),
       listSkins: async () => references,
       selectSkin: async () => references[0]?.sourcePath,
       readEtternaTheme,
@@ -541,8 +560,8 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
         return installer
       },
       convertAndInstallSkin: async (request) => {
-        assert.ok(reader)
-        assert.ok(installer)
+        expectTruthy(reader)
+        expectTruthy(installer)
         return convertAndInstallSkin(request, {
           readers: new Map([["osu", reader]]),
           installers: new Map([["etterna", installer]]),
@@ -550,20 +569,22 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
         })
       },
       writeLine: () => undefined,
-      warn: (message) => assert.fail(`unexpected diagnostic: ${message}`),
+      warn: (message) =>
+        (() => {
+          throw new Error(`unexpected diagnostic: ${message}`)
+        })(),
     })
 
-    assert.equal(confirmationMessage, `${fixture.skinName} already exists. Overwrite it?`)
-    assert.equal(await pathExists(oldSelectedMarker), false)
+    expect(confirmationMessage).toBe(`${fixture.skinName} already exists. Overwrite it?`)
+    expect(await pathExists(oldSelectedMarker)).toBe(false)
     await access(path.join(selectedNoteSkin, "NoteSkin.lua"))
     await access(path.join(selectedNoteSkin, "Receptors", "release Left (res 64x48).png"))
-    assert.equal(await pathExists(path.join(noteSkinsRoot, "Fixture")), false)
-    assert.deepEqual(await directorySnapshot(unrelatedNoteSkin), unrelatedBefore)
+    expect(await pathExists(path.join(noteSkinsRoot, "Fixture"))).toBe(false)
+    expect(await directorySnapshot(unrelatedNoteSkin)).toStrictEqual(unrelatedBefore)
 
     const profileDirectory = path.join(fixture.etternaRoot, "Save", "LocalProfiles", "00000004")
-    assert.match(await readFile(path.join(profileDirectory, "Editable.ini"), "utf8"), /Alice/)
-    assert.match(
-      await readFile(path.join(profileDirectory, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(profileDirectory, "Editable.ini"), "utf8")).toMatch(/Alice/)
+    expect(await readFile(path.join(profileDirectory, "Etterna.xml"), "utf8")).toMatch(
       new RegExp(`<Guid>${generatedGuid}</Guid>`),
     )
     await access(path.join(profileDirectory, "Type.ini"))
@@ -576,8 +597,7 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
         `${fixture.skinName} - ${generatedGuid} 1x6 (Doubleres).png`,
       ),
     )
-    assert.match(
-      await readFile(fixture.assetsConfigPath, "utf8"),
+    expect(await readFile(fixture.assetsConfigPath, "utf8")).toMatch(
       new RegExp(`\\["${generatedGuid}"\\].*${escapeRegExp(generatedGuid)} 1x6`),
     )
   } finally {
@@ -606,7 +626,7 @@ test("restores an overwritten NoteSkin when profile promotion fails", async () =
       },
     }
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       () => convertFixture(fixture, new TransactionalOutputSetPublisher(fileSystem), true),
       (error) =>
         error instanceof Error &&
@@ -614,14 +634,14 @@ test("restores an overwritten NoteSkin when profile promotion fails", async () =
         error.cause.message === "fixture profile promotion failure",
     )
 
-    assert.equal(injectedFailure, true)
-    assert.equal(await readFile(markerPath, "utf8"), "old NoteSkin")
-    assert.deepEqual(await readdir(noteSkinDirectory), ["existing.txt"])
-    assert.equal(await pathExists(profileDirectory), false)
-    assert.equal(await readFile(fixture.assetsConfigPath, "utf8"), originalAssetsConfig)
-    assert.equal(await pathExists(path.join(fixture.etternaRoot, "Assets", "Judgments")), false)
-    assert.deepEqual((await readdir(noteSkinsRoot)).filter(isTransactionArtifact), [])
-    assert.deepEqual((await readdir(profilesRoot)).filter(isTransactionArtifact), [])
+    expect(injectedFailure).toBe(true)
+    expect(await readFile(markerPath, "utf8")).toBe("old NoteSkin")
+    expect(await readdir(noteSkinDirectory)).toStrictEqual(["existing.txt"])
+    expect(await pathExists(profileDirectory)).toBe(false)
+    expect(await readFile(fixture.assetsConfigPath, "utf8")).toBe(originalAssetsConfig)
+    expect(await pathExists(path.join(fixture.etternaRoot, "Assets", "Judgments"))).toBe(false)
+    expect((await readdir(noteSkinsRoot)).filter(isTransactionArtifact)).toStrictEqual([])
+    expect((await readdir(profilesRoot)).filter(isTransactionArtifact)).toStrictEqual([])
   } finally {
     await rm(fixture.root, { recursive: true, force: true })
   }
@@ -978,10 +998,10 @@ async function assertJudgementSheet(filePath: string): Promise<void> {
   const output = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
   const cellWidth = Math.max(...judgementFixtures.map((fixture) => fixture.width))
   const cellHeight = Math.max(...judgementFixtures.map((fixture) => fixture.height))
-  assert.deepEqual(
-    { width: output.info.width, height: output.info.height },
-    { width: cellWidth, height: cellHeight * judgementFixtures.length },
-  )
+  expect({ width: output.info.width, height: output.info.height }).toStrictEqual({
+    width: cellWidth,
+    height: cellHeight * judgementFixtures.length,
+  })
 
   for (const [row, fixture] of judgementFixtures.entries()) {
     const left = Math.floor((cellWidth - fixture.width) / 2)
@@ -989,11 +1009,10 @@ async function assertJudgementSheet(filePath: string): Promise<void> {
     for (let y = 0; y < cellHeight; y += 1) {
       for (let x = 0; x < cellWidth; x += 1) {
         const inside = x >= left && x < left + fixture.width && y >= top && y < top + fixture.height
-        assert.deepEqual(
+        expect(
           rgbaAt(output.data, output.info.width, x, row * cellHeight + y),
-          inside ? [...fixture.color] : [0, 0, 0, 0],
           `${fixture.grade} (${x}, ${y})`,
-        )
+        ).toStrictEqual(inside ? [...fixture.color] : [0, 0, 0, 0])
       }
     }
   }
@@ -1005,17 +1024,17 @@ async function assertFallbackJudgementSheet(
 ): Promise<void> {
   const defaultPath = path.join(etternaTemplatesPath, "judgement", "osu!mania-default 1x6.png")
   const defaultMetadata = await sharp(defaultPath).metadata()
-  assert.ok(defaultMetadata.width)
-  assert.ok(defaultMetadata.height)
-  assert.equal(defaultMetadata.height % judgementFixtures.length, 0)
+  expectTruthy(defaultMetadata.width)
+  expectTruthy(defaultMetadata.height)
+  expect(defaultMetadata.height % judgementFixtures.length).toBe(0)
   const sourceCellHeight = defaultMetadata.height / judgementFixtures.length
   const expectedWidth = defaultMetadata.width * 2
   const expectedCellHeight = sourceCellHeight * 2
   const output = await sharp(filePath).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  assert.deepEqual(
-    { width: output.info.width, height: output.info.height },
-    { width: expectedWidth, height: expectedCellHeight * judgementFixtures.length },
-  )
+  expect({ width: output.info.width, height: output.info.height }).toStrictEqual({
+    width: expectedWidth,
+    height: expectedCellHeight * judgementFixtures.length,
+  })
 
   for (const [row, fixture] of judgementFixtures.entries()) {
     const actualRow = output.data.subarray(
@@ -1023,15 +1042,14 @@ async function assertFallbackJudgementSheet(
       (row + 1) * expectedCellHeight * expectedWidth * 4,
     )
     if (customGrades.has(fixture.grade)) {
-      assert.deepEqual(
+      expect(
         rgbaAt(
           actualRow,
           expectedWidth,
           Math.floor(expectedWidth / 2),
           Math.floor(expectedCellHeight / 2),
         ),
-        [...fixture.color],
-      )
+      ).toStrictEqual([...fixture.color])
       continue
     }
 
@@ -1051,7 +1069,7 @@ async function assertFallbackJudgementSheet(
 }
 
 function assertBuffersNear(actual: Buffer, expected: Buffer, label: string): void {
-  assert.equal(actual.length, expected.length, label)
+  expect(actual.length, label).toBe(expected.length)
   let maximumChannelDifference = 0
   for (let index = 0; index < actual.length; index += 1) {
     maximumChannelDifference = Math.max(
@@ -1059,7 +1077,7 @@ function assertBuffersNear(actual: Buffer, expected: Buffer, label: string): voi
       Math.abs((actual[index] ?? 0) - (expected[index] ?? 0)),
     )
   }
-  assert.ok(
+  expectTruthy(
     maximumChannelDifference <= 1,
     `${label} differs from the doubled default by ${maximumChannelDifference} channel levels`,
   )
@@ -1112,11 +1130,11 @@ function isNotFoundError(cause: unknown): cause is NodeJS.ErrnoException {
 function requiredConfiguration(
   configuration: OsuUserConfiguration | undefined,
 ): OsuUserConfiguration {
-  assert.ok(configuration)
+  expectTruthy(configuration)
   return configuration
 }
 
 function requiredReference(reference: SkinReference | undefined): SkinReference {
-  assert.ok(reference)
+  expectTruthy(reference)
   return reference
 }

@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { spawnSync } from "node:child_process"
 import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
@@ -21,9 +20,9 @@ test.skipIf(process.platform !== "win32")("pauses a successful no-argument launc
     },
   )
 
-  assert.equal(successful.status, 0)
-  assert.match(successful.stdout, /completed/)
-  assert.match(`${successful.stdout}\n${successful.stderr}`, /Press any key to continue/i)
+  expect(successful.status).toBe(0)
+  expect(successful.stdout).toMatch(/completed/)
+  expect(`${successful.stdout}\n${successful.stderr}`).toMatch(/Press any key to continue/i)
 })
 
 test.skipIf(process.platform !== "win32")(
@@ -44,10 +43,10 @@ test.skipIf(process.platform !== "win32")(
         windowsVerbatimArguments: true,
       },
     )
-    assert.equal(interactive.status, 7)
-    assert.match(interactive.stderr, /application failed/)
-    assert.match(interactive.stderr, /exited with code 7/)
-    assert.match(`${interactive.stdout}\n${interactive.stderr}`, /Press any key to continue/i)
+    expect(interactive.status).toBe(7)
+    expect(interactive.stderr).toMatch(/application failed/)
+    expect(interactive.stderr).toMatch(/exited with code 7/)
+    expect(`${interactive.stdout}\n${interactive.stderr}`).toMatch(/Press any key to continue/i)
 
     const argumentFailure = spawnSync(
       process.env.ComSpec ?? "cmd.exe",
@@ -59,10 +58,9 @@ test.skipIf(process.platform !== "win32")(
         windowsVerbatimArguments: true,
       },
     )
-    assert.equal(argumentFailure.status, 7)
-    assert.match(argumentFailure.stderr, /exited with code 7/)
-    assert.doesNotMatch(
-      `${argumentFailure.stdout}\n${argumentFailure.stderr}`,
+    expect(argumentFailure.status).toBe(7)
+    expect(argumentFailure.stderr).toMatch(/exited with code 7/)
+    expect(`${argumentFailure.stdout}\n${argumentFailure.stderr}`).not.toMatch(
       /Press any key to continue/i,
     )
   },
@@ -86,10 +84,9 @@ test.skipIf(process.platform !== "win32")(
       },
     )
 
-    assert.equal(argumentFailure.status, 7)
-    assert.match(argumentFailure.stderr, /application failed/)
-    assert.doesNotMatch(
-      `${argumentFailure.stdout}\n${argumentFailure.stderr}`,
+    expect(argumentFailure.status).toBe(7)
+    expect(argumentFailure.stderr).toMatch(/application failed/)
+    expect(`${argumentFailure.stdout}\n${argumentFailure.stderr}`).not.toMatch(
       /Press any key to continue/i,
     )
   },
@@ -114,10 +111,9 @@ test.skipIf(process.platform !== "win32")(
         },
       )
 
-      assert.equal(argumentFailure.status, 7, `argument ${argument}`)
-      assert.match(argumentFailure.stderr, /application failed/)
-      assert.doesNotMatch(
-        `${argumentFailure.stdout}\n${argumentFailure.stderr}`,
+      expect(argumentFailure.status, `argument ${argument}`).toBe(7)
+      expect(argumentFailure.stderr).toMatch(/application failed/)
+      expect(`${argumentFailure.stdout}\n${argumentFailure.stderr}`).not.toMatch(
         /Press any key to continue/i,
       )
     }

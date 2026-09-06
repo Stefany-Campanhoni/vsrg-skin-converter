@@ -1,6 +1,6 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { renameWithTransientRetry } from "../../.ci/release/rename-with-transient-retry.ts"
+import { expectRejectionSatisfies } from "../support/expectations.ts"
 
 function fileSystemError(code: string, message: string): NodeJS.ErrnoException {
   const error = new Error(message) as NodeJS.ErrnoException
@@ -25,7 +25,7 @@ test("retries only transient Windows rename errors with bounded ordered backoff"
     },
   )
 
-  assert.deepEqual(events, [
+  expect(events).toStrictEqual([
     "rename:1",
     "delay:50",
     "rename:2",
@@ -45,7 +45,7 @@ test("preserves the final transient cause after the retry budget", async () => {
   const delays: number[] = []
   let attempts = 0
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     renameWithTransientRetry(
       "source",
       "destination",
@@ -59,8 +59,8 @@ test("preserves the final transient cause after the retry budget", async () => {
     (error: unknown) => error === causes[4],
   )
 
-  assert.equal(attempts, 5)
-  assert.deepEqual(delays, [50, 100, 200, 400])
+  expect(attempts).toBe(5)
+  expect(delays).toStrictEqual([50, 100, 200, 400])
 })
 
 test("does not retry non-transient rename errors", async () => {
@@ -68,7 +68,7 @@ test("does not retry non-transient rename errors", async () => {
   let attempts = 0
   const delays: number[] = []
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     renameWithTransientRetry(
       "source",
       "destination",
@@ -83,6 +83,6 @@ test("does not retry non-transient rename errors", async () => {
     (error: unknown) => error === cause,
   )
 
-  assert.equal(attempts, 1)
-  assert.deepEqual(delays, [])
+  expect(attempts).toBe(1)
+  expect(delays).toStrictEqual([])
 })

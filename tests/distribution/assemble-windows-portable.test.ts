@@ -1,9 +1,9 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function writeFixture(file: string, contents: string): Promise<string> {
   await mkdir(path.dirname(file), { recursive: true })
@@ -82,13 +82,13 @@ test("assembles exactly the supported portable package with byte-identical templ
     dependencies: { token: () => "success" },
   })
 
-  assert.deepEqual(portable, {
+  expect(portable).toStrictEqual({
     root: fixture.packageRoot,
     launcher: path.join(fixture.packageRoot, "vsrg-skin-converter.cmd"),
     bundle: path.join(fixture.packageRoot, "app.mjs"),
     nodeExecutable: path.join(fixture.packageRoot, "runtime", "node.exe"),
   })
-  assert.deepEqual(await listFiles(fixture.packageRoot), [
+  expect(await listFiles(fixture.packageRoot)).toStrictEqual([
     "LICENSE",
     "README.txt",
     "THIRD-PARTY-NOTICES.txt",
@@ -104,18 +104,15 @@ test("assembles exactly the supported portable package with byte-identical templ
     "templates/osu/template.txt",
     "vsrg-skin-converter.cmd",
   ])
-  assert.equal(
+  expect(
     await readFile(path.join(fixture.packageRoot, "templates", "osu", "template.txt"), "utf8"),
-    "osu-template",
-  )
-  assert.equal(
+  ).toBe("osu-template")
+  expect(
     await readFile(path.join(fixture.packageRoot, "templates", "etterna", "template.txt"), "utf8"),
-    "etterna-template",
-  )
-  assert.deepEqual(
+  ).toBe("etterna-template")
+  expect(
     (await readdir(path.dirname(fixture.packageRoot))).filter((name) => name.includes(".staging")),
-    [],
-  )
+  ).toStrictEqual([])
 })
 
 test("preserves a previous package and removes staging when assembly fails", async () => {
@@ -124,20 +121,18 @@ test("preserves a previous package and removes staging when assembly fails", asy
   await mkdir(fixture.packageRoot, { recursive: true })
   await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
 
-  await assert.rejects(
+  await expect(
     assembleWindowsPortable({
       ...fixture,
       readmePath: path.join(fixture.source, "missing-readme.txt"),
       dependencies: { token: () => "failure" },
     }),
-    /missing-readme\.txt/i,
-  )
+  ).rejects.toThrow(/missing-readme\.txt/i)
 
-  assert.equal(await readFile(path.join(fixture.packageRoot, "previous.txt"), "utf8"), "verified")
-  assert.deepEqual(
+  expect(await readFile(path.join(fixture.packageRoot, "previous.txt"), "utf8")).toBe("verified")
+  expect(
     (await readdir(path.dirname(fixture.packageRoot))).filter((name) => name.includes(".staging")),
-    [],
-  )
+  ).toStrictEqual([])
 })
 
 test("retries a transient Windows sharing violation while promoting staging", async () => {
@@ -168,8 +163,8 @@ test("retries a transient Windows sharing violation while promoting staging", as
     },
   })
 
-  assert.equal(promotionAttempts, 2)
-  assert.deepEqual(events, ["rename", "delay:50", "rename"])
+  expect(promotionAttempts).toBe(2)
+  expect(events).toStrictEqual(["rename", "delay:50", "rename"])
 })
 
 test("retains the previous package backup when rollback restoration fails", async () => {
@@ -182,7 +177,7 @@ test("retains the previous package backup when rollback restoration fails", asyn
   const promotionCause = new Error("promotion failed")
   const restorationCause = new Error("restoration failed")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     assembleWindowsPortable({
       ...fixture,
       dependencies: {
@@ -200,14 +195,14 @@ test("retains the previous package backup when rollback restoration fails", asyn
       },
     }),
     (error: unknown) => {
-      assert.ok(error instanceof AggregateError)
-      assert.equal(error.cause, promotionCause)
-      assert.deepEqual(error.errors, [promotionCause, restorationCause])
+      expectTruthy(error instanceof AggregateError)
+      expect(error.cause).toBe(promotionCause)
+      expect(error.errors).toStrictEqual([promotionCause, restorationCause])
       return true
     },
   )
 
-  assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+  expect(await readFile(path.join(backupRoot, "previous.txt"), "utf8")).toBe("verified")
 })
 
 test("rejects package output outside the explicit controlled root before mutation", async () => {
@@ -217,7 +212,7 @@ test("rejects package output outside the explicit controlled root before mutatio
   let renamed = false
   let callbackInvoked = false
 
-  await assert.rejects(
+  await expect(
     assembleWindowsPortable({
       ...fixture,
       packageRoot: outsidePackageRoot,
@@ -233,10 +228,9 @@ test("rejects package output outside the explicit controlled root before mutatio
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(renamed, false)
-  assert.equal(callbackInvoked, false)
-  await assert.rejects(readFile(path.join(outsidePackageRoot, "app.mjs")), /ENOENT/)
+  expect(renamed).toBe(false)
+  expect(callbackInvoked).toBe(false)
+  await expect(readFile(path.join(outsidePackageRoot, "app.mjs"))).rejects.toThrow(/ENOENT/)
 })
