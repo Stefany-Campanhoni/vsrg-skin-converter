@@ -5,7 +5,7 @@ export interface ImageDimensions {
   readonly height: number
 }
 
-export async function readImageDimensions(image: Buffer | string): Promise<ImageDimensions> {
+export async function readImageDimensions(image: Uint8Array | string): Promise<ImageDimensions> {
   try {
     const metadata = await sharp(image).metadata()
     if (!metadata.width || !metadata.height) {

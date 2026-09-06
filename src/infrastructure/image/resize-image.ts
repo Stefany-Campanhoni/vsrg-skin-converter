@@ -1,6 +1,9 @@
 import sharp from "sharp"
 
-export async function resizeImageProportionally(image: Buffer, scale: number): Promise<Buffer> {
+export async function resizeImageProportionally(
+  image: Uint8Array,
+  scale: number,
+): Promise<Uint8Array> {
   if (!Number.isFinite(scale) || scale <= 0) {
     throw new Error("Image scale must be positive finite")
   }

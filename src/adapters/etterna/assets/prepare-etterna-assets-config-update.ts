@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto"
 import { readFile, writeFile } from "node:fs/promises"
 import type { FileContentExpectation } from "../../../application/ports/file-content-expectation.ts"
 import { type AstObject, asAstObject, getTableField } from "../../../infrastructure/lua/ast.ts"
@@ -10,7 +9,7 @@ export interface PreparedEtternaAssetsConfigUpdate {
 }
 
 export interface PrepareEtternaAssetsConfigUpdateDependencies {
-  readFile(filePath: string): Promise<Buffer>
+  readFile(filePath: string): Promise<Uint8Array>
 }
 
 export interface WriteEtternaAssetsConfigUpdateDependencies {
@@ -35,7 +34,8 @@ export async function prepareEtternaAssetsConfigUpdate(
     return { content, expectation: { state: "missing" } }
   }
 
-  const source = original.toString("utf8")
+  const byteOrderMark = hasUtf8ByteOrderMark(original) ? "\uFEFF" : ""
+  const source = new TextDecoder().decode(original)
   const root = readRootTable(source, filePath)
   const judgment = getTableField(root, "judgment")
   let insertionIndex: number
@@ -52,15 +52,20 @@ export async function prepareEtternaAssetsConfigUpdate(
     insertion = `\n  judgment = { [${encodeLuaString(guid)}] = ${encodeLuaString(judgementPath)} },`
   }
 
-  const content = source.slice(0, insertionIndex + 1) + insertion + source.slice(insertionIndex + 1)
-  validateRenderedSource(content, filePath)
+  const renderedSource =
+    source.slice(0, insertionIndex + 1) + insertion + source.slice(insertionIndex + 1)
+  validateRenderedSource(renderedSource, filePath)
   return {
-    content,
+    content: byteOrderMark + renderedSource,
     expectation: {
       state: "sha256",
-      sha256: createHash("sha256").update(original).digest("hex"),
+      sha256: new Bun.CryptoHasher("sha256").update(original).digest("hex"),
     },
   }
+}
+
+function hasUtf8ByteOrderMark(content: Uint8Array): boolean {
+  return content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf
 }
 
 export async function writeEtternaAssetsConfigUpdate(
@@ -78,7 +83,7 @@ export async function writeEtternaAssetsConfigUpdate(
 async function readOptionalFile(
   filePath: string,
   dependencies: PrepareEtternaAssetsConfigUpdateDependencies,
-): Promise<Buffer | undefined> {
+): Promise<Uint8Array | undefined> {
   try {
     return await dependencies.readFile(filePath)
   } catch (cause) {

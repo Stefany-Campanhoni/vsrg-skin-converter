@@ -15,8 +15,8 @@ test("writes a complete osu skin workspace", async () => {
   const templates = path.join(root, "templates")
   const workspace = path.join(root, "workspace")
   const source = path.join(root, "source.png")
-  const longNoteBody = Buffer.from([1, 2, 3])
-  const longNoteTail = Buffer.from([4, 5])
+  const longNoteBody = new Uint8Array([1, 2, 3])
+  const longNoteTail = new Uint8Array([4, 5])
   try {
     await mkdir(templates, { recursive: true })
     await writeFile(
@@ -68,12 +68,12 @@ test("writes a complete osu skin workspace", async () => {
     })
     const combo = await sharp(path.join(workspace, "combo-0.png")).metadata()
     expect({ width: combo.width, height: combo.height }).toStrictEqual({ width: 6, height: 4 })
-    expect(await readFile(path.join(workspace, "mania", "lns", "body.png"))).toStrictEqual(
-      longNoteBody,
-    )
-    expect(await readFile(path.join(workspace, "mania", "lns", "tail.png"))).toStrictEqual(
-      longNoteTail,
-    )
+    expect([...(await readFile(path.join(workspace, "mania", "lns", "body.png")))]).toStrictEqual([
+      ...longNoteBody,
+    ])
+    expect([...(await readFile(path.join(workspace, "mania", "lns", "tail.png")))]).toStrictEqual([
+      ...longNoteTail,
+    ])
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
       await expect((() => readFile(path.join(workspace, filename)))()).rejects.toMatchObject({
         code: "ENOENT",
@@ -95,7 +95,7 @@ test("preserves template artifacts when long-note publication fails", async () =
       path.join(templates, "skin.ini"),
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
-    await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeFile(path.join(templates, "LNB.png"), new Uint8Array([1, 2, 3]))
     await writeComboTemplates(templates)
     await sharp({
       create: {
@@ -148,7 +148,7 @@ test("publisher preserves the previous target and removes staging after a writer
       path.join(templates, "skin.ini"),
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
-    await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeFile(path.join(templates, "LNB.png"), new Uint8Array([1, 2, 3]))
     await writeComboTemplates(templates)
     await sharp({
       create: {

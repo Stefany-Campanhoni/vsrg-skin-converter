@@ -17,7 +17,7 @@ test("copies the complete static NoteSkin template and adds width-scaled recepto
     await mkdir(path.join(templates, "Holds"), { recursive: true })
     await writeFile(path.join(templates, "NoteSkin.lua"), "return {}")
     await writeFile(path.join(templates, "metrics.ini"), "[Global]\n")
-    await writeFile(path.join(templates, "Holds", "static-ln.png"), Buffer.from([7, 8, 9]))
+    await writeFile(path.join(templates, "Holds", "static-ln.png"), new Uint8Array([7, 8, 9]))
     await writeFile(
       source,
       await sharp({
@@ -36,9 +36,9 @@ test("copies the complete static NoteSkin template and adds width-scaled recepto
 
     expect(await readFile(path.join(workspace, "NoteSkin.lua"), "utf8")).toBe("return {}")
     expect(await readFile(path.join(workspace, "metrics.ini"), "utf8")).toBe("[Global]\n")
-    expect(await readFile(path.join(workspace, "Holds", "static-ln.png"))).toStrictEqual(
-      Buffer.from([7, 8, 9]),
-    )
+    expect([...(await readFile(path.join(workspace, "Holds", "static-ln.png")))]).toStrictEqual([
+      7, 8, 9,
+    ])
     const receptorFilenames = await readdir(path.join(workspace, "Receptors"))
     expect(receptorFilenames.length).toBe(8)
     for (const filename of receptorFilenames) {

@@ -18,9 +18,9 @@ import {
   writePreparedEtternaAssets,
 } from "./write-prepared-etterna-assets.ts"
 
-type AssetReader = (filePath: string) => Promise<Buffer>
+type AssetReader = (filePath: string) => Promise<Uint8Array>
 type AssetResizer = typeof resizeImageToWidth
-type AssetDimensionReader = (image: Buffer) => Promise<ImageDimensions>
+type AssetDimensionReader = (image: Uint8Array) => Promise<ImageDimensions>
 
 const tapNoteLogicalNames: Readonly<Record<ColumnDirection, string>> = {
   left: "_Left Tap Note",

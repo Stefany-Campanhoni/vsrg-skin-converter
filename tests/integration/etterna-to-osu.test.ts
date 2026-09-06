@@ -36,8 +36,8 @@ describe("Etterna-to-osu production installation", () => {
   let osuRoot = ""
   let osuConfigurationPath = ""
   let outputDirectory = ""
-  const longNoteBody = Buffer.from([10, 20, 30, 40])
-  const longNoteTail = Buffer.from([50, 60, 70])
+  const longNoteBody = new Uint8Array([10, 20, 30, 40])
+  const longNoteTail = new Uint8Array([50, 60, 70])
   let installFixture: (
     publisher?: TransactionalOutputSetPublisher,
   ) => ReturnType<typeof convertAndInstallSkin>
@@ -266,12 +266,12 @@ describe("Etterna-to-osu production installation", () => {
     ).rejects.toMatchObject({ code: "ENOENT" })
     const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
     expect({ width: note.width, height: note.height }).toStrictEqual({ width: 32, height: 24 })
-    expect(await readFile(path.join(outputDirectory, "mania", "lns", "body.png"))).toStrictEqual(
-      longNoteBody,
-    )
-    expect(await readFile(path.join(outputDirectory, "mania", "lns", "tail.png"))).toStrictEqual(
-      longNoteTail,
-    )
+    expect([
+      ...(await readFile(path.join(outputDirectory, "mania", "lns", "body.png"))),
+    ]).toStrictEqual([...longNoteBody])
+    expect([
+      ...(await readFile(path.join(outputDirectory, "mania", "lns", "tail.png"))),
+    ]).toStrictEqual([...longNoteTail])
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
       await expect((() => readFile(path.join(outputDirectory, filename)))()).rejects.toMatchObject({
         code: "ENOENT",
@@ -383,7 +383,7 @@ async function writeTwoBySixJudgementSheet(filePath: string): Promise<void> {
   const frameHeight = 6
   const width = frameWidth * 2
   const height = frameHeight * 6
-  const data = Buffer.alloc(width * height * 4)
+  const data = new Uint8Array(width * height * 4)
 
   for (let row = 0; row < 6; row += 1) {
     const leftColor = leftColors[row]
@@ -411,7 +411,7 @@ async function writeTwoBySixJudgementSheet(filePath: string): Promise<void> {
     .toFile(filePath)
 }
 
-function alphaBounds(data: Buffer, width: number, height: number) {
+function alphaBounds(data: Uint8Array, width: number, height: number) {
   let left = width
   let top = height
   let right = -1

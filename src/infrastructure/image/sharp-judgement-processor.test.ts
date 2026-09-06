@@ -13,7 +13,7 @@ async function writeTwoColumnSheet(
   frameHeight: number,
 ): Promise<ImageAsset> {
   const width = frameWidth * 2
-  const data = Buffer.alloc(width * frameHeight * 4)
+  const data = new Uint8Array(width * frameHeight * 4)
   for (let y = 0; y < frameHeight; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const offset = (y * width + x) * 4
@@ -34,14 +34,14 @@ async function writeTwoColumnSheet(
   }
 }
 
-async function dimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
+async function dimensions(buffer: Uint8Array): Promise<{ width: number; height: number }> {
   const metadata = await sharp(buffer).metadata()
   expectTruthy(metadata.width)
   expectTruthy(metadata.height)
   return { width: metadata.width, height: metadata.height }
 }
 
-async function alphaAt(buffer: Buffer, x: number, y: number): Promise<number> {
+async function alphaAt(buffer: Uint8Array, x: number, y: number): Promise<number> {
   const { data, info } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true })
   const alpha = data[(y * info.width + x) * 4 + 3]
   expectTruthy(alpha !== undefined)

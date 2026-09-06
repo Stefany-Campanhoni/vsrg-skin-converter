@@ -54,15 +54,15 @@ test("rejects invalid dimensions before decoding the image", async () => {
   ] as const) {
     const size = field === "width" ? { width: value, height: 1 } : { width: 1, height: value }
 
-    await expect((() => resizeImageExact(Buffer.from("invalid"), size))()).rejects.toThrow(
-      new RegExp(field, "i"),
-    )
+    await expect(
+      (() => resizeImageExact(new TextEncoder().encode("invalid"), size))(),
+    ).rejects.toThrow(new RegExp(field, "i"))
   }
 })
 
 test("retains undecodable image errors as the cause of contextual resize errors", async () => {
   await expectRejectionSatisfies(
-    (() => resizeImageExact(Buffer.from("invalid"), { width: 146, height: 146 }))(),
+    (() => resizeImageExact(new TextEncoder().encode("invalid"), { width: 146, height: 146 }))(),
     (error) => {
       expectTruthy(error instanceof Error)
       expect(error.message).toMatch(/resize image.*146.*146/i)
@@ -72,7 +72,7 @@ test("retains undecodable image errors as the cause of contextual resize errors"
   )
 })
 
-async function imageSize(image: Buffer): Promise<{ width: number; height: number }> {
+async function imageSize(image: Uint8Array): Promise<{ width: number; height: number }> {
   const { width, height } = await sharp(image).metadata()
   expectTruthy(width !== undefined)
   expectTruthy(height !== undefined)

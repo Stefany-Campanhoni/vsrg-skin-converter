@@ -3,9 +3,9 @@ import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { resizeImageProportionally } from "../../../infrastructure/image/resize-image.ts"
 
-type ComboImageReader = (filePath: string) => Promise<Buffer>
-type ComboImageResizer = (image: Buffer, scale: number) => Promise<Buffer>
-type ComboImageWriter = (filePath: string, image: Buffer) => Promise<void>
+type ComboImageReader = (filePath: string) => Promise<Uint8Array>
+type ComboImageResizer = (image: Uint8Array, scale: number) => Promise<Uint8Array>
+type ComboImageWriter = (filePath: string, image: Uint8Array) => Promise<void>
 
 const osuComboImageCharacters = [
   "0",

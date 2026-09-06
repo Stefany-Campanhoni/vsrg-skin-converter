@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test"
-import { createHash } from "node:crypto"
 import {
   access,
   link as createLink,
@@ -345,13 +344,13 @@ for (const failingRename of [1, 2, 3, 4]) {
   test(`restores every previous target when rename boundary ${failingRename} fails`, async () => {
     const root = await makeRoot()
     const first = target(root, "first", "replace-existing", async (workspace) => {
-      await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([10, 11]))
+      await writeFile(path.join(workspace, "fresh.bin"), new Uint8Array([10, 11]))
     })
     const second = target(root, "second", "replace-existing", async (workspace) => {
-      await writeFile(path.join(workspace, "fresh.bin"), Buffer.from([12, 13]))
+      await writeFile(path.join(workspace, "fresh.bin"), new Uint8Array([12, 13]))
     })
-    const firstBytes = Buffer.from([0, 1, 2, 255])
-    const secondBytes = Buffer.from([3, 4, 5, 254])
+    const firstBytes = new Uint8Array([0, 1, 2, 255])
+    const secondBytes = new Uint8Array([3, 4, 5, 254])
     const boundaryFailure = new Error(`rename ${failingRename} failed`)
     let renameCount = 0
     const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
@@ -380,8 +379,12 @@ for (const failingRename of [1, 2, 3, 4]) {
         },
       )
 
-      expect(await readFile(path.join(first.targetPath, "current.bin"))).toStrictEqual(firstBytes)
-      expect(await readFile(path.join(second.targetPath, "current.bin"))).toStrictEqual(secondBytes)
+      expect([...(await readFile(path.join(first.targetPath, "current.bin")))]).toStrictEqual([
+        ...firstBytes,
+      ])
+      expect([...(await readFile(path.join(second.targetPath, "current.bin")))]).toStrictEqual([
+        ...secondBytes,
+      ])
       await assertOnlyTargets(root, ["first", "second"])
     } finally {
       await rm(root, { recursive: true, force: true })
@@ -395,9 +398,9 @@ test("removes a newly promoted profile and restores a NoteSkin when a later prom
     await writeFile(path.join(workspace, "profile.txt"), "new profile")
   })
   const noteSkin = target(root, "noteskin", "replace-existing", async (workspace) => {
-    await writeFile(path.join(workspace, "new.bin"), Buffer.from([90, 91]))
+    await writeFile(path.join(workspace, "new.bin"), new Uint8Array([90, 91]))
   })
-  const previousBytes = Buffer.from([0, 127, 128, 255])
+  const previousBytes = new Uint8Array([0, 127, 128, 255])
   const promotionFailure = new Error("NoteSkin promotion failed")
   let promotionFailed = false
   const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
@@ -420,9 +423,9 @@ test("removes a newly promoted profile and restores a NoteSkin when a later prom
     )
 
     expect(await exists(profile.targetPath)).toBe(false)
-    expect(await readFile(path.join(noteSkin.targetPath, "current.bin"))).toStrictEqual(
-      previousBytes,
-    )
+    expect([...(await readFile(path.join(noteSkin.targetPath, "current.bin")))]).toStrictEqual([
+      ...previousBytes,
+    ])
     await assertOnlyTargets(root, ["noteskin"])
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -1095,7 +1098,7 @@ test("publishes directory and file targets in one output transaction", async () 
 test("validates file content expectations before backing up any target", async () => {
   const root = await makeRoot()
   const configPath = path.join(root, "assetsConfig.lua")
-  const original = Buffer.from("original")
+  const original = new TextEncoder().encode("original")
   try {
     await writeFile(configPath, original)
     const matching = fileTarget(
@@ -1103,7 +1106,10 @@ test("validates file content expectations before backing up any target", async (
       "assetsConfig.lua",
       "replace-existing",
       async (stagingFile) => writeFile(stagingFile, "updated"),
-      { state: "sha256", sha256: createHash("sha256").update(original).digest("hex") },
+      {
+        state: "sha256",
+        sha256: "0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5",
+      },
     )
     await new TransactionalOutputSetPublisher().publish([matching])
     expect(await readFile(configPath, "utf8")).toBe("updated")
@@ -1114,7 +1120,10 @@ test("validates file content expectations before backing up any target", async (
       "assetsConfig.lua",
       "replace-existing",
       async (stagingFile) => writeFile(stagingFile, "must not publish"),
-      { state: "sha256", sha256: createHash("sha256").update(original).digest("hex") },
+      {
+        state: "sha256",
+        sha256: "0682c5f2076f099c34cfdd15a9e063849ed437a49677e6fcc5b4198c76575be5",
+      },
     )
     await expect(
       (() => new TransactionalOutputSetPublisher().publish([mismatched]))(),
@@ -1144,7 +1153,7 @@ test("preserves a SHA-256 target changed between live validation and backup", as
     await writeFile(path.join(workspace, "new.txt"), "new skin")
   })
   const configPath = path.join(root, "osu!.Audit.cfg")
-  const originalConfig = Buffer.from("ManiaSpeed = 10\n")
+  const originalConfig = new TextEncoder().encode("ManiaSpeed = 10\n")
   const concurrentConfig = "ManiaSpeed = 777\nConcurrent = keep\n"
   let changedAfterValidation = false
   const fileSystem: Partial<TransactionalOutputSetFileSystem> = {
@@ -1169,7 +1178,7 @@ test("preserves a SHA-256 target changed between live validation and backup", as
       async (stagingFile) => writeFile(stagingFile, "ManiaSpeed = 29\n"),
       {
         state: "sha256",
-        sha256: createHash("sha256").update(originalConfig).digest("hex"),
+        sha256: "47d82a454277fd532752d00243829289ce6fcfae2d322d3a50ef213839a3e7b0",
       },
     )
 

@@ -103,7 +103,7 @@ test("scales tap notes proportionally to 150px wide with proportional Etterna re
 })
 
 test("settles every tap-note resize before failing and does not start the write phase", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const resizesStarted = deferred<void>()
   const failure = new Error("exact note resize failure")
   const writes: string[] = []
@@ -111,7 +111,7 @@ test("settles every tap-note resize before failing and does not start the write 
   const writing = writeEtternaNotes({
     notes: completeNotes("standard"),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async () => {
       calls += 1
       if (calls === 4) {
@@ -123,7 +123,7 @@ test("settles every tap-note resize before failing and does not start the write 
       if (calls === 2) {
         throw failure
       }
-      return Buffer.from("resized png")
+      return new TextEncoder().encode("resized png")
     },
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
@@ -147,7 +147,7 @@ test("settles every tap-note resize before failing and does not start the write 
   await new Promise<void>((resolve) => setImmediate(resolve))
   expect(settled).toBe(false)
 
-  sibling.resolve(Buffer.from("resized png"))
+  sibling.resolve(new TextEncoder().encode("resized png"))
   await expectRejectionSatisfies(writing, (error) => {
     expectTruthy(error instanceof Error)
     expect(error.message).toMatch(/resize.*tap note.*down.*down\.png.*width 150/i)
@@ -158,7 +158,7 @@ test("settles every tap-note resize before failing and does not start the write 
 })
 
 test("settles every tap-note read before failing and does not start the write phase", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact note read failure")
   const writes: string[] = []
@@ -175,7 +175,7 @@ test("settles every tap-note read before failing and does not start the write ph
         failureStarted.resolve()
         throw failure
       }
-      return Buffer.from("png")
+      return new TextEncoder().encode("png")
     },
     write: async (filePath) => {
       writes.push(filePath)
@@ -190,7 +190,7 @@ test("settles every tap-note read before failing and does not start the write ph
   await new Promise<void>((resolve) => setImmediate(resolve))
   expect(settled).toBe(false)
 
-  sibling.resolve(Buffer.from("png"))
+  sibling.resolve(new TextEncoder().encode("png"))
   await expectRejectionSatisfies(writing, (error) => {
     expectTruthy(error instanceof Error)
     expect(error.message).toMatch(/read.*tap note.*down.*down\.png/i)
@@ -208,7 +208,7 @@ test("starts and settles every tap-note write when a writer throws synchronously
   const writing = writeEtternaNotes({
     notes: completeNotes("standard"),
     outputDirectory: "output",
-    read: async () => Buffer.from("png"),
+    read: async () => new TextEncoder().encode("png"),
     resize: async (buffer) => buffer,
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
@@ -270,7 +270,7 @@ async function solidPng(
   width: number,
   height: number,
   color: { r: number; g: number; b: number; alpha: number },
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return sharp({ create: { width, height, channels: 4, background: color } })
     .png()
     .toBuffer()

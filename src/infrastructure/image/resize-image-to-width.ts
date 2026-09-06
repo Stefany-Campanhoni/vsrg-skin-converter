@@ -1,6 +1,9 @@
 import sharp from "sharp"
 
-export async function resizeImageToWidth(image: Buffer, targetWidth: number): Promise<Buffer> {
+export async function resizeImageToWidth(
+  image: Uint8Array,
+  targetWidth: number,
+): Promise<Uint8Array> {
   if (!Number.isInteger(targetWidth) || targetWidth <= 0) {
     throw new Error("target width must be a positive integer")
   }

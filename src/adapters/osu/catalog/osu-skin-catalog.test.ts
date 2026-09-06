@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { concatBytes, utf16LittleEndianBytes } from "../../../../tests/support/bytes.ts"
 import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { OsuSkinCatalog } from "./osu-skin-catalog.ts"
 
@@ -71,9 +72,9 @@ test("lists a skin whose UTF-16LE skin.ini has a byte order mark", async () => {
   await mkdir(skinDirectory, { recursive: true })
   await writeFile(
     path.join(skinDirectory, "skin.ini"),
-    Buffer.concat([
-      Buffer.from([0xff, 0xfe]),
-      Buffer.from("[General]\nName: UTF-16 Fixture", "utf16le"),
+    concatBytes([
+      new Uint8Array([0xff, 0xfe]),
+      utf16LittleEndianBytes("[General]\nName: UTF-16 Fixture"),
     ]),
   )
 

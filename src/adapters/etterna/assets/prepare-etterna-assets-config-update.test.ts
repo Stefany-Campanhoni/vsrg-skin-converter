@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test"
-import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -40,7 +39,7 @@ test("inserts into an existing judgment table while preserving every original by
 
   expect(update.expectation).toStrictEqual({
     state: "sha256",
-    sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
+    sha256: "c2ece179d8207ae98382be14451d3fbf8788ebaf544edc259efdae263876c1aa",
   })
   expect(removeInsertedMapping(update.content)).toBe(source)
   expect(update.content).toMatch(/judgment = \{\n {4}\["a0e735211f55dfcd"\] = ".*",/)
@@ -58,6 +57,14 @@ test("inserts a judgment table into the returned root without rewriting existing
     expect(removeInsertedJudgementTable(update.content)).toBe(source)
     expect(parseLuaSource(update.content, { ranges: true }).type).toBe("Chunk")
   }
+})
+
+test("preserves a UTF-8 byte order mark while updating an existing configuration", async () => {
+  const source = "\uFEFFreturn {}"
+
+  const update = await prepareFromSource(source)
+
+  expect(removeInsertedJudgementTable(update.content)).toBe(source)
 })
 
 test("encodes Lua string literals without emitting raw control characters", async () => {
@@ -153,7 +160,7 @@ async function prepareFromSource(source: string) {
     guid,
     judgementPath,
     {
-      readFile: async () => Buffer.from(source),
+      readFile: async () => new TextEncoder().encode(source),
     },
   )
 }

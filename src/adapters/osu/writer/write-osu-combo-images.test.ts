@@ -45,7 +45,7 @@ test("resizes every copied osu combo image with rounded proportional dimensions"
 })
 
 test("finishes every resize and writes nothing when combo preparation fails", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const preparationsStarted = deferred<void>()
   const failure = new Error("exact combo resize failure")
   let resizeCalls = 0
@@ -54,7 +54,7 @@ test("finishes every resize and writes nothing when combo preparation fails", as
   const writing = writeOsuComboImages({
     outputDirectory: "workspace",
     scale: 0.6,
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async (image) => {
       resizeCalls += 1
       if (resizeCalls === 24) {
@@ -89,7 +89,7 @@ test("finishes every resize and writes nothing when combo preparation fails", as
   expect(settled).toBe(false)
   expect(writeCalls).toBe(0)
 
-  sibling.resolve(Buffer.from("resized"))
+  sibling.resolve(new TextEncoder().encode("resized"))
   await expectRejectionSatisfies(
     writing,
     (error) =>
@@ -107,7 +107,7 @@ test("starts every combo write and waits for siblings when a writer throws synch
   const writing = writeOsuComboImages({
     outputDirectory: "workspace",
     scale: 1,
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async (image) => image,
     write: () => {
       writeCalls += 1

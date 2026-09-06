@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process"
-import { randomUUID } from "node:crypto"
 import { cp, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -54,7 +53,7 @@ export function runRuntimeCommand(command: CommandInvocation): Promise<void> {
 }
 
 const defaultDependencies: RuntimeDependencyInstallationDependencies = {
-  token: randomUUID,
+  token: () => crypto.randomUUID(),
   runCommand: runRuntimeCommand,
   renamePath: rename,
   delay: async (milliseconds) => {

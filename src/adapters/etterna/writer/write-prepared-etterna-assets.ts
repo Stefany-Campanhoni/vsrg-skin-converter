@@ -3,11 +3,11 @@ import path from "node:path"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { runEtternaAssetOperation } from "./run-etterna-asset-operation.ts"
 
-export type EtternaAssetWriter = (filePath: string, buffer: Buffer) => Promise<void>
+export type EtternaAssetWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
 
 export interface PreparedEtternaAsset {
   readonly filename: string
-  readonly buffer: Buffer
+  readonly buffer: Uint8Array
 }
 
 export interface WritePreparedEtternaAssetsOptions {

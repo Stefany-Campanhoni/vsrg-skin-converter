@@ -151,7 +151,7 @@ test("does not create receptor output when any render fails", async () => {
 
 test("waits for every receptor render before rethrowing the exact render failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-writer-"))
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact render failure")
   let calls = 0

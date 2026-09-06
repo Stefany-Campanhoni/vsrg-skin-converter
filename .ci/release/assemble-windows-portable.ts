@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
 import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
@@ -113,7 +112,7 @@ export async function assembleWindowsPortable(
     assertDirectory(path.join(sources.templates, "etterna")),
   ])
 
-  const token = options.dependencies?.token?.() ?? randomUUID()
+  const token = options.dependencies?.token?.() ?? crypto.randomUUID()
   assertSafeTransactionToken(token)
   const renamePath = options.dependencies?.renamePath ?? rename
   const wait = options.dependencies?.delay ?? delay

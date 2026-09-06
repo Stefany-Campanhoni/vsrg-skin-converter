@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import sharp from "sharp"
+import { concatBytes } from "../../../tests/support/bytes.ts"
 import { expectTruthy } from "../../../tests/support/expectations.ts"
 import type { ImageAsset } from "../../domain/image.ts"
 import {
@@ -53,11 +54,11 @@ test("rejects invalid dynamic-footer geometry", () => {
 
 test("extracts the selected spritesheet frame before rendering", async () => {
   await withImages(async ({ base, source }) => {
-    const red = Buffer.from([255, 0, 0, 255])
-    const blue = Buffer.from([0, 0, 255, 255])
-    const pixels = Buffer.concat(
+    const red = new Uint8Array([255, 0, 0, 255])
+    const blue = new Uint8Array([0, 0, 255, 255])
+    const pixels = concatBytes(
       Array.from({ length: 10 }, () =>
-        Buffer.concat([
+        concatBytes([
           ...Array.from({ length: 10 }, () => red),
           ...Array.from({ length: 10 }, () => blue),
         ]),
@@ -423,11 +424,11 @@ test("preserves a receptor without visible pixels", async () => {
 
 test("extracts a note frame without resizing or adding canvas", async () => {
   await withImages(async ({ source }) => {
-    const red = Buffer.from([255, 0, 0, 255])
-    const blue = Buffer.from([0, 0, 255, 255])
-    const pixels = Buffer.concat(
+    const red = new Uint8Array([255, 0, 0, 255])
+    const blue = new Uint8Array([0, 0, 255, 255])
+    const pixels = concatBytes(
       Array.from({ length: 12 }, (_, y) =>
-        Buffer.concat(Array.from({ length: 18 }, () => (y < 6 ? red : blue))),
+        concatBytes(Array.from({ length: 18 }, () => (y < 6 ? red : blue))),
       ),
     )
     await sharp(pixels, { raw: { width: 18, height: 12, channels: 4 } })
@@ -474,12 +475,12 @@ test("rotates a selected non-square note frame while preserving its dimensions",
   })
 })
 
-function pixel(data: Buffer, width: number, x: number, y: number): Buffer {
+function pixel(data: Uint8Array, width: number, x: number, y: number): Uint8Array {
   const offset = (y * width + x) * 4
   return data.subarray(offset, offset + 4)
 }
 
-function alphaBounds(data: Buffer, width: number, height: number) {
+function alphaBounds(data: Uint8Array, width: number, height: number) {
   let left = width
   let top = height
   let right = -1

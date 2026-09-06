@@ -21,8 +21,8 @@ export interface EtternaJudgementWriterDependencies {
     sourceDensity: 1 | 2,
     scale: number,
   ): Promise<JudgementImageVariants>
-  compose(frames: readonly CenteredSpriteSheetFrame[]): Promise<Buffer>
-  writeFile(filePath: string, data: Buffer): Promise<void>
+  compose(frames: readonly CenteredSpriteSheetFrame[]): Promise<Uint8Array>
+  writeFile(filePath: string, data: Uint8Array): Promise<void>
 }
 
 const defaultDependencies: EtternaJudgementWriterDependencies = {
@@ -100,7 +100,7 @@ export class EtternaJudgementWriter {
       }),
     )
 
-    let sheet: Buffer
+    let sheet: Uint8Array
     try {
       sheet = await this.#dependencies.compose(frames)
     } catch (cause) {

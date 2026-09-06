@@ -4,8 +4,8 @@ import { extractImageFrame } from "./extract-image-frame.ts"
 import { resizeImageProportionally } from "./resize-image.ts"
 
 export interface JudgementImageVariants {
-  standardResolution: Buffer
-  doubleResolution: Buffer
+  standardResolution: Uint8Array
+  doubleResolution: Uint8Array
 }
 
 export async function renderJudgementImageVariants(

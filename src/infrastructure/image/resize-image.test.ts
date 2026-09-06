@@ -3,8 +3,8 @@ import sharp from "sharp"
 import { expectTruthy } from "../../../tests/support/expectations.ts"
 import { resizeImageProportionally } from "./resize-image.ts"
 
-async function createRgbaPng(): Promise<Buffer> {
-  const pixels = Buffer.from(Array.from({ length: 10 * 6 }, () => [20, 40, 60, 127]).flat())
+async function createRgbaPng(): Promise<Uint8Array> {
+  const pixels = new Uint8Array(Array.from({ length: 10 * 6 }, () => [20, 40, 60, 127]).flat())
 
   return sharp(pixels, { raw: { width: 10, height: 6, channels: 4 } })
     .png()
