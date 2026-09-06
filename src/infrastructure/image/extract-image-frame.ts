@@ -3,7 +3,7 @@ import type { ImageAsset } from "../../domain/image.ts"
 
 export async function extractImageFrame(
   definition: Pick<ImageAsset, "filePath" | "frame">,
-): Promise<string | Buffer> {
+): Promise<string | Uint8Array> {
   const sourceMetadata = await sharp(definition.filePath).metadata()
   if (!sourceMetadata.width || !sourceMetadata.height) {
     throw new Error(`Could not read image dimensions from ${definition.filePath}`)

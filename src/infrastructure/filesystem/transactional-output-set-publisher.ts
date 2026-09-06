@@ -1,4 +1,3 @@
-import { createHash, randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
 import {
   access,
@@ -42,7 +41,7 @@ export interface TransactionalOutputSetFileSystem {
   mkdtemp(prefix: string): Promise<string>
   readdir(directory: string): Promise<string[]>
   realpath(candidate: string): Promise<string>
-  readFile(candidate: string): Promise<Buffer>
+  readFile(candidate: string): Promise<Uint8Array>
   rename(source: string, destination: string): Promise<void>
   rm(candidate: string, options?: RemoveOptions): Promise<void>
   rmdir(candidate: string): Promise<void>
@@ -157,7 +156,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
         stagingContainer,
         stagingPayload:
           target.kind === "directory" ? stagingContainer : path.join(stagingContainer, "payload"),
-        backupPath: path.join(parentDirectory, `.${name}.backup-${randomUUID()}`),
+        backupPath: path.join(parentDirectory, `.${name}.backup-${crypto.randomUUID()}`),
         backupCreated: false,
         publicationCommitted: false,
         targetOwned: false,
@@ -259,7 +258,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
         continue
       }
 
-      let content: Buffer
+      let content: Uint8Array
       try {
         content = await this.#fileSystem.readFile(target.targetPath)
       } catch (cause) {
@@ -268,7 +267,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
           { cause },
         )
       }
-      const actualHash = createHash("sha256").update(content).digest("hex")
+      const actualHash = new Bun.CryptoHasher("sha256").update(content).digest("hex")
       if (actualHash !== expectation.sha256) {
         throw new Error(
           `Output target "${target.targetPath}" content changed after preparation and no longer matches its SHA-256 expectation`,
@@ -351,7 +350,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
         )
       }
 
-      let content: Buffer
+      let content: Uint8Array
       try {
         content = await this.#fileSystem.readFile(target.backupPath)
       } catch (cause) {
@@ -360,7 +359,7 @@ export class TransactionalOutputSetPublisher implements OutputSetPublisher {
           { cause },
         )
       }
-      const actualHash = createHash("sha256").update(content).digest("hex")
+      const actualHash = new Bun.CryptoHasher("sha256").update(content).digest("hex")
       if (actualHash !== expectation.sha256) {
         throw new Error(
           `Output target "${target.targetPath}" content changed after preparation and no longer matches its backed-up SHA-256 expectation`,

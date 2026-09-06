@@ -520,8 +520,8 @@ test("an authorized overwrite replaces only the selected NoteSkin and creates it
   try {
     await mkdir(path.join(unrelatedNoteSkin, "nested"), { recursive: true })
     await mkdir(selectedNoteSkin, { recursive: true })
-    await writeFile(oldSelectedMarker, Buffer.from([1, 3, 5, 7]))
-    await writeFile(path.join(unrelatedNoteSkin, "keep.bin"), Buffer.from([2, 4, 6, 8]))
+    await writeFile(oldSelectedMarker, new Uint8Array([1, 3, 5, 7]))
+    await writeFile(path.join(unrelatedNoteSkin, "keep.bin"), new Uint8Array([2, 4, 6, 8]))
     await writeFile(path.join(unrelatedNoteSkin, "nested", "keep.txt"), "unchanged")
     const unrelatedBefore = await directorySnapshot(unrelatedNoteSkin)
     const configurations = await listOsuUserConfigurations(fixture.osuRoot)
@@ -846,11 +846,11 @@ function createFixtureInstaller(
   configuration: EtternaSkinInstallerConfiguration,
   publisher = new TransactionalOutputSetPublisher(),
 ): EtternaSkinInstaller {
-  const generatedValues = [Buffer.from(existingGuid, "hex"), Buffer.from(generatedGuid, "hex")]
+  const generatedValues = [Uint8Array.fromHex(existingGuid), Uint8Array.fromHex(generatedGuid)]
   return new EtternaSkinInstaller(configuration, {
     allocateProfileIdentity: (gameRoot) =>
       allocateEtternaProfileIdentity(gameRoot, {
-        randomBytes: () => generatedValues.shift() ?? Buffer.alloc(8),
+        randomBytes: () => generatedValues.shift() ?? new Uint8Array(8),
       }),
     noteSkinWriter: new EtternaNoteSkinWriter(path.join(etternaTemplatesPath, "noteskin")),
     profileWriter: new EtternaProfileWriter(path.join(etternaTemplatesPath, "profile")),
@@ -945,7 +945,7 @@ async function writeReceptor(
   color: { readonly r: number; readonly g: number; readonly b: number },
 ): Promise<void> {
   const height = width + 8
-  const data = Buffer.alloc(width * height * 4)
+  const data = new Uint8Array(width * height * 4)
   for (let y = 3; y < height - 4; y += 1) {
     for (let x = 2; x < width - 2; x += 1) {
       const offset = (y * width + x) * 4
@@ -989,7 +989,7 @@ async function assertStaticNoteSkinTemplate(noteSkinDirectory: string): Promise<
   }
 }
 
-function rgbaAt(data: Buffer, width: number, x: number, y: number): number[] {
+function rgbaAt(data: Uint8Array, width: number, x: number, y: number): number[] {
   const offset = (y * width + x) * 4
   return [...data.subarray(offset, offset + 4)]
 }
@@ -1068,7 +1068,7 @@ async function assertFallbackJudgementSheet(
   }
 }
 
-function assertBuffersNear(actual: Buffer, expected: Buffer, label: string): void {
+function assertBuffersNear(actual: Uint8Array, expected: Uint8Array, label: string): void {
   expect(actual.length, label).toBe(expected.length)
   let maximumChannelDifference = 0
   for (let index = 0; index < actual.length; index += 1) {
@@ -1099,7 +1099,7 @@ async function directorySnapshot(directory: string): Promise<Readonly<Record<str
   const entries = await Promise.all(
     files.map(
       async (filePath) =>
-        [path.relative(directory, filePath), (await readFile(filePath)).toString("hex")] as const,
+        [path.relative(directory, filePath), (await readFile(filePath)).toHex()] as const,
     ),
   )
   return Object.fromEntries(entries.sort(([left], [right]) => left.localeCompare(right)))

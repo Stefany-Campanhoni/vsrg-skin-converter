@@ -31,8 +31,8 @@ test("writes exact osu judgement filenames", async () => {
       observedScales.push(scale)
       const grade = definition.filePath as JudgementGrade
       return {
-        standardResolution: Buffer.from(`sd-${grade}`),
-        doubleResolution: Buffer.from(`hd-${grade}`),
+        standardResolution: new TextEncoder().encode(`sd-${grade}`),
+        doubleResolution: new TextEncoder().encode(`hd-${grade}`),
       }
     },
   })
@@ -76,8 +76,8 @@ test("rejects an incomplete judgement set before rendering output", async () => 
         render: async () => {
           renders += 1
           return {
-            standardResolution: Buffer.from("sd"),
-            doubleResolution: Buffer.from("hd"),
+            standardResolution: new TextEncoder().encode("sd"),
+            doubleResolution: new TextEncoder().encode("hd"),
           }
         },
       }))(),
@@ -108,8 +108,8 @@ test("waits for all renders and writes nothing when rendering fails", async () =
         throw failure
       }
       return {
-        standardResolution: Buffer.from("sd"),
-        doubleResolution: Buffer.from("hd"),
+        standardResolution: new TextEncoder().encode("sd"),
+        doubleResolution: new TextEncoder().encode("hd"),
       }
     },
   })
@@ -123,8 +123,8 @@ test("waits for all renders and writes nothing when rendering fails", async () =
   expect(settled).toBe(false)
 
   sibling.resolve({
-    standardResolution: Buffer.from("sd"),
-    doubleResolution: Buffer.from("hd"),
+    standardResolution: new TextEncoder().encode("sd"),
+    doubleResolution: new TextEncoder().encode("hd"),
   })
   await expectRejectionSatisfies(writing, (error) => error === failure)
   expect(await readdir(outputDirectory)).toStrictEqual([])
@@ -143,8 +143,8 @@ test("waits for all writes before rejecting with the first write failure", async
     outputDirectory,
     scale: 1,
     render: async () => ({
-      standardResolution: Buffer.from("sd"),
-      doubleResolution: Buffer.from("hd"),
+      standardResolution: new TextEncoder().encode("sd"),
+      doubleResolution: new TextEncoder().encode("hd"),
     }),
     write: async () => {
       calls += 1
@@ -193,8 +193,8 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
     outputDirectory,
     scale: 1,
     render: async () => ({
-      standardResolution: Buffer.from("sd"),
-      doubleResolution: Buffer.from("hd"),
+      standardResolution: new TextEncoder().encode("sd"),
+      doubleResolution: new TextEncoder().encode("hd"),
     }),
     write: () => {
       calls += 1

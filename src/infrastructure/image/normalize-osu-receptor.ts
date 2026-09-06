@@ -2,9 +2,9 @@ import sharp from "sharp"
 import type { ImageDimensions } from "./read-image-dimensions.ts"
 
 export async function normalizeOsuReceptorImage(
-  image: Buffer,
+  image: Uint8Array,
   targetDimensions: ImageDimensions,
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   try {
     if (
       !Number.isInteger(targetDimensions.width) ||

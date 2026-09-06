@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process"
-import { createHash } from "node:crypto"
 import { readdir, readFile, stat } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -79,9 +78,7 @@ function isDependencyEntry(relative: string): boolean {
 }
 
 async function hashFile(file: string): Promise<string> {
-  return createHash("sha256")
-    .update(await readFile(file))
-    .digest("hex")
+  return new Bun.CryptoHasher("sha256").update(await readFile(file)).digest("hex")
 }
 
 async function verifyTemplates(
@@ -124,11 +121,11 @@ function runProcess(
       windowsVerbatimArguments,
       stdio: ["ignore", "pipe", "pipe"],
     })
-    const stdout: Buffer[] = []
-    const stderr: Buffer[] = []
+    const stdout: Uint8Array[] = []
+    const stderr: Uint8Array[] = []
     let timedOut = false
-    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk))
-    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk))
+    child.stdout.on("data", (chunk: Uint8Array) => stdout.push(chunk))
+    child.stderr.on("data", (chunk: Uint8Array) => stderr.push(chunk))
     const timer = setTimeout(() => {
       timedOut = true
       child.kill()
@@ -140,8 +137,8 @@ function runProcess(
     child.once("exit", (code, signal) => {
       clearTimeout(timer)
       resolve({
-        stdout: Buffer.concat(stdout).toString("utf8"),
-        stderr: Buffer.concat(stderr).toString("utf8"),
+        stdout: new TextDecoder().decode(Bun.concatArrayBuffers(stdout)),
+        stderr: new TextDecoder().decode(Bun.concatArrayBuffers(stderr)),
         code,
         signal,
         timedOut,

@@ -70,8 +70,8 @@ test("settles every frame decode before rethrowing the first contextual cause", 
   const pending = [deferred<DecodedSpriteSheetFrame>(), deferred<DecodedSpriteSheetFrame>()]
   const composing = composeCenteredVerticalSpriteSheet(
     [
-      { label: "marvelous from first.png", image: Buffer.from("first") },
-      { label: "perfect from second.png", image: Buffer.from("second") },
+      { label: "marvelous from first.png", image: new TextEncoder().encode("first") },
+      { label: "perfect from second.png", image: new TextEncoder().encode("second") },
     ],
     {
       decode: (_image, index) => pending[index]?.promise ?? Promise.reject(new Error("bad index")),
@@ -86,7 +86,7 @@ test("settles every frame decode before rethrowing the first contextual cause", 
   await Promise.resolve()
   expect(settled).toBe(false)
 
-  pending[1]?.resolve({ data: Buffer.from([0, 0, 0, 0]), width: 1, height: 1 })
+  pending[1]?.resolve({ data: new Uint8Array([0, 0, 0, 0]), width: 1, height: 1 })
   await expectRejectionSatisfies(composing, (error) => {
     expectTruthy(error instanceof Error)
     expect(error.message).toMatch(/marvelous.*first\.png/i)
@@ -95,7 +95,7 @@ test("settles every frame decode before rethrowing the first contextual cause", 
   })
 })
 
-function pixelAt(data: Buffer, width: number, x: number, y: number): number[] {
+function pixelAt(data: Uint8Array, width: number, x: number, y: number): number[] {
   const offset = (y * width + x) * 4
   return [
     data[offset] ?? -1,

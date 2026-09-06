@@ -1,9 +1,7 @@
 import { spawn } from "node:child_process"
-import { createHash, randomUUID } from "node:crypto"
 import { createReadStream } from "node:fs"
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { pipeline } from "node:stream/promises"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
 import { getReleasePaths } from "./release-config.ts"
@@ -69,8 +67,10 @@ async function extract(archive: string, destination: string): Promise<void> {
 }
 
 async function hashFile(file: string): Promise<string> {
-  const hash = createHash("sha256")
-  await pipeline(createReadStream(file), hash)
+  const hash = new Bun.CryptoHasher("sha256")
+  for await (const chunk of createReadStream(file)) {
+    hash.update(chunk)
+  }
   return hash.digest("hex")
 }
 
@@ -121,7 +121,7 @@ export async function createWindowsRelease(
   const checksumPath = path.resolve(options.checksumPath)
   const sourceTemplatesRoot = path.resolve(options.sourceTemplatesRoot)
   const defaultDependencies: WindowsReleaseDependencies = {
-    token: randomUUID,
+    token: () => crypto.randomUUID(),
     compress,
     extract,
     hashFile,

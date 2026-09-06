@@ -4,7 +4,7 @@ import { expectRejectionSatisfies, expectTruthy } from "../../../tests/support/e
 import { normalizeOsuReceptorImage } from "./normalize-osu-receptor.ts"
 
 test("trims vertical transparency and uses square note proportions", async () => {
-  const pixels = Buffer.alloc(8 * 14 * 4)
+  const pixels = new Uint8Array(8 * 14 * 4)
   for (let y = 3; y <= 10; y += 1) {
     setPixel(pixels, 8, 2, y, [255, 0, 0, 255])
     setPixel(pixels, 8, 5, y, [0, 0, 255, 255])
@@ -26,7 +26,7 @@ test("trims vertical transparency and uses square note proportions", async () =>
 })
 
 test("normalizes a short visible region to square note proportions", async () => {
-  const pixels = Buffer.alloc(10 * 8 * 4)
+  const pixels = new Uint8Array(10 * 8 * 4)
   for (let y = 2; y <= 5; y += 1) {
     for (let x = 1; x <= 8; x += 1) {
       setPixel(pixels, 10, x, y, [40, 180, 90, 255])
@@ -45,7 +45,7 @@ test("normalizes a short visible region to square note proportions", async () =>
 })
 
 test("normalizes receptor height from a rectangular note using receptor width as the base", async () => {
-  const pixels = Buffer.alloc(6 * 12 * 4)
+  const pixels = new Uint8Array(6 * 12 * 4)
   for (let y = 2; y <= 9; y += 1) {
     for (let x = 0; x < 6; x += 1) {
       setPixel(pixels, 6, x, y, [120, 60, 200, 255])
@@ -84,7 +84,7 @@ test("normalizes a fully transparent receptor to the note proportions", async ()
 test("trims and renders textured receptors to final dimensions in one resize", async () => {
   const width = 7
   const height = 9
-  const pixels = Buffer.alloc(width * height * 4)
+  const pixels = new Uint8Array(width * height * 4)
   for (let y = 1; y < height - 1; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const value = (x + y) % 2 === 0 ? 255 : 0
@@ -147,12 +147,16 @@ test("rejects invalid target dimensions with normalization context", async () =>
 
 test("adds receptor-normalization context to undecodable images", async () => {
   await expect(
-    (() => normalizeOsuReceptorImage(Buffer.from("not an image"), { width: 1, height: 1 }))(),
+    (() =>
+      normalizeOsuReceptorImage(new TextEncoder().encode("not an image"), {
+        width: 1,
+        height: 1,
+      }))(),
   ).rejects.toThrow(/normalize osu! receptor image/i)
 })
 
 function setPixel(
-  data: Buffer,
+  data: Uint8Array,
   width: number,
   x: number,
   y: number,
@@ -161,7 +165,7 @@ function setPixel(
   data.set(color, (y * width + x) * 4)
 }
 
-function pixel(data: Buffer, width: number, x: number, y: number): Buffer {
+function pixel(data: Uint8Array, width: number, x: number, y: number): Uint8Array {
   const offset = (y * width + x) * 4
   return data.subarray(offset, offset + 4)
 }

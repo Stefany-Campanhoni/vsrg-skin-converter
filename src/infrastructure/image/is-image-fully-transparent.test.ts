@@ -11,7 +11,9 @@ test("reports whether every image pixel is transparent", async () => {
 })
 
 test("rejects an invalid encoded image", async () => {
-  await expect((() => isImageFullyTransparent(Buffer.from("not-an-image")))()).rejects.toThrow()
+  await expect(
+    (() => isImageFullyTransparent(new TextEncoder().encode("not-an-image")))(),
+  ).rejects.toThrow()
 })
 
 function createPng(background: { r: number; g: number; b: number; alpha: number }) {

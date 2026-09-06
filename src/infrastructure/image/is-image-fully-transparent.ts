@@ -1,6 +1,6 @@
 import sharp from "sharp"
 
-export async function isImageFullyTransparent(image: Buffer): Promise<boolean> {
+export async function isImageFullyTransparent(image: Uint8Array): Promise<boolean> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()

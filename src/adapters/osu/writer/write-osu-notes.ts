@@ -5,8 +5,8 @@ import { columnDirections } from "../../../domain/image.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { renderNoteImage } from "../../../infrastructure/image/sharp-image-processor.ts"
 
-type NoteRenderer = (definition: ImageAsset) => Promise<Buffer>
-type NoteWriter = (filePath: string, buffer: Buffer) => Promise<void>
+type NoteRenderer = (definition: ImageAsset) => Promise<Uint8Array>
+type NoteWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
 
 export interface WriteOsuNotesOptions {
   notes: TapNoteSet

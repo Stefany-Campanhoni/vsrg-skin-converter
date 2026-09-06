@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process"
-import { createHash, randomUUID } from "node:crypto"
 import { createReadStream, createWriteStream } from "node:fs"
 import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
@@ -74,29 +73,35 @@ async function defaultDownloadFile(url: string, destination: string): Promise<vo
 }
 
 async function defaultHashFile(file: string): Promise<string> {
-  const hash = createHash("sha256")
-  await pipeline(createReadStream(file), hash)
+  const hash = new Bun.CryptoHasher("sha256")
+  for await (const chunk of createReadStream(file)) {
+    hash.update(chunk)
+  }
   return hash.digest("hex")
 }
 
 function readNodeVersion(nodeExecutable: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const child = spawn(nodeExecutable, ["--version"], { windowsHide: true })
-    const stdout: Buffer[] = []
-    const stderr: Buffer[] = []
-    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk))
-    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk))
+    const stdout: Uint8Array[] = []
+    const stderr: Uint8Array[] = []
+    child.stdout.on("data", (chunk: Uint8Array) => stdout.push(chunk))
+    child.stderr.on("data", (chunk: Uint8Array) => stderr.push(chunk))
     child.once("error", reject)
     child.once("exit", (code, signal) => {
-      if (code === 0) resolve(Buffer.concat(stdout).toString("utf8").trim())
+      if (code === 0) resolve(decodeChunks(stdout).trim())
       else
         reject(
           new Error(
-            `${nodeExecutable} --version exited with code ${code} and signal ${signal}: ${Buffer.concat(stderr).toString("utf8").trim()}`,
+            `${nodeExecutable} --version exited with code ${code} and signal ${signal}: ${decodeChunks(stderr).trim()}`,
           ),
         )
     })
   })
+}
+
+function decodeChunks(chunks: readonly Uint8Array[]): string {
+  return new TextDecoder().decode(Bun.concatArrayBuffers([...chunks]))
 }
 
 function runProcess(executable: string, args: readonly string[]): Promise<void> {
@@ -122,7 +127,7 @@ async function defaultExtractArchive(archive: string, destination: string): Prom
 }
 
 const defaultDependencies: NodeRuntimeDependencies = {
-  token: randomUUID,
+  token: () => crypto.randomUUID(),
   downloadFile: defaultDownloadFile,
   hashFile: defaultHashFile,
   extractArchive: defaultExtractArchive,

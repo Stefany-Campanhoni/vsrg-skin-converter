@@ -32,14 +32,14 @@ for (const targetWidth of [150, 146]) {
 test("rejects invalid target widths before decoding the image", async () => {
   for (const targetWidth of [0, -1, 1.5, Number.NaN]) {
     await expect(
-      (() => resizeImageToWidth(Buffer.from("not an image"), targetWidth))(),
+      (() => resizeImageToWidth(new TextEncoder().encode("not an image"), targetWidth))(),
     ).rejects.toThrow(/target width must be a positive integer/i)
   }
 })
 
 test("retains decoder failures as the cause of contextual resize errors", async () => {
   await expectRejectionSatisfies(
-    (() => resizeImageToWidth(Buffer.from("not an image"), 150))(),
+    (() => resizeImageToWidth(new TextEncoder().encode("not an image"), 150))(),
     (error) => {
       expectTruthy(error instanceof Error)
       expect(error.message).toMatch(/resize image proportionally to width 150/i)
@@ -53,7 +53,7 @@ function solidPng(
   width: number,
   height: number,
   background: { r: number; g: number; b: number; alpha: number },
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return sharp({ create: { width, height, channels: 4, background } })
     .png()
     .toBuffer()

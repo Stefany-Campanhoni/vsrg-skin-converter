@@ -11,6 +11,7 @@ import { installRuntimeDependencies } from "../../.ci/release/install-runtime-de
 import { getReleasePaths } from "../../.ci/release/release-config.ts"
 import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
 import packageJson from "../../package.json" with { type: "json" }
+import { concatBytes, decodeUtf8 } from "../support/bytes.ts"
 import { expectTruthy } from "../support/expectations.ts"
 
 interface LauncherResult {
@@ -33,10 +34,10 @@ function runLauncher(
       windowsHide: true,
       windowsVerbatimArguments: true,
     })
-    const stdout: Buffer[] = []
-    const stderr: Buffer[] = []
-    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk))
-    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk))
+    const stdout: Uint8Array[] = []
+    const stderr: Uint8Array[] = []
+    child.stdout.on("data", (chunk: Uint8Array) => stdout.push(chunk))
+    child.stderr.on("data", (chunk: Uint8Array) => stderr.push(chunk))
     let timedOut = false
     const timer = setTimeout(() => {
       timedOut = true
@@ -46,8 +47,8 @@ function runLauncher(
     child.once("exit", (code) => {
       clearTimeout(timer)
       resolve({
-        stdout: Buffer.concat(stdout).toString("utf8"),
-        stderr: Buffer.concat(stderr).toString("utf8"),
+        stdout: decodeUtf8(concatBytes(stdout)),
+        stderr: decodeUtf8(concatBytes(stderr)),
         code,
         timedOut,
       })

@@ -25,10 +25,13 @@ import {
   writePreparedEtternaAssets,
 } from "./write-prepared-etterna-assets.ts"
 
-type AssetReader = (filePath: string) => Promise<Buffer>
-type ReceptorNormalizer = (image: Buffer, targetDimensions: ImageDimensions) => Promise<Buffer>
-type TransparencyInspector = (image: Buffer) => Promise<boolean>
-type AssetDimensionReader = (image: Buffer) => Promise<ImageDimensions>
+type AssetReader = (filePath: string) => Promise<Uint8Array>
+type ReceptorNormalizer = (
+  image: Uint8Array,
+  targetDimensions: ImageDimensions,
+) => Promise<Uint8Array>
+type TransparencyInspector = (image: Uint8Array) => Promise<boolean>
+type AssetDimensionReader = (image: Uint8Array) => Promise<ImageDimensions>
 
 const directionTitles: Readonly<Record<ColumnDirection, string>> = {
   left: "Left",
@@ -123,8 +126,8 @@ async function prepareDirection(options: {
   direction: ColumnDirection
   normal: ReceptorSource
   pressed: ReceptorSource
-  normalBuffer: Buffer
-  pressedBuffer: Buffer
+  normalBuffer: Uint8Array
+  pressedBuffer: Uint8Array
   noteDimensions: ImageDimensions
   normalize: ReceptorNormalizer
   inspectTransparency: TransparencyInspector
@@ -176,7 +179,7 @@ async function prepareDirection(options: {
 
 function inspectReceptorTransparency(
   source: ReceptorSource,
-  buffer: Buffer,
+  buffer: Uint8Array,
   inspect: TransparencyInspector,
 ): Promise<boolean> {
   return runEtternaAssetOperation(
@@ -187,7 +190,7 @@ function inspectReceptorTransparency(
 
 function readReceptorDimensions(
   source: ReceptorSource,
-  buffer: Buffer,
+  buffer: Uint8Array,
   readDimensions: AssetDimensionReader,
 ): Promise<ImageDimensions> {
   return runEtternaAssetOperation(
@@ -198,10 +201,10 @@ function readReceptorDimensions(
 
 function normalizeReceptor(
   source: ReceptorSource,
-  buffer: Buffer,
+  buffer: Uint8Array,
   targetDimensions: ImageDimensions,
   normalize: ReceptorNormalizer,
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return runEtternaAssetOperation(
     `normalize osu!-derived Etterna ${source.state} receptor for ${source.direction} from '${source.definition.filePath}'`,
     () => normalize(buffer, targetDimensions),
@@ -220,10 +223,10 @@ function requiredSource(
 }
 
 function requiredBuffer(
-  buffer: Buffer | undefined,
+  buffer: Uint8Array | undefined,
   direction: ColumnDirection,
   state: ReceptorState,
-): Buffer {
+): Uint8Array {
   if (!buffer) {
     throw new Error(`Missing ${state} receptor buffer for ${direction}`)
   }

@@ -23,7 +23,7 @@ async function createSelectionFixture(
   await writeFile(path.join(settings, "assetsConfig.lua"), source)
   await Promise.all(
     judgementFiles.map((filename) =>
-      writeFile(path.join(judgements, filename), Buffer.from("fixture")),
+      writeFile(path.join(judgements, filename), new TextEncoder().encode("fixture")),
     ),
   )
   return {
@@ -349,7 +349,7 @@ test("rejects a selected file whose real path escapes the game root", async () =
   onTestFinished(fixture.cleanup)
   const outside = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-outside-"))
   onTestFinished(() => rm(outside, { recursive: true, force: true }))
-  await writeFile(path.join(outside, "outside.png"), Buffer.from("outside"))
+  await writeFile(path.join(outside, "outside.png"), new TextEncoder().encode("outside"))
   await symlink(outside, path.join(fixture.root, "Assets", "Judgments", "escape"), "junction")
 
   await expect(

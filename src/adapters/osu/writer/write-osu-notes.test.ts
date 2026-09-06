@@ -20,7 +20,7 @@ test("writes every note using the names referenced by the osu template", async (
     await writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
     })
 
     const names = await readdir(path.join(outputDirectory, "mania", "notes"))
@@ -44,7 +44,7 @@ test("does not create note output when any render fails", async () => {
             if (calls === 3) {
               throw new Error("render failed")
             }
-            return Buffer.from("png")
+            return new TextEncoder().encode("png")
           },
         }))(),
     ).rejects.toThrow(/render failed/)
@@ -57,7 +57,7 @@ test("does not create note output when any render fails", async () => {
 
 test("waits for every note render before rethrowing the exact render failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-note-writer-"))
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact render failure")
   let calls = 0
@@ -74,7 +74,7 @@ test("waits for every note render before rethrowing the exact render failure", a
           failureStarted.resolve()
           throw failure
         }
-        return Buffer.from("png")
+        return new TextEncoder().encode("png")
       },
     })
     let settled = false
@@ -86,7 +86,7 @@ test("waits for every note render before rethrowing the exact render failure", a
     await new Promise<void>((resolve) => setImmediate(resolve))
     expect(settled).toBe(false)
 
-    sibling.resolve(Buffer.from("png"))
+    sibling.resolve(new TextEncoder().encode("png"))
     await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
@@ -103,7 +103,7 @@ test("waits for every note write before rethrowing the exact write failure", asy
     const writing = writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
       write: async () => {
         calls += 1
         if (calls === 4) {
@@ -151,7 +151,7 @@ test("starts every note write and waits for siblings after a synchronous failure
     const writing = writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
       write: () => {
         calls += 1
         if (calls === 4) {

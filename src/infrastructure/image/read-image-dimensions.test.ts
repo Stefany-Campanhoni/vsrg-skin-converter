@@ -20,7 +20,7 @@ test("reads the exact encoded image dimensions", async () => {
 
 test("retains decoder failures as the cause of a contextual dimensions error", async () => {
   await expectRejectionSatisfies(
-    (() => readImageDimensions(Buffer.from("not an image")))(),
+    (() => readImageDimensions(new TextEncoder().encode("not an image")))(),
     (error) =>
       error instanceof Error &&
       /read image dimensions/i.test(error.message) &&

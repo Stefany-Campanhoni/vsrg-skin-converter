@@ -14,9 +14,12 @@ import {
   getOsuReceptorVerticalScale,
 } from "./osu-receptor-calibration.ts"
 
-type ReceptorRenderer = (definition: ImageAsset, options: RenderReceptorOptions) => Promise<Buffer>
-type ReceptorWriter = (filePath: string, buffer: Buffer) => Promise<void>
-type ReceptorTransparencyInspector = (image: Buffer) => Promise<boolean>
+type ReceptorRenderer = (
+  definition: ImageAsset,
+  options: RenderReceptorOptions,
+) => Promise<Uint8Array>
+type ReceptorWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
+type ReceptorTransparencyInspector = (image: Uint8Array) => Promise<boolean>
 
 const osuReceptorCanvasPixelsPerHitPositionPoint = 2
 const osuLogicalCanvasHeight = 480

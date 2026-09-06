@@ -1,4 +1,4 @@
-import sharp from "sharp"
+import sharp, { type OverlayOptions } from "sharp"
 import type { ImageAsset } from "../../domain/image.ts"
 import { extractImageFrame } from "./extract-image-frame.ts"
 
@@ -62,7 +62,7 @@ export function getReceptorCanvasHeight(
 export async function renderReceptorImage(
   definition: ImageAsset,
   options: RenderReceptorOptions,
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   const baseMetadata = await sharp(options.baseImagePath).metadata()
   if (!baseMetadata.width || !baseMetadata.height) {
     throw new Error(`Could not read receptor base dimensions from ${options.baseImagePath}`)
@@ -142,12 +142,12 @@ export async function renderReceptorImage(
       background: { r: 0, g: 0, b: 0, alpha: 0 },
     },
   })
-    .composite([{ input: visibleReceptor, left, top }])
+    .composite([{ input: asSharpOverlayInput(visibleReceptor), left, top }])
     .png()
     .toBuffer()
 }
 
-export async function renderNoteImage(definition: ImageAsset): Promise<Buffer> {
+export async function renderNoteImage(definition: ImageAsset): Promise<Uint8Array> {
   const noteInput = await extractImageFrame(definition)
 
   return sharp(noteInput)
@@ -157,7 +157,12 @@ export async function renderNoteImage(definition: ImageAsset): Promise<Buffer> {
     .toBuffer()
 }
 
-async function removeTrailingTransparentRows(image: Buffer): Promise<Buffer> {
+function asSharpOverlayInput(image: Uint8Array): NonNullable<OverlayOptions["input"]> {
+  // Sharp accepts typed arrays here at runtime, but its composite declaration still narrows input.
+  return image as NonNullable<OverlayOptions["input"]>
+}
+
+async function removeTrailingTransparentRows(image: Uint8Array): Promise<Uint8Array> {
   const { data, info } = await sharp(image).raw().toBuffer({ resolveWithObject: true })
   let lastVisibleRow = -1
 

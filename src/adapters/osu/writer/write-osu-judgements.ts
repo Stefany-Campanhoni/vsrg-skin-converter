@@ -13,7 +13,7 @@ export type JudgementRenderer = (
   sourceDensity: 1 | 2,
   scale: number,
 ) => Promise<JudgementImageVariants>
-export type JudgementWriter = (filePath: string, buffer: Buffer) => Promise<void>
+export type JudgementWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
 
 export interface WriteOsuJudgementsOptions {
   judgements: JudgementSet

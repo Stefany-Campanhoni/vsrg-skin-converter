@@ -31,7 +31,7 @@ async function writeProfile(
 test("allocates ID 00000000 when LocalProfiles is missing", async () => {
   await withGameRoot(async (root) => {
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
+      randomBytes: () => Uint8Array.fromHex("0123456789abcdef"),
     })
 
     expect(identity.id).toBe("00000000")
@@ -43,7 +43,7 @@ test("allocates ID 00000000 when LocalProfiles is empty", async () => {
     await mkdir(path.join(root, "Save", "LocalProfiles"), { recursive: true })
 
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
+      randomBytes: () => Uint8Array.fromHex("0123456789abcdef"),
     })
 
     expect(identity.id).toBe("00000000")
@@ -60,7 +60,7 @@ test("allocates one above the maximum valid eight-digit profile directory", asyn
     await writeProfile(root, "abcdefgh")
 
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
+      randomBytes: () => Uint8Array.fromHex("0123456789abcdef"),
     })
 
     expect(identity.id).toBe("00000009")
@@ -73,7 +73,7 @@ test("does not reuse gaps between valid profile directory IDs", async () => {
     await writeProfile(root, "00000002")
 
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
+      randomBytes: () => Uint8Array.fromHex("0123456789abcdef"),
     })
 
     expect(identity.id).toBe("00000003")
@@ -86,7 +86,7 @@ test("ignores an exact eight-digit regular file when allocating the next profile
     await writeFile(profileDirectory(root, "00000009"), "not a profile directory")
 
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => Buffer.from("0123456789abcdef", "hex"),
+      randomBytes: () => Uint8Array.fromHex("0123456789abcdef"),
     })
 
     expect(identity.id).toBe("00000004")
@@ -121,10 +121,10 @@ test("rejects when the maximum valid profile directory ID cannot be incremented"
 test("retries a generated GUID collision and returns 16 lower-case hexadecimal characters", async () => {
   await withGameRoot(async (root) => {
     await writeProfile(root, "00000000", "<Guid>aaaaaaaaaaaaaaaa</Guid>")
-    const values = [Buffer.from("aaaaaaaaaaaaaaaa", "hex"), Buffer.from("0123456789abcdef", "hex")]
+    const values = [Uint8Array.fromHex("aaaaaaaaaaaaaaaa"), Uint8Array.fromHex("0123456789abcdef")]
 
     const identity = await allocateEtternaProfileIdentity(root, {
-      randomBytes: () => values.shift() ?? Buffer.alloc(8),
+      randomBytes: () => values.shift() ?? new Uint8Array(8),
     })
 
     expect(identity.guid).toBe("0123456789abcdef")
@@ -140,7 +140,7 @@ test("rejects when GUID collision retries are exhausted", async () => {
       (() =>
         allocateEtternaProfileIdentity(root, {
           maxGuidAttempts: 2,
-          randomBytes: () => Buffer.from("aaaaaaaaaaaaaaaa", "hex"),
+          randomBytes: () => Uint8Array.fromHex("aaaaaaaaaaaaaaaa"),
         }))(),
     ).rejects.toThrow(/GUID.*attempt|attempt.*GUID/i)
   })
@@ -151,7 +151,7 @@ test("rejects random byte sources that do not return exactly eight bytes", async
     await expect(
       (() =>
         allocateEtternaProfileIdentity(root, {
-          randomBytes: () => Buffer.alloc(7),
+          randomBytes: () => new Uint8Array(7),
         }))(),
     ).rejects.toThrow(/eight.*bytes|8.*bytes/i)
   })

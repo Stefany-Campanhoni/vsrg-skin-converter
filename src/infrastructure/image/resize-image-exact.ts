@@ -5,7 +5,10 @@ export interface ExactImageSize {
   readonly height: number
 }
 
-export async function resizeImageExact(image: Buffer, size: ExactImageSize): Promise<Buffer> {
+export async function resizeImageExact(
+  image: Uint8Array,
+  size: ExactImageSize,
+): Promise<Uint8Array> {
   assertPositiveInteger(size.width, "width")
   assertPositiveInteger(size.height, "height")
 

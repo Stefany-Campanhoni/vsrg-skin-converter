@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test"
-import { createHash } from "node:crypto"
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -21,7 +20,7 @@ test("finds the current user's mixed-case CFG and replaces its only ManiaSpeed w
     expect(update.content).toBe("Username = Stefany\r\n  ManiaSpeed = 29\r\nVolume = 80\r\n")
     expect(update.expectation).toStrictEqual({
       state: "sha256",
-      sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
+      sha256: "5f434779d5a03c89f5c9d90421db54472fc62ef095789c8b183de63d5d4440c2",
     })
   })
 })
@@ -34,13 +33,21 @@ test("preserves horizontal whitespace after the ManiaSpeed value", async () => {
   })
 })
 
+test("preserves a UTF-8 byte order mark while updating ManiaSpeed", async () => {
+  await withOsuRoot(async (osuRoot) => {
+    const update = await prepareFromSource(osuRoot, "\uFEFFManiaSpeed = 10\n")
+
+    expect(update.content).toBe("\uFEFFManiaSpeed = 29\n")
+  })
+})
+
 test("ignores matching names that are not immediate regular files", async () => {
   const update = await prepareOsuUserConfigurationUpdate("C:/osu!", "Stefany", 29, {
     readDirectory: async () => [
       { name: "OSU!.Stefany.CFG", isFile: () => false },
       { name: "osu!.Stefany.cfg", isFile: () => true },
     ],
-    readFile: async () => Buffer.from("ManiaSpeed=10\n"),
+    readFile: async () => new TextEncoder().encode("ManiaSpeed=10\n"),
   })
 
   expect(update.targetPath).toBe(path.join("C:/osu!", "osu!.Stefany.cfg"))
@@ -112,7 +119,7 @@ test("wraps directory-listing and CFG-reading failures with their path and cause
         readDirectory: async () => {
           throw failure
         },
-        readFile: async () => Buffer.from(""),
+        readFile: async () => new TextEncoder().encode(""),
       }))(),
     (error) => {
       expectTruthy(error instanceof Error)
@@ -146,7 +153,7 @@ test("wraps null and undefined filesystem failures with their path and original 
         readDirectory: async () => {
           throw null
         },
-        readFile: async () => Buffer.from(""),
+        readFile: async () => new TextEncoder().encode(""),
       }))(),
     (error) => {
       expectTruthy(error instanceof Error)

@@ -15,7 +15,7 @@ async function writeJudgementSheet(
 ): Promise<void> {
   const width = columns * frameWidth
   const height = rows * frameHeight
-  const data = Buffer.alloc(width * height * 4)
+  const data = new Uint8Array(width * height * 4)
 
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {

@@ -135,7 +135,7 @@ test("reports receptor source read failures with direction, state, path, and exa
           if (filePath === "left-pressed.png") {
             throw failure
           }
-          return Buffer.from(filePath)
+          return new TextEncoder().encode(filePath)
         },
         inspectTransparency: async () => false,
         normalize: async (buffer) => buffer,
@@ -159,7 +159,7 @@ test("settles sibling transparency inspections before reporting contextual exact
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: () => {
       inspectionCalls += 1
       if (inspectionCalls === 1) {
@@ -196,7 +196,7 @@ test("settles sibling transparency inspections before reporting contextual exact
 })
 
 test("settles sibling receptor processing after a decode failure before rejecting without writes", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const decodeFailure = new Error("exact decode failure")
   const writes: string[] = []
@@ -205,7 +205,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
     normalize: async () => {
       normalizeCalls += 1
@@ -216,7 +216,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
         failureStarted.resolve()
         throw decodeFailure
       }
-      return Buffer.from("normalized")
+      return new TextEncoder().encode("normalized")
     },
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
@@ -233,7 +233,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
   expect(settled).toBe(false)
   expect(normalizeCalls).toBe(8)
 
-  sibling.resolve(Buffer.from("normalized"))
+  sibling.resolve(new TextEncoder().encode("normalized"))
   await expectRejectionSatisfies(writing, (error) => {
     expectTruthy(error instanceof Error)
     expect(error.message).toMatch(/normalize.*pressed receptor.*left.*left-pressed\.png/i)
@@ -253,7 +253,7 @@ test("settles sibling dimension reads after a synchronous failure with receptor 
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
     normalize: async (buffer) => buffer,
     readDimensions: () => {
@@ -300,9 +300,9 @@ test("starts and settles every receptor write when a writer throws synchronously
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
-    normalize: async () => Buffer.from("normalized"),
+    normalize: async () => new TextEncoder().encode("normalized"),
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
       calls += 1
@@ -419,7 +419,7 @@ function png(
   width: number,
   height: number,
   background: { r: number; g: number; b: number; alpha: number },
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return sharp({ create: { width, height, channels: 4, background } })
     .png()
     .toBuffer()
@@ -431,10 +431,10 @@ function titleCase(value: string): string {
   return `${value[0]?.toUpperCase()}${value.slice(1)}`
 }
 
-async function receptorPng(color: Rgba): Promise<Buffer> {
+async function receptorPng(color: Rgba): Promise<Uint8Array> {
   const width = 10
   const height = 16
-  const pixels = Buffer.alloc(width * height * 4)
+  const pixels = new Uint8Array(width * height * 4)
   for (let y = 4; y < 12; y += 1) {
     for (let x = 2; x < 8; x += 1) {
       pixels.set([color.r, color.g, color.b, color.alpha], (y * width + x) * 4)
@@ -445,14 +445,14 @@ async function receptorPng(color: Rgba): Promise<Buffer> {
     .toBuffer()
 }
 
-async function imageSize(image: Buffer): Promise<{ width: number; height: number }> {
+async function imageSize(image: Uint8Array): Promise<{ width: number; height: number }> {
   const metadata = await sharp(image).metadata()
   expectTruthy(metadata.width)
   expectTruthy(metadata.height)
   return { width: metadata.width, height: metadata.height }
 }
 
-async function alphaAt(image: Buffer, x: number, y: number): Promise<number> {
+async function alphaAt(image: Uint8Array, x: number, y: number): Promise<number> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()
@@ -460,7 +460,7 @@ async function alphaAt(image: Buffer, x: number, y: number): Promise<number> {
   return data[(y * info.width + x) * info.channels + 3] ?? -1
 }
 
-async function containsRgba(image: Buffer, color: Rgba): Promise<boolean> {
+async function containsRgba(image: Uint8Array, color: Rgba): Promise<boolean> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()
