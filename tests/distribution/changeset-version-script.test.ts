@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -35,7 +34,9 @@ async function runChangesetVersion(cwd: string): Promise<void> {
 async function readManifestVersion(filePath: string): Promise<string> {
   const manifest = JSON.parse(await readFile(filePath, "utf8")) as { readonly version?: unknown }
   if (typeof manifest.version !== "string") {
-    assert.fail(`${filePath} does not contain a string version`)
+    ;(() => {
+      throw new Error(`${filePath} does not contain a string version`)
+    })()
   }
   return manifest.version
 }
@@ -100,8 +101,8 @@ test("keeps the npm lockfile synchronized after Changesets versions the package"
 
     await runChangesetVersion(fixtureRoot)
 
-    assert.equal(await readManifestVersion(path.join(fixtureRoot, "package.json")), "1.0.1")
-    assert.equal(await readManifestVersion(path.join(fixtureRoot, "package-lock.json")), "1.0.1")
+    expect(await readManifestVersion(path.join(fixtureRoot, "package.json"))).toBe("1.0.1")
+    expect(await readManifestVersion(path.join(fixtureRoot, "package-lock.json"))).toBe("1.0.1")
   } finally {
     await rm(fixtureRoot, { recursive: true, force: true })
   }

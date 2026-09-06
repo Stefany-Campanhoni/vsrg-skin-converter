@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -9,6 +8,7 @@ import {
   runRuntimeCommand,
 } from "../../.ci/release/install-runtime-dependencies.ts"
 import { nodeRuntime } from "../../.ci/release/release-config.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function runtimeFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-test-"))
@@ -55,8 +55,8 @@ test("downloads once, verifies the pinned hash, and returns node.exe", async () 
     },
   })
 
-  assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-  assert.deepEqual(events, [
+  expect(result).toBe(path.join(fixture.extractionRoot, "node.exe"))
+  expect(events).toStrictEqual([
     ["download", nodeRuntime.url, `${fixture.archivePath}.test.tmp`],
     ["hash", `${fixture.archivePath}.test.tmp`, nodeRuntime.sha256],
     ["extract", fixture.archivePath, `${fixture.extractionRoot}.test.extract`],
@@ -109,13 +109,19 @@ test("reuses a cached archive only after verifying its hash", async () => {
         return file.endsWith("node.exe") ? nodeRuntime.executableSha256 : nodeRuntime.sha256
       },
       readNodeVersion: async () => `v${nodeRuntime.version}`,
-      downloadFile: async () => assert.fail("cached archive must not be downloaded again"),
-      extractArchive: async () => assert.fail("valid extraction must be reused"),
+      downloadFile: async () =>
+        (() => {
+          throw new Error("cached archive must not be downloaded again")
+        })(),
+      extractArchive: async () =>
+        (() => {
+          throw new Error("valid extraction must be reused")
+        })(),
     },
   })
 
-  assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-  assert.deepEqual(hashed, [fixture.archivePath, path.join(fixture.extractionRoot, "node.exe")])
+  expect(result).toBe(path.join(fixture.extractionRoot, "node.exe"))
+  expect(hashed).toStrictEqual([fixture.archivePath, path.join(fixture.extractionRoot, "node.exe")])
 })
 
 test("rejects a mismatched archive without extracting it", async () => {
@@ -125,7 +131,7 @@ test("rejects a mismatched archive without extracting it", async () => {
   )
   let extracted = false
 
-  await assert.rejects(
+  await expect(
     acquireNodeRuntime({
       controlledRoot: fixture.controlledRoot,
       archivePath: fixture.archivePath,
@@ -139,9 +145,8 @@ test("rejects a mismatched archive without extracting it", async () => {
         },
       },
     }),
-    new RegExp(`${nodeRuntime.sha256}.*${"0".repeat(64)}`, "i"),
-  )
-  assert.equal(extracted, false)
+  ).rejects.toThrow(new RegExp(`${nodeRuntime.sha256}.*${"0".repeat(64)}`, "i"))
+  expect(extracted).toBe(false)
 })
 
 test("rejects an extracted runtime without the regular node.exe file", async () => {
@@ -151,7 +156,7 @@ test("rejects an extracted runtime without the regular node.exe file", async () 
   )
   await writeFile(fixture.archivePath, "cached")
 
-  await assert.rejects(
+  await expect(
     acquireNodeRuntime({
       controlledRoot: fixture.controlledRoot,
       archivePath: fixture.archivePath,
@@ -163,6 +168,7 @@ test("rejects an extracted runtime without the regular node.exe file", async () 
         extractArchive: async () => undefined,
       },
     }),
+  ).rejects.toThrow(
     new RegExp(
       path
         .join(
@@ -204,7 +210,10 @@ for (const staleCase of [
       ...fixture,
       dependencies: {
         token: () => "refresh",
-        downloadFile: async () => assert.fail("verified cached archive must be reused"),
+        downloadFile: async () =>
+          (() => {
+            throw new Error("verified cached archive must be reused")
+          })(),
         hashFile: async (file) => {
           if (file === fixture.archivePath) return nodeRuntime.sha256
           const contents = await readFile(file, "utf8")
@@ -227,9 +236,9 @@ for (const staleCase of [
       },
     })
 
-    assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-    assert.equal(extractionCount, 1)
-    assert.equal(await readFile(result, "utf8"), "fresh node")
+    expect(result).toBe(path.join(fixture.extractionRoot, "node.exe"))
+    expect(extractionCount).toBe(1)
+    expect(await readFile(result, "utf8")).toBe("fresh node")
   })
 }
 
@@ -242,7 +251,7 @@ test("rejects acquire paths outside the explicit controlled root before mutation
   let mutated = false
   let callbackInvoked = false
 
-  await assert.rejects(
+  await expect(
     acquireNodeRuntime({
       controlledRoot,
       archivePath,
@@ -264,11 +273,10 @@ test("rejects acquire paths outside the explicit controlled root before mutation
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(mutated, false)
-  assert.equal(callbackInvoked, false)
+  expect(mutated).toBe(false)
+  expect(callbackInvoked).toBe(false)
 })
 
 test("installs the isolated Windows x64 Sharp dependency tree", async () => {
@@ -295,12 +303,12 @@ test("installs the isolated Windows x64 Sharp dependency tree", async () => {
     },
   })
 
-  assert.deepEqual(command, {
+  expect(command).toStrictEqual({
     executable: process.platform === "win32" ? "npm.cmd" : "npm",
     args: ["ci", "--omit=dev", "--os=win32", "--cpu=x64"],
     cwd: `${installationRoot}.test.staging`,
   })
-  assert.equal(result, path.join(installationRoot, "node_modules"))
+  expect(result).toBe(path.join(installationRoot, "node_modules"))
 })
 
 test("rejects missing Sharp runtime trees and retains the command failure cause", async () => {
@@ -313,7 +321,7 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
 
   for (const missing of ["sharp", "@img"] as const) {
     const installationRoot = path.join(root, `missing-${missing.replace("@", "")}`)
-    await assert.rejects(
+    await expect(
       installRuntimeDependencies({
         controlledRoot: root,
         sourcePackageDirectory,
@@ -326,12 +334,11 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
           },
         },
       }),
-      new RegExp(`node_modules[\\\\/]${missing}`),
-    )
+    ).rejects.toThrow(new RegExp(`node_modules[\\\\/]${missing}`))
   }
 
   const cause = new Error("npm exploded")
-  await assert.rejects(
+  await expectRejectionSatisfies(
     installRuntimeDependencies({
       controlledRoot: root,
       sourcePackageDirectory,
@@ -364,7 +371,7 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
     await writeFile(path.join(installationRoot, "previous.txt"), "verified")
     const cause = new Error(`failed ${failedBoundary}`)
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       installRuntimeDependencies({
         controlledRoot,
         sourcePackageDirectory,
@@ -391,7 +398,7 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
       (error: unknown) => error === cause,
     )
 
-    assert.equal(await readFile(path.join(installationRoot, "previous.txt"), "utf8"), "verified")
+    expect(await readFile(path.join(installationRoot, "previous.txt"), "utf8")).toBe("verified")
   })
 }
 
@@ -412,7 +419,7 @@ test("retains the runtime recovery backup when restoration fails", async () => {
   const promotionCause = new Error("runtime promotion failed")
   const restorationCause = new Error("runtime restoration failed")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     installRuntimeDependencies({
       controlledRoot,
       sourcePackageDirectory,
@@ -432,14 +439,14 @@ test("retains the runtime recovery backup when restoration fails", async () => {
       },
     }),
     (error: unknown) => {
-      assert.ok(error instanceof AggregateError)
-      assert.equal(error.cause, promotionCause)
-      assert.deepEqual(error.errors, [promotionCause, restorationCause])
+      expectTruthy(error instanceof AggregateError)
+      expect(error.cause).toBe(promotionCause)
+      expect(error.errors).toStrictEqual([promotionCause, restorationCause])
       return true
     },
   )
 
-  assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+  expect(await readFile(path.join(backupRoot, "previous.txt"), "utf8")).toBe("verified")
 })
 
 test("rejects runtime installation outside the explicit controlled root before mutation", async () => {
@@ -452,7 +459,7 @@ test("rejects runtime installation outside the explicit controlled root before m
   let commandRan = false
   let callbackInvoked = false
 
-  await assert.rejects(
+  await expect(
     installRuntimeDependencies({
       controlledRoot: path.join(root, "controlled"),
       sourcePackageDirectory,
@@ -467,11 +474,10 @@ test("rejects runtime installation outside the explicit controlled root before m
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(commandRan, false)
-  assert.equal(callbackInvoked, false)
+  expect(commandRan).toBe(false)
+  expect(callbackInvoked).toBe(false)
 })
 
 test.skipIf(process.platform !== "win32")(

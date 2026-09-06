@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { execFile } from "node:child_process"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
@@ -12,7 +11,7 @@ import packageJson from "../../package.json" with { type: "json" }
 const execFileAsync = promisify(execFile)
 
 test("pins the supported Node Windows x64 runtime", () => {
-  assert.deepEqual(nodeRuntime, {
+  expect(nodeRuntime).toStrictEqual({
     version: "22.23.2",
     archiveName: "node-v22.23.2-win-x64.zip",
     sha256: "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97",
@@ -25,22 +24,17 @@ test("derives controlled build and release paths from an absolute project root",
   const projectRoot = path.resolve("C:/repo")
   const paths = getReleasePaths(projectRoot, "1.0.0")
 
-  assert.equal(paths.projectRoot, projectRoot)
-  assert.equal(paths.packageDirectoryName, "vsrg-skin-converter-v1.0.0-win-x64")
-  assert.equal(paths.bundlePath, path.join(projectRoot, "build", "app.mjs"))
-  assert.equal(
-    paths.nodeArchivePath,
+  expect(paths.projectRoot).toBe(projectRoot)
+  expect(paths.packageDirectoryName).toBe("vsrg-skin-converter-v1.0.0-win-x64")
+  expect(paths.bundlePath).toBe(path.join(projectRoot, "build", "app.mjs"))
+  expect(paths.nodeArchivePath).toBe(
     path.join(projectRoot, ".cache", "release", nodeRuntime.archiveName),
   )
-  assert.equal(
-    paths.unpackedPackageRoot,
+  expect(paths.unpackedPackageRoot).toBe(
     path.join(projectRoot, "build", "windows-portable", paths.packageDirectoryName),
   )
-  assert.equal(
-    paths.zipPath,
-    path.join(projectRoot, "release", `${paths.packageDirectoryName}.zip`),
-  )
-  assert.equal(paths.checksumPath, `${paths.zipPath}.sha256`)
+  expect(paths.zipPath).toBe(path.join(projectRoot, "release", `${paths.packageDirectoryName}.zip`))
+  expect(paths.checksumPath).toBe(`${paths.zipPath}.sha256`)
 
   for (const controlledPath of [
     paths.buildRoot,
@@ -55,17 +49,17 @@ test("derives controlled build and release paths from an absolute project root",
     paths.zipPath,
     paths.checksumPath,
   ]) {
-    assert.equal(path.relative(projectRoot, controlledPath).startsWith(".."), false)
-    assert.notEqual(controlledPath, projectRoot)
+    expect(path.relative(projectRoot, controlledPath).startsWith("..")).toBe(false)
+    expect(controlledPath).not.toBe(projectRoot)
   }
-  assert.equal(path.relative(paths.windowsBuildRoot, paths.zipPath).startsWith(".."), true)
+  expect(path.relative(paths.windowsBuildRoot, paths.zipPath).startsWith("..")).toBe(true)
 })
 
 test("rejects unsafe roots and versions", () => {
-  assert.throws(() => getReleasePaths("relative", "1.0.0"), /absolute project root/i)
-  assert.throws(() => getReleasePaths(path.parse(process.cwd()).root, "1.0.0"), /filesystem root/i)
-  assert.throws(() => getReleasePaths(process.cwd(), ""), /version/i)
-  assert.throws(() => getReleasePaths(process.cwd(), "../escape"), /version/i)
+  expect(() => getReleasePaths("relative", "1.0.0")).toThrow(/absolute project root/i)
+  expect(() => getReleasePaths(path.parse(process.cwd()).root, "1.0.0")).toThrow(/filesystem root/i)
+  expect(() => getReleasePaths(process.cwd(), "")).toThrow(/version/i)
+  expect(() => getReleasePaths(process.cwd(), "../escape")).toThrow(/version/i)
 })
 
 test("builds an ESM application bundle with Sharp external and cwd-independent metadata", async () => {
@@ -79,12 +73,12 @@ test("builds an ESM application bundle with Sharp external and cwd-independent m
     })
 
     const bundle = await readFile(outputFile, "utf8")
-    assert.match(bundle, /from\s+["']sharp["']/)
+    expect(bundle).toMatch(/from\s+["']sharp["']/)
     const { stdout, stderr } = await execFileAsync(process.execPath, [outputFile, "--version"], {
       cwd: os.tmpdir(),
     })
-    assert.equal(stdout, `${packageJson.version}\n`)
-    assert.equal(stderr, "")
+    expect(stdout).toBe(`${packageJson.version}\n`)
+    expect(stderr).toBe("")
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
   }

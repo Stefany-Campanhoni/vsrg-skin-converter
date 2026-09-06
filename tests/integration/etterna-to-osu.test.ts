@@ -1,5 +1,4 @@
-import { afterAll, beforeAll, describe, test } from "bun:test"
-import assert from "node:assert/strict"
+import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -19,6 +18,7 @@ import {
   type TransactionalOutputSetFileSystem,
   TransactionalOutputSetPublisher,
 } from "../../src/infrastructure/filesystem/transactional-output-set-publisher.ts"
+import { expectRejectionSatisfies } from "../support/expectations.ts"
 
 const originalOsuConfiguration = "ManiaSpeed = 10\nUnrelatedProperty = keep me\n"
 
@@ -242,48 +242,43 @@ describe("Etterna-to-osu production installation", () => {
   test("converts and installs the complete production fixture", async () => {
     const result = await installFixture()
 
-    assert.equal(
-      await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
+    expect(await readFile(path.join(outputDirectory, "skin.ini"), "utf8")).toBe(
       "Name: Fixture Skin\nHitPosition: 433\nComboPosition: 209\nScorePosition: 244\nColumnWidth: 62,62,62,62\nHit0: mania\\judgements\\miss\nHit50: mania\\judgements\\bad\nHit100: mania\\judgements\\good\nHit200: mania\\judgements\\great\nHit300: mania\\judgements\\perfect\nHit300g: mania\\judgements\\marvelous\n",
     )
-    assert.equal((await readdir(outputDirectory)).includes("stale.txt"), false)
-    assert.equal(
-      await readFile(osuConfigurationPath, "utf8"),
+    expect((await readdir(outputDirectory)).includes("stale.txt")).toBe(false)
+    expect(await readFile(osuConfigurationPath, "utf8")).toBe(
       "ManiaSpeed = 28\nUnrelatedProperty = keep me\n",
     )
     const receptorPath = path.join(outputDirectory, "mania", "receptors", "left@2x.png")
     const receptor = await sharp(receptorPath).raw().toBuffer({ resolveWithObject: true })
-    assert.deepEqual(
-      { width: receptor.info.width, height: receptor.info.height },
-      { width: 150, height: 366 },
-    )
-    assert.deepEqual(alphaBounds(receptor.data, receptor.info.width, receptor.info.height), {
+    expect({ width: receptor.info.width, height: receptor.info.height }).toStrictEqual({
+      width: 150,
+      height: 366,
+    })
+    expect(alphaBounds(receptor.data, receptor.info.width, receptor.info.height)).toStrictEqual({
       left: 0,
       top: 96,
       right: 149,
       bottom: 196,
     })
-    await assert.rejects(
-      () => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")),
-      { code: "ENOENT" },
-    )
+    await expect(
+      (() => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")))(),
+    ).rejects.toMatchObject({ code: "ENOENT" })
     const note = await sharp(path.join(outputDirectory, "mania", "notes", "left.png")).metadata()
-    assert.deepEqual({ width: note.width, height: note.height }, { width: 32, height: 24 })
-    assert.deepEqual(
-      await readFile(path.join(outputDirectory, "mania", "lns", "body.png")),
+    expect({ width: note.width, height: note.height }).toStrictEqual({ width: 32, height: 24 })
+    expect(await readFile(path.join(outputDirectory, "mania", "lns", "body.png"))).toStrictEqual(
       longNoteBody,
     )
-    assert.deepEqual(
-      await readFile(path.join(outputDirectory, "mania", "lns", "tail.png")),
+    expect(await readFile(path.join(outputDirectory, "mania", "lns", "tail.png"))).toStrictEqual(
       longNoteTail,
     )
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
-      await assert.rejects(() => readFile(path.join(outputDirectory, filename)), {
+      await expect((() => readFile(path.join(outputDirectory, filename)))()).rejects.toMatchObject({
         code: "ENOENT",
       })
     }
     const judgementOutputDirectory = path.join(outputDirectory, "mania", "judgements")
-    assert.deepEqual((await readdir(judgementOutputDirectory)).sort(), [
+    expect((await readdir(judgementOutputDirectory)).sort()).toStrictEqual([
       "bad.png",
       "bad@2x.png",
       "good.png",
@@ -309,9 +304,9 @@ describe("Etterna-to-osu production installation", () => {
         const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
           .raw()
           .toBuffer({ resolveWithObject: true })
-        assert.deepEqual({ width: info.width, height: info.height }, expectedDimensions)
+        expect({ width: info.width, height: info.height }).toStrictEqual(expectedDimensions)
         const offset = (Math.floor(info.height / 2) * info.width + Math.floor(info.width / 2)) * 4
-        assert.deepEqual([...data.subarray(offset, offset + 3)], [color.r, color.g, color.b])
+        expect([...data.subarray(offset, offset + 3)]).toStrictEqual([color.r, color.g, color.b])
       }
     }
     for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
@@ -322,10 +317,10 @@ describe("Etterna-to-osu production installation", () => {
         const image = await sharp(
           path.join(outputDirectory, `combo-${character}${suffix}`),
         ).metadata()
-        assert.deepEqual({ width: image.width, height: image.height }, expectedDimensions)
+        expect({ width: image.width, height: image.height }).toStrictEqual(expectedDimensions)
       }
     }
-    assert.deepEqual(result.diagnostics, [])
+    expect(result.diagnostics).toStrictEqual([])
   })
 
   test("rolls back the skin when the osu configuration promotion fails", async () => {
@@ -340,8 +335,7 @@ describe("Etterna-to-osu production installation", () => {
       rename: async (source, destination) => {
         if (!injectedFailure && destination === osuConfigurationPath) {
           injectedFailure = true
-          assert.match(
-            await readFile(path.join(outputDirectory, "skin.ini"), "utf8"),
+          expect(await readFile(path.join(outputDirectory, "skin.ini"), "utf8")).toMatch(
             /^Name: Fixture Skin$/m,
           )
           observedPromotedSkin = true
@@ -351,7 +345,7 @@ describe("Etterna-to-osu production installation", () => {
       },
     }
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       () => installFixture(new TransactionalOutputSetPublisher(fileSystem)),
       (error) =>
         error instanceof Error &&
@@ -359,13 +353,15 @@ describe("Etterna-to-osu production installation", () => {
         error.cause.message === "fixture CFG promotion failure",
     )
 
-    assert.equal(injectedFailure, true)
-    assert.equal(observedPromotedSkin, true)
-    assert.equal(await readFile(oldSkinMarker, "utf8"), "old skin")
-    assert.deepEqual(await readdir(outputDirectory), ["old-skin.txt"])
-    assert.equal(await readFile(osuConfigurationPath, "utf8"), originalOsuConfiguration)
-    assert.deepEqual((await readdir(path.join(osuRoot, "Skins"))).filter(isTransactionArtifact), [])
-    assert.deepEqual((await readdir(osuRoot)).filter(isTransactionArtifact), [])
+    expect(injectedFailure).toBe(true)
+    expect(observedPromotedSkin).toBe(true)
+    expect(await readFile(oldSkinMarker, "utf8")).toBe("old skin")
+    expect(await readdir(outputDirectory)).toStrictEqual(["old-skin.txt"])
+    expect(await readFile(osuConfigurationPath, "utf8")).toBe(originalOsuConfiguration)
+    expect(
+      (await readdir(path.join(osuRoot, "Skins"))).filter(isTransactionArtifact),
+    ).toStrictEqual([])
+    expect((await readdir(osuRoot)).filter(isTransactionArtifact)).toStrictEqual([])
   })
 
   afterAll(async () => {
