@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { columnDirections } from "../../../domain/image.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { renderNoteImage } from "../../../infrastructure/image/sharp-image-processor.ts"
 
 type NoteRenderer = (definition: ImageAsset) => Promise<Uint8Array>
@@ -17,7 +18,7 @@ export interface WriteOsuNotesOptions {
 
 export async function writeOsuNotes(options: WriteOsuNotesOptions): Promise<void> {
   const render = options.render ?? renderNoteImage
-  const write = options.write ?? writeFile
+  const write = options.write ?? writeFileContents
   const prepared = await settleAll(
     columnDirections.map((direction) =>
       invokeAsPromise(async () => ({

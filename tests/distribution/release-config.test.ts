@@ -1,14 +1,11 @@
 import { expect, test } from "bun:test"
-import { execFile } from "node:child_process"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { promisify } from "node:util"
 import { buildApplication } from "../../.ci/release/build-application.ts"
 import { getReleasePaths, nodeRuntime } from "../../.ci/release/release-config.ts"
+import { runCapturedSubprocess } from "../../.ci/runtime/run-subprocess.ts"
 import packageJson from "../../package.json" with { type: "json" }
-
-const execFileAsync = promisify(execFile)
 
 test("pins the supported Node Windows x64 runtime", () => {
   expect(nodeRuntime).toStrictEqual({
@@ -74,11 +71,14 @@ test("builds an ESM application bundle with Sharp external and cwd-independent m
 
     const bundle = await readFile(outputFile, "utf8")
     expect(bundle).toMatch(/from\s+["']sharp["']/)
-    const { stdout, stderr } = await execFileAsync(process.execPath, [outputFile, "--version"], {
+    const executable = Bun.argv[0]
+    if (!executable) throw new Error("Could not determine the Bun executable")
+    const result = await runCapturedSubprocess([executable, outputFile, "--version"], {
       cwd: os.tmpdir(),
     })
-    expect(stdout).toBe(`${packageJson.version}\n`)
-    expect(stderr).toBe("")
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe(`${packageJson.version}\n`)
+    expect(result.stderr).toBe("")
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
   }

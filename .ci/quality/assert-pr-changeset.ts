@@ -1,9 +1,5 @@
-import { execFile } from "node:child_process"
-import path from "node:path"
-import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
+import { runCapturedSubprocess } from "../runtime/run-subprocess.ts"
 
-const execFileAsync = promisify(execFile)
 const releasePullRequestBranch = "changeset-release/main"
 const dependabotLogin = "dependabot[bot]"
 
@@ -31,7 +27,7 @@ function assertCommitSha(value: string, label: string): void {
 }
 
 async function main(): Promise<void> {
-  const [baseSha, headSha, headRef, pullRequestAuthor] = process.argv.slice(2)
+  const [baseSha, headSha, headRef, pullRequestAuthor] = Bun.argv.slice(2)
   if (!baseSha || !headSha || !headRef) {
     throw new Error(
       "Usage: assert-pr-changeset.ts <base-sha> <head-sha> <head-ref> [pull-request-author]",
@@ -40,15 +36,27 @@ async function main(): Promise<void> {
   assertCommitSha(baseSha, "base")
   assertCommitSha(headSha, "head")
 
-  const { stdout } = await execFileAsync(
+  const result = await runCapturedSubprocess([
     "git",
-    ["diff", "--name-only", "--diff-filter=A", `${baseSha}...${headSha}`, "--", ".changeset"],
-    { encoding: "utf8" },
+    "diff",
+    "--name-only",
+    "--diff-filter=A",
+    `${baseSha}...${headSha}`,
+    "--",
+    ".changeset",
+  ])
+  if (result.code !== 0) {
+    throw new Error(
+      `git diff exited with code ${result.code} and signal ${result.signal}: ${result.stderr.trim()}`,
+    )
+  }
+  assertPullRequestHasChangeset(
+    headRef,
+    result.stdout.split(/\r?\n/u).filter(Boolean),
+    pullRequestAuthor,
   )
-  assertPullRequestHasChangeset(headRef, stdout.split(/\r?\n/u).filter(Boolean), pullRequestAuthor)
 }
 
-const entryPoint = process.argv[1]
-if (entryPoint && path.resolve(entryPoint) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   await main()
 }

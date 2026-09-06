@@ -42,9 +42,9 @@ function isHookFailure(value: string): value is HookFailure {
   return Object.hasOwn(feedbackByFailure, value)
 }
 
-const failure = process.argv[2]
+const failure = Bun.argv[2]
 if (!failure || !isHookFailure(failure)) {
   throw new Error("Usage: git-hook-feedback.ts <pre-commit|pre-push-changeset|pre-push-quality>")
 }
 
-process.stderr.write(feedbackByFailure[failure])
+await Bun.write(Bun.stderr, feedbackByFailure[failure])

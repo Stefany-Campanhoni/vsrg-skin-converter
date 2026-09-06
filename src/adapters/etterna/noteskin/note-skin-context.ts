@@ -1,7 +1,8 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import luaparse from "luaparse"
 import { type ColumnDirection, columnDirections } from "../../../domain/image.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   type AstObject,
   asAstObject,
@@ -29,7 +30,7 @@ export const titleByDirection: Record<ColumnDirection, string> = {
 
 export async function loadNoteSkinContext(skinDirectory: string): Promise<NoteSkinContext> {
   const filePath = await findNoteSkinFile(skinDirectory)
-  const source = await readFile(filePath, "utf8")
+  const source = await readTextFile(filePath)
   const ast = luaparse.parse(source, {
     ranges: true,
     encodingMode: "pseudo-latin1",

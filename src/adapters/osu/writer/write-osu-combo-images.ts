@@ -1,6 +1,6 @@
-import { readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readBinaryFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { resizeImageProportionally } from "../../../infrastructure/image/resize-image.ts"
 
 type ComboImageReader = (filePath: string) => Promise<Uint8Array>
@@ -35,9 +35,9 @@ export interface WriteOsuComboImagesOptions {
 }
 
 export async function writeOsuComboImages(options: WriteOsuComboImagesOptions): Promise<void> {
-  const read = options.read ?? readFile
+  const read = options.read ?? readBinaryFile
   const resize = options.resize ?? resizeImageProportionally
-  const write = options.write ?? writeFile
+  const write = options.write ?? writeFileContents
 
   const prepared = await settleAll(
     osuComboImageFilenames.map((filename) =>

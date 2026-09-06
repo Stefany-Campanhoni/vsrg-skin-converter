@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises"
 import path from "node:path"
 import {
   type ColumnDirection,
@@ -8,6 +7,7 @@ import {
   receptorStates,
 } from "../../../domain/image.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readBinaryFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import { normalizeOsuReceptorImage } from "../../../infrastructure/image/normalize-osu-receptor.ts"
 import {
@@ -68,7 +68,7 @@ export interface WriteEtternaReceptorsOptions extends PrepareEtternaReceptorsOpt
 export async function prepareEtternaReceptors(
   options: PrepareEtternaReceptorsOptions,
 ): Promise<readonly PreparedEtternaAsset[]> {
-  const read = options.read ?? readFile
+  const read = options.read ?? readBinaryFile
   const normalize = options.normalize ?? normalizeOsuReceptorImage
   const inspectTransparency = options.inspectTransparency ?? isImageFullyTransparent
   const readDimensions = options.readDimensions ?? readImageDimensions

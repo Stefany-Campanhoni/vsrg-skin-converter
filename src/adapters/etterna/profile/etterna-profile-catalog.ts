@@ -1,6 +1,7 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   resolveEtternaProfilePath,
   resolveEtternaProfilesPath,
@@ -24,7 +25,7 @@ export async function listEtternaProfiles(
   options: ListEtternaProfilesOptions = {},
 ): Promise<EtternaProfile[]> {
   const profilesDirectory = resolveEtternaProfilesPath(gameRoot)
-  const readProfileSource = options.readProfileSource ?? ((filePath) => readFile(filePath, "utf8"))
+  const readProfileSource = options.readProfileSource ?? readTextFile
   const entries = await readProfileDirectory(profilesDirectory)
   const profileEntries = entries
     .filter((entry) => entry.isDirectory())

@@ -1,19 +1,20 @@
 import { expect, test } from "bun:test"
-import { execFile } from "node:child_process"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
+import { runCapturedSubprocess } from "../../.ci/runtime/run-subprocess.ts"
 
-const execFileAsync = promisify(execFile)
-const projectRoot = fileURLToPath(new URL("../../", import.meta.url))
+const projectRoot = Bun.fileURLToPath(new URL("../../", import.meta.url))
 const feedbackScript = path.join(projectRoot, ".ci", "quality", "git-hook-feedback.ts")
 
 async function readFeedback(failure: string): Promise<string> {
-  const { stderr } = await execFileAsync(process.execPath, [feedbackScript, failure], {
+  const executable = Bun.argv[0]
+  if (!executable) throw new Error("Could not determine the Bun executable")
+  const result = await runCapturedSubprocess([executable, feedbackScript, failure], {
     cwd: projectRoot,
-    encoding: "utf8",
   })
-  return stderr
+  if (result.code !== 0) {
+    throw new Error(`Feedback script exited with code ${result.code}: ${result.stderr}`)
+  }
+  return result.stderr
 }
 
 test("pre-commit feedback explains how to fix, validate, stage, and retry", async () => {

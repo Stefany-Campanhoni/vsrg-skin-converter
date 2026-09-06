@@ -6,7 +6,6 @@ import {
   mkdir,
   mkdtemp,
   readdir,
-  readFile,
   realpath,
   rename,
   rm,
@@ -20,6 +19,7 @@ import {
   outputTargetPolicies,
 } from "../../application/ports/output-set-publisher.ts"
 import { invokeAsPromise } from "../async/settle-all.ts"
+import { readBinaryFile } from "./bun-file.ts"
 
 interface MakeDirectoryOptions {
   readonly recursive?: boolean
@@ -67,7 +67,7 @@ const defaultFileSystem: TransactionalOutputSetFileSystem = {
   mkdtemp,
   readdir,
   realpath,
-  readFile,
+  readFile: readBinaryFile,
   rename,
   rm,
   rmdir,

@@ -1,8 +1,7 @@
-import { spawn } from "node:child_process"
-import { readdir, readFile, stat } from "node:fs/promises"
+import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import { runCapturedSubprocess, type SubprocessResult } from "../runtime/run-subprocess.ts"
 import { getReleasePaths } from "./release-config.ts"
 
 export interface VerifyWindowsPortableOptions {
@@ -16,14 +15,6 @@ export interface VerifyWindowsPortableOptions {
 interface PackageEntry {
   readonly relative: string
   readonly kind: "file" | "directory" | "symlink" | "other"
-}
-
-interface ProcessResult {
-  readonly stdout: string
-  readonly stderr: string
-  readonly code: number | null
-  readonly signal: NodeJS.Signals | null
-  readonly timedOut: boolean
 }
 
 const requiredFiles = [
@@ -78,7 +69,7 @@ function isDependencyEntry(relative: string): boolean {
 }
 
 async function hashFile(file: string): Promise<string> {
-  return new Bun.CryptoHasher("sha256").update(await readFile(file)).digest("hex")
+  return new Bun.CryptoHasher("sha256").update(await Bun.file(file).bytes()).digest("hex")
 }
 
 async function verifyTemplates(
@@ -113,41 +104,19 @@ function runProcess(
   cwd: string,
   timeoutMs: number,
   windowsVerbatimArguments = false,
-): Promise<ProcessResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, {
-      cwd,
-      windowsHide: true,
-      windowsVerbatimArguments,
-      stdio: ["ignore", "pipe", "pipe"],
-    })
-    const stdout: Uint8Array[] = []
-    const stderr: Uint8Array[] = []
-    let timedOut = false
-    child.stdout.on("data", (chunk: Uint8Array) => stdout.push(chunk))
-    child.stderr.on("data", (chunk: Uint8Array) => stderr.push(chunk))
-    const timer = setTimeout(() => {
-      timedOut = true
-      child.kill()
-    }, timeoutMs)
-    child.once("error", (error) => {
-      clearTimeout(timer)
-      reject(error)
-    })
-    child.once("exit", (code, signal) => {
-      clearTimeout(timer)
-      resolve({
-        stdout: new TextDecoder().decode(Bun.concatArrayBuffers(stdout)),
-        stderr: new TextDecoder().decode(Bun.concatArrayBuffers(stderr)),
-        code,
-        signal,
-        timedOut,
-      })
-    })
+): Promise<SubprocessResult> {
+  return runCapturedSubprocess([executable, ...args], {
+    cwd,
+    timeoutMs,
+    windowsVerbatimArguments,
   })
 }
 
-function assertSuccessfulProcess(packageRoot: string, phase: string, result: ProcessResult): void {
+function assertSuccessfulProcess(
+  packageRoot: string,
+  phase: string,
+  result: SubprocessResult,
+): void {
   if (result.code !== 0 || result.timedOut) {
     throw new Error(
       `${phase} failed for ${packageRoot}: exit=${result.code}, signal=${result.signal}, timedOut=${result.timedOut}, stdout=${JSON.stringify(result.stdout)}, stderr=${JSON.stringify(result.stderr)}`,
@@ -160,7 +129,7 @@ async function runLauncher(
   args: readonly string[],
   cwd: string,
   timeoutMs: number,
-): Promise<ProcessResult> {
+): Promise<SubprocessResult> {
   const launcher = path.join(packageRoot, "vsrg-skin-converter.cmd")
   if (process.platform !== "win32") {
     return runProcess(launcher, args, cwd, timeoutMs)
@@ -169,13 +138,7 @@ async function runLauncher(
     throw new Error(`Unsafe launcher command arguments for ${packageRoot}: ${JSON.stringify(args)}`)
   }
   const command = `""${launcher.replaceAll("%", "%%")}" ${args.join(" ")}"`
-  return runProcess(
-    process.env.ComSpec ?? "cmd.exe",
-    ["/d", "/s", "/c", command],
-    cwd,
-    timeoutMs,
-    true,
-  )
+  return runProcess(Bun.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", command], cwd, timeoutMs, true)
 }
 
 async function verifyRuntime(
@@ -323,7 +286,7 @@ export async function verifyWindowsPortable(options: VerifyWindowsPortableOption
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   await verifyWindowsPortable({
     packageRoot: paths.unpackedPackageRoot,
@@ -333,8 +296,8 @@ async function main(): Promise<void> {
   console.log(`Verified ${paths.unpackedPackageRoot}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })

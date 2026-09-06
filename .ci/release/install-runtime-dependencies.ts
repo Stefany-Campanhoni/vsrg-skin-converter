@@ -1,8 +1,7 @@
-import { spawn } from "node:child_process"
 import { cp, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import { runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import {
   assertControlledReleasePath,
   assertSafeTransactionToken,
@@ -31,25 +30,19 @@ export interface InstallRuntimeDependenciesOptions {
   readonly dependencies?: Partial<RuntimeDependencyInstallationDependencies>
 }
 
-export function runRuntimeCommand(command: CommandInvocation): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const executable =
-      process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : command.executable
-    const args =
-      process.platform === "win32"
-        ? ["/d", "/s", "/c", command.executable, ...command.args]
-        : [...command.args]
-    const child = spawn(executable, args, {
-      cwd: command.cwd,
-      stdio: "inherit",
-      windowsHide: true,
-    })
-    child.once("error", reject)
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve()
-      else reject(new Error(`${command.executable} exited with code ${code} and signal ${signal}`))
-    })
-  })
+export async function runRuntimeCommand(command: CommandInvocation): Promise<void> {
+  const executable =
+    process.platform === "win32" ? (Bun.env.ComSpec ?? "cmd.exe") : command.executable
+  const args =
+    process.platform === "win32"
+      ? ["/d", "/s", "/c", command.executable, ...command.args]
+      : [...command.args]
+  const result = await runInheritedSubprocess([executable, ...args], { cwd: command.cwd })
+  if (result.code !== 0) {
+    throw new Error(
+      `${command.executable} exited with code ${result.code} and signal ${result.signal}`,
+    )
+  }
 }
 
 const defaultDependencies: RuntimeDependencyInstallationDependencies = {
@@ -170,7 +163,7 @@ export async function installRuntimeDependencies(
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await installRuntimeDependencies({
@@ -181,8 +174,8 @@ async function main(): Promise<void> {
   )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })
