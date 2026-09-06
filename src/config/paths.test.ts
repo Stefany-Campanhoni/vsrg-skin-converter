@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
 import { resolveApplicationRoot } from "../application-root.ts"
 import { etternaTemplatesPath, osuTemplatesPath, resolveOsuSkinOutputPath } from "./paths.ts"
 
@@ -12,7 +11,7 @@ test("resolves resources from the application module instead of the working dire
 })
 
 test("keeps both template roots stable after changing the working directory", () => {
-  const expectedSourceRoot = fileURLToPath(new URL("../", import.meta.url))
+  const expectedSourceRoot = Bun.fileURLToPath(new URL("../", import.meta.url))
   const original = process.cwd()
   process.chdir(os.tmpdir())
   try {

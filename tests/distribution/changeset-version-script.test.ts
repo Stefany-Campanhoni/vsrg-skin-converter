@@ -1,34 +1,29 @@
 import { expect, test } from "bun:test"
-import { execFile } from "node:child_process"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
+import { runInheritedSubprocess } from "../../.ci/runtime/run-subprocess.ts"
 import packageJson from "../../package.json" with { type: "json" }
 
-const execFileAsync = promisify(execFile)
-const projectBinDirectory = fileURLToPath(new URL("../../node_modules/.bin/", import.meta.url))
+const projectBinDirectory = Bun.fileURLToPath(new URL("../../node_modules/.bin/", import.meta.url))
 
 async function runChangesetVersion(cwd: string): Promise<void> {
+  const pathKey = Object.keys(Bun.env).find((key) => key.toLowerCase() === "path") ?? "PATH"
   const environment = {
-    ...process.env,
-    PATH: `${projectBinDirectory}${path.delimiter}${process.env.PATH ?? ""}`,
+    ...Bun.env,
+    [pathKey]: `${projectBinDirectory}${path.delimiter}${Bun.env[pathKey] ?? ""}`,
   }
 
-  if (process.platform === "win32") {
-    await execFileAsync(
-      process.env.ComSpec ?? "cmd.exe",
-      ["/d", "/s", "/c", "npm run changeset:version"],
-      {
-        cwd,
-        env: environment,
-      },
+  const command =
+    process.platform === "win32"
+      ? [Bun.env.ComSpec ?? "cmd.exe", "/d", "/s", "/c", "npm run changeset:version"]
+      : ["npm", "run", "changeset:version"]
+  const result = await runInheritedSubprocess(command, { cwd, env: environment })
+  if (result.code !== 0) {
+    throw new Error(
+      `Changeset version command exited with code ${result.code} and signal ${result.signal}`,
     )
-    return
   }
-
-  await execFileAsync("npm", ["run", "changeset:version"], { cwd, env: environment })
 }
 
 async function readManifestVersion(filePath: string): Promise<string> {

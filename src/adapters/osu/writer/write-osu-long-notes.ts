@@ -1,6 +1,7 @@
-import { copyFile, mkdir } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { copyFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
 const longNoteTemplateAssets = [
   { sourceFilename: "LNB.png", outputFilename: "body.png" },
@@ -16,7 +17,7 @@ export async function writeOsuLongNotes(options: WriteOsuLongNotesOptions): Prom
   await mkdir(longNoteDirectory, { recursive: true })
   await settleAll(
     longNoteTemplateAssets.map(({ sourceFilename, outputFilename }) =>
-      copyFile(
+      copyFileContents(
         path.join(options.outputDirectory, sourceFilename),
         path.join(longNoteDirectory, outputFilename),
       ),

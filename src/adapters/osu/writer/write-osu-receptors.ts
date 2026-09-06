@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { gameDefaults } from "../../../config/game-defaults.ts"
 import { columnDirections, type ImageAsset, type ReceptorSet } from "../../../domain/image.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import {
   type RenderReceptorOptions,
@@ -37,7 +38,7 @@ export interface WriteOsuReceptorsOptions {
 
 export async function writeOsuReceptors(options: WriteOsuReceptorsOptions): Promise<void> {
   const render = options.render ?? renderReceptorImage
-  const write = options.write ?? writeFile
+  const write = options.write ?? writeFileContents
   const inspectTransparency = options.inspectTransparency ?? isImageFullyTransparent
   const renderOptions: RenderReceptorOptions = {
     hitPosition: options.hitPosition,

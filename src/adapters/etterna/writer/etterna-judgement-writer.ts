@@ -1,9 +1,9 @@
-import { writeFile } from "node:fs/promises"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { JudgementSet } from "../../../domain/judgement.ts"
 import { judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   type CenteredSpriteSheetFrame,
   composeCenteredVerticalSpriteSheet,
@@ -29,7 +29,7 @@ const defaultDependencies: EtternaJudgementWriterDependencies = {
   analyzeDefaultJudgements: analyzeEtternaJudgementSheet,
   render: renderJudgementImageVariants,
   compose: composeCenteredVerticalSpriteSheet,
-  writeFile,
+  writeFile: writeFileContents,
 }
 
 export class EtternaJudgementWriter {

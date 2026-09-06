@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export async function readEtternaTheme(gameRoot: string): Promise<string> {
   const preferencesPath = path.join(gameRoot, "Save", "Preferences.ini")
   let source: string
   try {
-    source = await readFile(preferencesPath, "utf8")
+    source = await readTextFile(preferencesPath)
   } catch (cause) {
     throw new Error(`Could not read Etterna theme preferences ${preferencesPath}`, { cause })
   }

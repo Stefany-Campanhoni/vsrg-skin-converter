@@ -1,6 +1,7 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { ColumnDirection } from "../../../domain/image.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import { parseEtternaImageMetadata } from "../image/parse-etterna-image-metadata.ts"
 
 export interface ResolvedSkinAsset {
@@ -87,7 +88,7 @@ export async function createSkinFileResolver(skinDirectory: string): Promise<Ski
       return undefined
     }
 
-    const redirectedTarget = (await readFile(redirect.absolutePath, "utf8")).trim()
+    const redirectedTarget = (await readTextFile(redirect.absolutePath)).trim()
     return resolveLuaTarget(redirectedTarget, visited)
   }
 

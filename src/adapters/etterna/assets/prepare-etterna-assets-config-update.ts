@@ -1,5 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises"
 import type { FileContentExpectation } from "../../../application/ports/file-content-expectation.ts"
+import { readBinaryFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { type AstObject, asAstObject, getTableField } from "../../../infrastructure/lua/ast.ts"
 import { parseLuaSource } from "../../../infrastructure/lua/parse-lua-source.ts"
 
@@ -16,8 +16,12 @@ export interface WriteEtternaAssetsConfigUpdateDependencies {
   writeFile(filePath: string, content: string, encoding: "utf8"): Promise<void>
 }
 
-const defaultPrepareDependencies: PrepareEtternaAssetsConfigUpdateDependencies = { readFile }
-const defaultWriteDependencies: WriteEtternaAssetsConfigUpdateDependencies = { writeFile }
+const defaultPrepareDependencies: PrepareEtternaAssetsConfigUpdateDependencies = {
+  readFile: readBinaryFile,
+}
+const defaultWriteDependencies: WriteEtternaAssetsConfigUpdateDependencies = {
+  writeFile: async (filePath, content) => writeFileContents(filePath, content),
+}
 const etternaProfileGuidPattern = /^[0-9a-f]{16}$/
 
 export async function prepareEtternaAssetsConfigUpdate(

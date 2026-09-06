@@ -1,11 +1,7 @@
-import {
-  mkdir as createDirectory,
-  rename as moveFile,
-  readFile as readTextFile,
-  writeFile as writeTextFile,
-} from "node:fs/promises"
+import { mkdir as createDirectory, rename as moveFile } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readTextFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export interface EtternaProfileTemplateValues {
   readonly profileName: string
@@ -28,10 +24,8 @@ export interface EtternaProfileTemplateRendererDependencies {
 }
 
 const defaultDependencies: EtternaProfileTemplateRendererDependencies = {
-  readFile: (filePath) => readTextFile(filePath, "utf8"),
-  writeFile: async (filePath, contents) => {
-    await writeTextFile(filePath, contents, "utf8")
-  },
+  readFile: readTextFile,
+  writeFile: writeFileContents,
   mkdir: async (directoryPath) => {
     await createDirectory(directoryPath, { recursive: true })
   },
