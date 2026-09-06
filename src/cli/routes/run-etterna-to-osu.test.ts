@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { EtternaProfile } from "../../adapters/etterna/profile/etterna-profile-catalog.ts"
 import type { ConvertAndInstallSkinRequest } from "../../application/conversion/convert-and-install-skin.ts"
 import type { ConvertSkinRequest } from "../../application/conversion/convert-skin.ts"
@@ -97,21 +96,24 @@ test("installs the Etterna skin with the selected target and formats diagnostics
     writeLine: (message) => {
       events.push(`write:${message}`)
     },
-    convertSkin: async () => assert.fail("route must use convertAndInstallSkin"),
+    convertSkin: async () =>
+      (() => {
+        throw new Error("route must use convertAndInstallSkin")
+      })(),
     warn: (message) => events.push(`warn:${message}`),
   }
 
   await runEtternaToOsuRoute(dependencies)
 
-  assert.deepEqual(selectedOptions, [{ value: skin.sourcePath, label: "Diamond" }])
-  assert.deepEqual(installConfiguration, {
+  expect(selectedOptions).toStrictEqual([{ value: skin.sourcePath, label: "Diamond" }])
+  expect(installConfiguration).toStrictEqual({
     gameRoot: "C:/Users/Alice/osu!",
     windowsUsername: "Stefany",
     expectedSkinName: "Diamond",
     skinTarget: "C:/Users/Alice/osu!/Skins/Diamond",
   })
-  assert.deepEqual(conversionRequest, { reference: skin, targetGame: "osu" })
-  assert.deepEqual(events, [
+  expect(conversionRequest).toStrictEqual({ reference: skin, targetGame: "osu" })
+  expect(events).toStrictEqual([
     "resolve:C:/Games/Etterna:Etterna was not found. Press any key to select its installation folder.",
     "profiles:C:/Games/Etterna",
     "profile:Alice",
@@ -130,8 +132,8 @@ test("installs the Etterna skin with the selected target and formats diagnostics
 
 test("does not show the success message when Etterna migration fails", async () => {
   let successMessageShown = false
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       runEtternaToOsuRoute({
         etternaDefaultLocation: "C:/Games/Etterna",
         localAppData: undefined,
@@ -152,10 +154,9 @@ test("does not show the success message when Etterna migration fails", async () 
           successMessageShown = true
         },
         warn: () => {},
-      }),
-    /migration failed/,
-  )
-  assert.equal(successMessageShown, false)
+      }))(),
+  ).rejects.toThrow(/migration failed/)
+  expect(successMessageShown).toBe(false)
 })
 
 test("stops at each cancelled Etterna to osu route selection", async () => {
@@ -188,12 +189,15 @@ test("stops at each cancelled Etterna to osu route selection", async () => {
         converted = true
         return { diagnostics: [] }
       },
-      writeLine: () => assert.fail("cancelled migration must not show success"),
+      writeLine: () =>
+        (() => {
+          throw new Error("cancelled migration must not show success")
+        })(),
       warn: () => {},
     }
 
     await runEtternaToOsuRoute(dependencies)
-    assert.equal(converted, false, `must not convert after ${cancellationPoint} cancellation`)
+    expect(converted, `must not convert after ${cancellationPoint} cancellation`).toBe(false)
   }
 })
 
@@ -204,8 +208,8 @@ test("selects the only Etterna profile without prompting", async () => {
     return undefined
   })
 
-  assert.equal(selected, "00000003")
-  assert.equal(prompted, false)
+  expect(selected).toBe("00000003")
+  expect(prompted).toBe(false)
 })
 
 test("shows the exact Etterna profile id as the selection hint", async () => {
@@ -221,23 +225,22 @@ test("shows the exact Etterna profile id as the selection hint", async () => {
     },
   )
 
-  assert.equal(selected, "00000001")
-  assert.deepEqual(offeredOptions, [
+  expect(selected).toBe("00000001")
+  expect(offeredOptions).toStrictEqual([
     { value: "00000000", label: "Alice", hint: "00000000" },
     { value: "00000001", label: "Bob", hint: "00000001" },
   ])
 })
 
 test("rejects an Etterna profile selection outside the discovered catalog", async () => {
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       selectEtternaProfile(
         [
           { id: "00000000", displayName: "Alice" },
           { id: "00000001", displayName: "Bob" },
         ],
         async () => "../outside",
-      ),
-    /selected Etterna profile is not available/i,
-  )
+      ))(),
+  ).rejects.toThrow(/selected Etterna profile is not available/i)
 })

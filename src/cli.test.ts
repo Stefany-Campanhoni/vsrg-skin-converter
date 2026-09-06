@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { spawn } from "node:child_process"
 import { fileURLToPath } from "node:url"
 
@@ -10,8 +9,8 @@ test("prints the complete error stack when started through the dev script", asyn
     npm_lifecycle_event: "dev",
   })
 
-  assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
+  expect(result.exitCode).toBe(1)
+  expect(result.stderr).toMatch(/error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("prints the complete error stack when started with --verbose", async () => {
@@ -21,8 +20,8 @@ test("prints the complete error stack when started with --verbose", async () => 
     npm_lifecycle_event: "start",
   })
 
-  assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
+  expect(result.exitCode).toBe(1)
+  expect(result.stderr).toMatch(/error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("prints the complete error stack when --verbose is repeated", async () => {
@@ -32,8 +31,8 @@ test("prints the complete error stack when --verbose is repeated", async () => {
     npm_lifecycle_event: "start",
   })
 
-  assert.equal(result.exitCode, 1)
-  assert.match(result.stderr, /error: Unknown argument: --unknown[\s\S]+\s+at /i)
+  expect(result.exitCode).toBe(1)
+  expect(result.stderr).toMatch(/error: Unknown argument: --unknown[\s\S]+\s+at /i)
 })
 
 test("keeps error output concise outside the dev script", async () => {
@@ -43,8 +42,8 @@ test("keeps error output concise outside the dev script", async () => {
     npm_lifecycle_event: "start",
   })
 
-  assert.equal(result.exitCode, 1)
-  assert.equal(result.stderr, "Unknown argument: --unknown\n")
+  expect(result.exitCode).toBe(1)
+  expect(result.stderr).toBe("Unknown argument: --unknown\n")
 })
 
 interface ProcessResult {

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -19,27 +18,30 @@ test("copies and renders the profile template with only playerConfig below the a
       theme: "Rebirth",
     })
 
-    assert.deepEqual((await readdir(workspace)).sort(), [
+    expect((await readdir(workspace)).sort()).toStrictEqual([
       "Editable.ini",
       "Etterna.xml",
       "Rebirth_settings",
       "Type.ini",
     ])
-    assert.deepEqual(await readdir(path.join(workspace, "Rebirth_settings")), ["playerConfig.lua"])
-    assert.equal(
-      await readFile(path.join(workspace, "Editable.ini"), "utf8"),
+    expect(await readdir(path.join(workspace, "Rebirth_settings"))).toStrictEqual([
+      "playerConfig.lua",
+    ])
+    expect(await readFile(path.join(workspace, "Editable.ini"), "utf8")).toBe(
       "[Editable]\nDisplayName=A&B <Player>\n",
     )
-    assert.equal(
-      await readFile(path.join(workspace, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(workspace, "Etterna.xml"), "utf8")).toBe(
       "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Converted NoteSkin</dance>\n",
     )
-    assert.equal(await readFile(path.join(workspace, "Type.ini"), "utf8"), "profile type")
-    assert.equal(
+    expect(await readFile(path.join(workspace, "Type.ini"), "utf8")).toBe("profile type")
+    expect(
       await readFile(path.join(workspace, "Rebirth_settings", "playerConfig.lua"), "utf8"),
+    ).toBe(
       "return { ReceptorSize= 107, NoteFieldY= -6, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.5 }\n",
     )
-    await assert.rejects(() => access(path.join(workspace, "assetsConfig.lua")), { code: "ENOENT" })
+    await expect((() => access(path.join(workspace, "assetsConfig.lua")))()).rejects.toMatchObject({
+      code: "ENOENT",
+    })
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -52,8 +54,8 @@ test("rejects a non-Etterna model before copying the profile template", async ()
   try {
     await writeProfileTemplate(templates)
 
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         new EtternaProfileWriter(templates).writeProfile(
           { ...etternaSkin, game: "osu" },
           workspace,
@@ -62,10 +64,9 @@ test("rejects a non-Etterna model before copying the profile template", async ()
             guid: "0123456789abcdef",
             theme: "Rebirth",
           },
-        ),
-      /Etterna profile writer.*osu/i,
-    )
-    await assert.rejects(() => access(workspace), { code: "ENOENT" })
+        ))(),
+    ).rejects.toThrow(/Etterna profile writer.*osu/i)
+    await expect((() => access(workspace))()).rejects.toMatchObject({ code: "ENOENT" })
   } finally {
     await rm(root, { recursive: true, force: true })
   }

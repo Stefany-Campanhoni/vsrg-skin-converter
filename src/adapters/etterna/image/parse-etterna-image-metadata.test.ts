@@ -1,15 +1,14 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { parseEtternaImageMetadata } from "./parse-etterna-image-metadata.ts"
 
 test("parses Etterna layout and double-resolution decorations", () => {
-  assert.deepEqual(parseEtternaImageMetadata("Judgment Normal 2x6 (Doubleres)"), {
+  expect(parseEtternaImageMetadata("Judgment Normal 2x6 (Doubleres)")).toStrictEqual({
     logicalStem: "Judgment Normal",
     columns: 2,
     rows: 6,
     doubleResolution: true,
   })
-  assert.deepEqual(parseEtternaImageMetadata("default 1X6 (doubleres)"), {
+  expect(parseEtternaImageMetadata("default 1X6 (doubleres)")).toStrictEqual({
     logicalStem: "default",
     columns: 1,
     rows: 6,
@@ -18,13 +17,13 @@ test("parses Etterna layout and double-resolution decorations", () => {
 })
 
 test("preserves undecorated and res-decorated filename behavior", () => {
-  assert.deepEqual(parseEtternaImageMetadata("Tap Note"), {
+  expect(parseEtternaImageMetadata("Tap Note")).toStrictEqual({
     logicalStem: "Tap Note",
     columns: 1,
     rows: 1,
     doubleResolution: false,
   })
-  assert.deepEqual(parseEtternaImageMetadata("Tap Note 3x8 (res 64x64)"), {
+  expect(parseEtternaImageMetadata("Tap Note 3x8 (res 64x64)")).toStrictEqual({
     logicalStem: "Tap Note",
     columns: 3,
     rows: 8,

@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -49,18 +48,16 @@ test("analyzes supported judgement layouts and rejects invalid sheets", async ()
   await writeJudgementSheet(twoBySixDoubleresPath, 2, 6, 7, 5)
 
   const oneColumn = await analyzeEtternaJudgementSheet(oneBySixPath)
-  assert.equal(oneColumn.sourceDensity, 1)
-  assert.deepEqual(
-    judgementGrades.map((grade) => oneColumn.images[grade]?.frame?.index),
-    [0, 1, 2, 3, 4, 5],
-  )
+  expect(oneColumn.sourceDensity).toBe(1)
+  expect(judgementGrades.map((grade) => oneColumn.images[grade]?.frame?.index)).toStrictEqual([
+    0, 1, 2, 3, 4, 5,
+  ])
 
   const twoColumns = await analyzeEtternaJudgementSheet(twoBySixDoubleresPath)
-  assert.equal(twoColumns.sourceDensity, 2)
-  assert.deepEqual(
-    judgementGrades.map((grade) => twoColumns.images[grade]?.frame?.index),
-    [0, 2, 4, 6, 8, 10],
-  )
+  expect(twoColumns.sourceDensity).toBe(2)
+  expect(judgementGrades.map((grade) => twoColumns.images[grade]?.frame?.index)).toStrictEqual([
+    0, 2, 4, 6, 8, 10,
+  ])
 
   const noLayoutPath = path.join(directory, "No Layout.png")
   const threeBySixPath = path.join(directory, "Invalid 3x6.png")
@@ -78,7 +75,13 @@ test("analyzes supported judgement layouts and rejects invalid sheets", async ()
     .png()
     .toFile(indivisiblePath)
 
-  await assert.rejects(() => analyzeEtternaJudgementSheet(noLayoutPath), /expected 1x6 or 2x6/i)
-  await assert.rejects(() => analyzeEtternaJudgementSheet(threeBySixPath), /expected 1x6 or 2x6/i)
-  await assert.rejects(() => analyzeEtternaJudgementSheet(indivisiblePath), /dimensions.*layout/i)
+  await expect((() => analyzeEtternaJudgementSheet(noLayoutPath))()).rejects.toThrow(
+    /expected 1x6 or 2x6/i,
+  )
+  await expect((() => analyzeEtternaJudgementSheet(threeBySixPath))()).rejects.toThrow(
+    /expected 1x6 or 2x6/i,
+  )
+  await expect((() => analyzeEtternaJudgementSheet(indivisiblePath))()).rejects.toThrow(
+    /dimensions.*layout/i,
+  )
 })

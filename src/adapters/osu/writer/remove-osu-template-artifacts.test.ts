@@ -1,8 +1,8 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { removeOsuTemplateArtifacts } from "./remove-osu-template-artifacts.ts"
 
 test("removes internal template artifacts and preserves generated assets", async () => {
@@ -20,14 +20,15 @@ test("removes internal template artifacts and preserves generated assets", async
     await removeOsuTemplateArtifacts(workspace)
 
     for (const filename of artifacts) {
-      await assert.rejects(() => readFile(path.join(workspace, filename)), { code: "ENOENT" })
+      await expect((() => readFile(path.join(workspace, filename)))()).rejects.toMatchObject({
+        code: "ENOENT",
+      })
     }
-    assert.equal(await readFile(path.join(workspace, "skin.ini"), "utf8"), "skin")
-    assert.equal(
-      await readFile(path.join(workspace, "arbitrary-root-sentinel.keep"), "utf8"),
+    expect(await readFile(path.join(workspace, "skin.ini"), "utf8")).toBe("skin")
+    expect(await readFile(path.join(workspace, "arbitrary-root-sentinel.keep"), "utf8")).toBe(
       "sentinel",
     )
-    assert.equal(await readFile(path.join(workspace, "mania", "lns", "body.png"), "utf8"), "body")
+    expect(await readFile(path.join(workspace, "mania", "lns", "body.png"), "utf8")).toBe("body")
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }
@@ -62,17 +63,17 @@ test("waits for every artifact removal before rethrowing the exact removal failu
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
+    expect(phase).toBe("started")
 
     let settled = false
     void removing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(removing, (error) => error === failure)
+    await expectRejectionSatisfies(removing, (error) => error === failure)
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }
@@ -108,17 +109,17 @@ test("starts every removal when an injected remover throws synchronously", async
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
-    assert.equal(calls, 3)
+    expect(phase).toBe("started")
+    expect(calls).toBe(3)
     let settled = false
     void removing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(removing, (error) => error === failure)
+    await expectRejectionSatisfies(removing, (error) => error === failure)
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }
@@ -140,7 +141,9 @@ function deferred<T>(): Deferred<T> {
 test("rejects when an expected internal artifact cannot be removed", async () => {
   const workspace = await mkdtemp(path.join(os.tmpdir(), "vsrg-osu-cleanup-"))
   try {
-    await assert.rejects(() => removeOsuTemplateArtifacts(workspace), { code: "ENOENT" })
+    await expect((() => removeOsuTemplateArtifacts(workspace))()).rejects.toMatchObject({
+      code: "ENOENT",
+    })
   } finally {
     await rm(workspace, { recursive: true, force: true })
   }

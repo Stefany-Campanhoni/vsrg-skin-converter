@@ -1,23 +1,22 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { type CliDependencies, runCli } from "./main.ts"
 
 test("offers both source games and dispatches the Etterna source route", async () => {
   const events: string[] = []
   await runCli(createDependencies("etterna", events))
-  assert.deepEqual(events, ["select:Select the source game::etterna,osu", "route:etterna"])
+  expect(events).toStrictEqual(["select:Select the source game::etterna,osu", "route:etterna"])
 })
 
 test("dispatches the osu source route without exposing a target-game picker", async () => {
   const events: string[] = []
   await runCli(createDependencies("osu", events))
-  assert.deepEqual(events, ["select:Select the source game::etterna,osu", "route:osu"])
+  expect(events).toStrictEqual(["select:Select the source game::etterna,osu", "route:osu"])
 })
 
 test("does not dispatch a conversion route when source-game selection is cancelled", async () => {
   const events: string[] = []
   await runCli(createDependencies(undefined, events))
-  assert.deepEqual(events, ["select:Select the source game::etterna,osu"])
+  expect(events).toStrictEqual(["select:Select the source game::etterna,osu"])
 })
 
 function createDependencies(source: string | undefined, events: string[]): CliDependencies {

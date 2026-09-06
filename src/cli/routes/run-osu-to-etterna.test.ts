@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { OsuUserConfiguration } from "../../adapters/osu/config/osu-user-configuration.ts"
 import type { ConvertAndInstallSkinRequest } from "../../application/conversion/convert-and-install-skin.ts"
 import type { SkinInstaller } from "../../application/ports/skin-installer.ts"
@@ -82,7 +81,10 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
       events.push(`noteskin-exists:${target}`)
       return false
     },
-    askConfirm: async () => assert.fail("absent NoteSkin must not prompt for overwrite"),
+    askConfirm: async () =>
+      (() => {
+        throw new Error("absent NoteSkin must not prompt for overwrite")
+      })(),
     createReader: (selectedConfiguration) => {
       events.push(
         `reader:${selectedConfiguration.useDoubleResolutionAssets}:${selectedConfiguration.maniaSpeed}`,
@@ -118,16 +120,16 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
 
   await runOsuToEtternaRoute(dependencies)
 
-  assert.equal(readerConfiguration, configuration)
-  assert.deepEqual(installerConfiguration, {
+  expect(readerConfiguration).toBe(configuration)
+  expect(installerConfiguration).toStrictEqual<unknown>({
     gameRoot: "C:/Games/Etterna",
     profileName: "Alice",
     theme: "Til Death",
     expectedNoteSkinName: "General Name",
     overwriteExistingNoteSkin: false,
   })
-  assert.deepEqual(request, { reference: skin, targetGame: "etterna" })
-  assert.deepEqual(events, [
+  expect(request).toStrictEqual({ reference: skin, targetGame: "etterna" })
+  expect(events).toStrictEqual([
     "osu-default:C:/Users/Alice/AppData/Local",
     "resolve:C:/Games/osu!:osu! was not found. Press any key to select its installation folder.",
     "configurations:C:/Games/osu!",
@@ -148,8 +150,8 @@ test("runs the osu to Etterna route in selection order and formats diagnostics",
 
 test("does not show the success message when osu migration fails", async () => {
   let successMessageShown = false
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       runOsuToEtternaRoute(
         createDependencies({
           convertAndInstallSkin: async () => {
@@ -159,10 +161,9 @@ test("does not show the success message when osu migration fails", async () => {
             successMessageShown = true
           },
         }),
-      ),
-    /migration failed/,
-  )
-  assert.equal(successMessageShown, false)
+      ))(),
+  ).rejects.toThrow(/migration failed/)
+  expect(successMessageShown).toBe(false)
 })
 
 test("declining an existing NoteSkin cancels before reader, installer, or publication", async () => {
@@ -185,12 +186,15 @@ test("declining an existing NoteSkin cancels before reader, installer, or public
       events.push("convert-install")
       return { diagnostics: [] }
     },
-    writeLine: () => assert.fail("declined migration must not show success"),
+    writeLine: () =>
+      (() => {
+        throw new Error("declined migration must not show success")
+      })(),
   })
 
   await runOsuToEtternaRoute(dependencies)
 
-  assert.deepEqual(events, ["confirm:General Name already exists. Overwrite it?"])
+  expect(events).toStrictEqual(["confirm:General Name already exists. Overwrite it?"])
 })
 
 test("does not show the success message at any cancelled osu to Etterna step", async () => {
@@ -223,11 +227,14 @@ test("does not show the success message at any cancelled osu to Etterna step", a
         converted = true
         return { diagnostics: [] }
       },
-      writeLine: () => assert.fail(`cancelled ${cancellationPoint} must not show success`),
+      writeLine: () =>
+        (() => {
+          throw new Error(`cancelled ${cancellationPoint} must not show success`)
+        })(),
     })
 
     await runOsuToEtternaRoute(dependencies)
-    assert.equal(converted, false, `must not convert after ${cancellationPoint} cancellation`)
+    expect(converted, `must not convert after ${cancellationPoint} cancellation`).toBe(false)
   }
 })
 
@@ -246,7 +253,7 @@ test("passes the selected name on every install and enables overwrite only after
 
   await runOsuToEtternaRoute(dependencies)
 
-  assert.deepEqual(installerConfiguration, {
+  expect(installerConfiguration).toStrictEqual<unknown>({
     gameRoot: "C:/Games/Etterna",
     profileName: "Alice",
     theme: "Til Death",
@@ -261,8 +268,8 @@ test("selects the only osu configuration without prompting", async () => {
     prompted = true
     return undefined
   })
-  assert.equal(selected, configuration)
-  assert.equal(prompted, false)
+  expect(selected).toBe(configuration)
+  expect(prompted).toBe(false)
 })
 
 test("selects osu configurations using Username labels and rejects unknown paths", async () => {
@@ -275,19 +282,17 @@ test("selects osu configurations using Username labels and rejects unknown paths
       return second.filePath
     },
   )
-  assert.equal(selected, second)
-  assert.deepEqual(options, [
+  expect(selected).toBe(second)
+  expect(options).toStrictEqual([
     { value: configuration.filePath, label: "Alice" },
     { value: second.filePath, label: "Bob" },
   ])
-  assert.equal(
-    await selectOsuUserConfiguration([configuration, second], async () => undefined),
+  expect(await selectOsuUserConfiguration([configuration, second], async () => undefined)).toBe(
     undefined,
   )
-  await assert.rejects(
-    () => selectOsuUserConfiguration([configuration, second], async () => "C:/outside.cfg"),
-    /selected osu! user configuration is not available/i,
-  )
+  await expect(
+    (() => selectOsuUserConfiguration([configuration, second], async () => "C:/outside.cfg"))(),
+  ).rejects.toThrow(/selected osu! user configuration is not available/i)
 })
 
 function createDependencies(

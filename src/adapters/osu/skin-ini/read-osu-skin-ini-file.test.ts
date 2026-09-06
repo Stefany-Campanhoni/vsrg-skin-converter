@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -12,14 +11,14 @@ test("decodes a UTF-8 osu skin.ini with a byte order mark", async () => {
     Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(source, "utf8")]),
   )
 
-  assert.equal(await readOsuSkinIniFile(filePath), source)
+  expect(await readOsuSkinIniFile(filePath)).toBe(source)
 })
 
 test("rejects null characters in a UTF-8 osu skin.ini", async () => {
   const sourceWithNull = "[General]\nName: Café\nUnused: \0"
   const filePath = await createSkinIni(Buffer.from(sourceWithNull, "utf8"))
 
-  await assert.rejects(() => readOsuSkinIniFile(filePath), /null character.*skin\.ini/i)
+  await expect((() => readOsuSkinIniFile(filePath))()).rejects.toThrow(/null character.*skin\.ini/i)
 })
 
 test("decodes a UTF-16LE osu skin.ini with a byte order mark", async () => {
@@ -27,14 +26,14 @@ test("decodes a UTF-16LE osu skin.ini with a byte order mark", async () => {
     Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(source, "utf16le")]),
   )
 
-  assert.equal(await readOsuSkinIniFile(filePath), source)
+  expect(await readOsuSkinIniFile(filePath)).toBe(source)
 })
 
 test("decodes a UTF-16BE osu skin.ini with a byte order mark", async () => {
   const utf16BigEndian = Buffer.from(source, "utf16le").swap16()
   const filePath = await createSkinIni(Buffer.concat([Buffer.from([0xfe, 0xff]), utf16BigEndian]))
 
-  assert.equal(await readOsuSkinIniFile(filePath), source)
+  expect(await readOsuSkinIniFile(filePath)).toBe(source)
 })
 
 test("rejects an osu skin.ini with invalid UTF-8 bytes", async () => {
@@ -46,13 +45,17 @@ test("rejects an osu skin.ini with invalid UTF-8 bytes", async () => {
     ]),
   )
 
-  await assert.rejects(() => readOsuSkinIniFile(filePath), /UTF-8 or UTF-16.*skin\.ini/i)
+  await expect((() => readOsuSkinIniFile(filePath))()).rejects.toThrow(
+    /UTF-8 or UTF-16.*skin\.ini/i,
+  )
 })
 
 test("rejects a UTF-16 osu skin.ini without a byte order mark", async () => {
   const filePath = await createSkinIni(Buffer.from(source, "utf16le"))
 
-  await assert.rejects(() => readOsuSkinIniFile(filePath), /byte order mark.*skin\.ini/i)
+  await expect((() => readOsuSkinIniFile(filePath))()).rejects.toThrow(
+    /byte order mark.*skin\.ini/i,
+  )
 })
 
 test("rejects a UTF-16 osu skin.ini without a byte order mark after a Unicode prefix", async () => {
@@ -60,7 +63,9 @@ test("rejects a UTF-16 osu skin.ini without a byte order mark after a Unicode pr
     Buffer.from("䅁䉂\\n[General]\\nName: ASCII Fixture\\n", "utf16le"),
   )
 
-  await assert.rejects(() => readOsuSkinIniFile(filePath), /byte order mark.*skin\.ini/i)
+  await expect((() => readOsuSkinIniFile(filePath))()).rejects.toThrow(
+    /byte order mark.*skin\.ini/i,
+  )
 })
 
 async function createSkinIni(contents: Uint8Array): Promise<string> {

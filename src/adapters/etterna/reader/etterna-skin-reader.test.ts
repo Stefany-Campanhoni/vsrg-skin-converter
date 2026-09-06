@@ -1,5 +1,5 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.ts"
 import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinReference } from "../../../domain/skin.ts"
@@ -86,7 +86,7 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
       },
       readCmod: async (gameRoot, receivedProfileId) => {
         cmodGameRoot = gameRoot
-        assert.equal(receivedProfileId, "selected-profile")
+        expect(receivedProfileId).toBe("selected-profile")
         return 888
       },
       loadNoteSkinContext: async () => {
@@ -138,40 +138,40 @@ test("loads initial inputs concurrently and publishes assets with ordered diagno
 
   const skinPromise = reader.readSkin(reference)
 
-  assert.equal(judgementGameRoot, reference.gameRoot)
-  assert.equal(cmodGameRoot, reference.gameRoot)
-  assert.equal(profileGameRoot, reference.gameRoot)
-  assert.equal(profileId, "selected-profile")
-  assert.equal(profileTheme, "Rebirth")
-  assert.equal(judgementProfileId, "selected-profile")
-  assert.equal(judgementTheme, "Rebirth")
-  assert.deepEqual(sequence, ["context-start", "judgements-start"])
+  expect(judgementGameRoot).toBe(reference.gameRoot)
+  expect(cmodGameRoot).toBe(reference.gameRoot)
+  expect(profileGameRoot).toBe(reference.gameRoot)
+  expect(profileId).toBe("selected-profile")
+  expect(profileTheme).toBe("Rebirth")
+  expect(judgementProfileId).toBe("selected-profile")
+  expect(judgementTheme).toBe("Rebirth")
+  expect(sequence).toStrictEqual(["context-start", "judgements-start"])
   resolveContext()
   await Promise.resolve()
-  assert.deepEqual(sequence, ["context-start", "judgements-start"])
+  expect(sequence).toStrictEqual(["context-start", "judgements-start"])
 
   resolveJudgements()
   const skin = await skinPromise
 
-  assert.equal(contextLoads, 1)
-  assert.deepEqual(seenContexts, [context, context])
-  assert.deepEqual(sequence, [
+  expect(contextLoads).toBe(1)
+  expect(seenContexts).toStrictEqual([context, context])
+  expect(sequence).toStrictEqual([
     "context-start",
     "judgements-start",
     "receptors-start",
     "notes-start",
   ])
-  assert.equal(skin.game, "etterna")
-  assert.equal(skin.metadata.name, "Fixture")
-  assert.equal(skin.playfield.hitPosition, -6)
-  assert.equal(skin.playfield.columnWidth, 100)
-  assert.equal(skin.playfield.comboScale, 1)
-  assert.equal(skin.playfield.judgementScale, 1)
-  assert.equal(skin.playfield.scrollSpeed, 888)
-  assert.equal(skin.assets.receptors, receptors)
-  assert.equal(skin.assets.tapNotes, tapNotes)
-  assert.equal(skin.assets.judgements, judgements)
-  assert.deepEqual(skin.diagnostics, [
+  expect(skin.game).toBe("etterna")
+  expect(skin.metadata.name).toBe("Fixture")
+  expect(skin.playfield.hitPosition).toBe(-6)
+  expect(skin.playfield.columnWidth).toBe(100)
+  expect(skin.playfield.comboScale).toBe(1)
+  expect(skin.playfield.judgementScale).toBe(1)
+  expect(skin.playfield.scrollSpeed).toBe(888)
+  expect(skin.assets.receptors).toBe(receptors)
+  expect(skin.assets.tapNotes).toBe(tapNotes)
+  expect(skin.assets.judgements).toBe(judgements)
+  expect(skin.diagnostics).toStrictEqual([
     {
       code: "receptor-warning",
       severity: "warning",
@@ -225,13 +225,13 @@ test("starts and settles every initial reader dependency after a synchronous fai
 
   const reading = reader.readSkin(etternaReference)
   await Promise.resolve()
-  assert.equal(judgementStarted, true)
+  expect(judgementStarted).toBe(true)
   let settled = false
   void reading.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   profile.resolve({
     hitPosition: -6,
@@ -241,7 +241,7 @@ test("starts and settles every initial reader dependency after a synchronous fai
     comboScale: 1,
     judgementScale: 1,
   })
-  await assert.rejects(reading, (error) => error === failure)
+  await expectRejectionSatisfies(reading, (error) => error === failure)
 })
 
 test("settles both NoteSkin analyses after a synchronous failure", async () => {
@@ -260,7 +260,10 @@ test("settles both NoteSkin analyses after a synchronous failure", async () => {
         judgementScale: 1,
       }),
       readCmod: async () => 888,
-      loadNoteSkinContext: async () => ({ filePath: "NoteSkin.lua" }) as NoteSkinContext,
+      loadNoteSkinContext: async () =>
+        ({
+          filePath: "NoteSkin.lua",
+        }) as NoteSkinContext,
       analyzeJudgements: async () => ({ judgements, diagnostics: [] }),
       analyzeReceptors: () => receptorAnalysis.promise,
       analyzeNotes: () => {
@@ -278,16 +281,16 @@ test("settles both NoteSkin analyses after a synchronous failure", async () => {
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
+  expect(phase).toBe("started")
   let settled = false
   void reading.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   receptorAnalysis.resolve({ receptors, diagnostics: [] })
-  await assert.rejects(reading, (error) => error === failure)
+  await expectRejectionSatisfies(reading, (error) => error === failure)
 })
 
 test("rejects references from another game", async () => {
@@ -315,16 +318,15 @@ test("rejects references from another game", async () => {
     },
   )
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       reader.readSkin({
         game: "osu",
         name: "Fixture",
         sourcePath: "C:/osu/Skins/Fixture",
         gameRoot: "C:/osu",
-      }),
-    /Etterna reader.*osu/i,
-  )
+      }))(),
+  ).rejects.toThrow(/Etterna reader.*osu/i)
 })
 
 const etternaReference: SkinReference = {

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { SkinModel } from "../../domain/skin.ts"
 import { ConversionRegistry, type SkinConversion } from "./conversion-registry.ts"
 
@@ -30,9 +29,9 @@ test("resolves conversions by source and target", async () => {
   }
   const registry = new ConversionRegistry([conversion])
 
-  assert.equal(registry.resolve("etterna", "osu"), conversion)
-  assert.equal((await conversion.convert(sourceSkin)).game, "osu")
-  assert.throws(() => registry.resolve("osu", "etterna"), /osu.*etterna/i)
+  expect(registry.resolve("etterna", "osu")).toBe(conversion)
+  expect((await conversion.convert(sourceSkin)).game).toBe("osu")
+  expect(() => registry.resolve("osu", "etterna")).toThrow(/osu.*etterna/i)
 })
 
 test("rejects duplicate conversion pairs", () => {
@@ -42,5 +41,5 @@ test("rejects duplicate conversion pairs", () => {
     convert: async (skin) => ({ ...skin, game: "osu" }),
   }
 
-  assert.throws(() => new ConversionRegistry([conversion, conversion]), /duplicate/i)
+  expect(() => new ConversionRegistry([conversion, conversion])).toThrow(/duplicate/i)
 })

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { SkinModel } from "../../domain/skin.ts"
 import { OsuToEtternaConversion } from "./osu-to-etterna-conversion.ts"
 
@@ -44,9 +43,9 @@ test("converts an osu playfield while preserving source-owned data", async () =>
 
   const result = await conversion.convert(osuSkin)
 
-  assert.equal(result.game, "etterna")
-  assert.equal(result.metadata, osuSkin.metadata)
-  assert.deepEqual(result.playfield, {
+  expect(result.game).toBe("etterna")
+  expect(result.metadata).toBe(osuSkin.metadata)
+  expect(result.playfield).toStrictEqual({
     hitPosition: -7,
     judgementPosition: 4,
     comboPosition: -20,
@@ -55,14 +54,16 @@ test("converts an osu playfield while preserving source-owned data", async () =>
     judgementScale: 1,
     scrollSpeed: 902,
   })
-  assert.equal(result.assets, osuSkin.assets)
-  assert.equal(result.diagnostics, osuSkin.diagnostics)
+  expect(result.assets).toBe(osuSkin.assets)
+  expect(result.diagnostics).toBe(osuSkin.diagnostics)
 })
 
 test("rejects a source model from another game", async () => {
   const conversion = new OsuToEtternaConversion()
 
-  await assert.rejects(() => conversion.convert({ ...osuSkin, game: "etterna" }), /osu.*etterna/i)
+  await expect((() => conversion.convert({ ...osuSkin, game: "etterna" }))()).rejects.toThrow(
+    /osu.*etterna/i,
+  )
 })
 
 test("rejects incomplete osu reverse-conversion inputs", async () => {
@@ -72,7 +73,7 @@ test("rejects incomplete osu reverse-conversion inputs", async () => {
     playfield: { ...osuSkin.playfield, columnWidth: undefined },
   } as unknown as SkinModel
 
-  await assert.rejects(() => conversion.convert(incomplete), /columnWidth/i)
+  await expect((() => conversion.convert(incomplete))()).rejects.toThrow(/columnWidth/i)
 })
 
 function asset(name: string) {

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -11,24 +10,22 @@ const skinIniTemplatePath = path.join(osuTemplatesPath, "skin.ini")
 test("replaces supplied string and numeric wildcards", () => {
   const template = `\${skin_name}|\${hit_position}|\${zero}|\${empty}`
 
-  assert.equal(
+  expect(
     replaceWildcards(template, {
       skin_name: "My Etterna Skin",
       hit_position: 432,
       zero: 0,
       empty: "",
     }),
-    "My Etterna Skin|432|0|",
-  )
+  ).toBe("My Etterna Skin|432|0|")
 })
 
 test("replaces every occurrence of a supplied wildcard", () => {
-  assert.equal(replaceWildcards(`\${value}-\${value}`, { value: 12 }), "12-12")
+  expect(replaceWildcards(`\${value}-\${value}`, { value: 12 })).toBe("12-12")
 })
 
 test("preserves wildcards without a supplied value", () => {
-  assert.equal(
-    replaceWildcards(`\${skin_name}|\${future_value}`, { skin_name: "Skin" }),
+  expect(replaceWildcards(`\${skin_name}|\${future_value}`, { skin_name: "Skin" })).toBe(
     `Skin|\${future_value}`,
   )
 })
@@ -40,7 +37,7 @@ test("references the exact @2x receptor filenames", async () => {
     .map((line) => line.trim())
     .filter((line) => /^KeyImage[0-3]D?:/.test(line))
 
-  assert.deepEqual(receptorLines, [
+  expect(receptorLines).toStrictEqual([
     "KeyImage0: mania\\receptors\\left@2x",
     "KeyImage0D: mania\\receptors\\left_tap@2x",
     "KeyImage1: mania\\receptors\\down@2x",
@@ -59,8 +56,7 @@ test("uses one column-width wildcard for every lane", async () => {
     .map((line) => line.trim())
     .find((line) => line.startsWith("ColumnWidth:"))
 
-  assert.equal(
-    columnWidthLine,
+  expect(columnWidthLine).toBe(
     `ColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}`,
   )
 })
@@ -72,7 +68,7 @@ test("uses combo and score position wildcards", async () => {
     .map((line) => line.trim())
     .filter((line) => /^(ComboPosition|ScorePosition):/.test(line))
 
-  assert.deepEqual(positionLines, [
+  expect(positionLines).toStrictEqual([
     `ComboPosition: \${combo_position}`,
     `ScorePosition: \${score_position}`,
   ])
@@ -85,8 +81,7 @@ test("references the produced shared long-note body and tail paths for every lan
     .map((line) => line.trim())
     .filter((line) => /^NoteImage[0-3][LT]:/.test(line))
 
-  assert.deepEqual(
-    longNoteLines,
+  expect(longNoteLines).toStrictEqual(
     [0, 1, 2, 3].flatMap((column) => [
       `NoteImage${column}L: mania\\lns\\body`,
       `NoteImage${column}T: mania\\lns\\tail`,
@@ -109,9 +104,8 @@ test("renders only the copied output file", async () => {
       hit_position: 432,
     })
 
-    assert.equal(await readFile(sourceFile, "utf-8"), template)
-    assert.equal(
-      await readFile(outputFile, "utf-8"),
+    expect(await readFile(sourceFile, "utf-8")).toBe(template)
+    expect(await readFile(outputFile, "utf-8")).toBe(
       `Name: My Skin\nHitPosition: 432\nFuture: \${future}`,
     )
   } finally {

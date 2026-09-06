@@ -1,8 +1,8 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import {
   type EtternaProfileTemplateRendererDependencies,
   type EtternaProfileTemplateValues,
@@ -20,17 +20,17 @@ const playerConfigTemplatePath = path.resolve(
 test("the production profile template makes receptor size renderable", async () => {
   const template = await readFile(playerConfigTemplatePath, "utf8")
 
-  assert.match(template, /ReceptorSize= \$\{receptor_size\}/)
-  assert.match(template, /JudgmentZoom= 1/)
-  assert.match(template, /ComboZoom= \$\{combo_zoom\}/)
+  expect(template).toMatch(/ReceptorSize= \$\{receptor_size\}/)
+  expect(template).toMatch(/JudgmentZoom= 1/)
+  expect(template).toMatch(/ComboZoom= \$\{combo_zoom\}/)
 })
 
 test("the production profile declares the current Rebirth coordinate space", async () => {
   const template = await readFile(playerConfigTemplatePath, "utf8")
 
-  assert.match(template, /ConvertedAspectRatio= true/)
-  assert.match(template, /CurrentHeight= 720/)
-  assert.match(template, /CurrentWidth= 1280/)
+  expect(template).toMatch(/ConvertedAspectRatio= true/)
+  expect(template).toMatch(/CurrentHeight= 720/)
+  expect(template).toMatch(/CurrentWidth= 1280/)
 })
 
 test("renders each profile value for its target syntax and relocates playerConfig", async () => {
@@ -40,23 +40,19 @@ test("renders each profile value for its target syntax and relocates playerConfi
 
     await renderEtternaProfileTemplates(root, "Rebirth", validValues)
 
-    assert.equal(
-      await readFile(path.join(root, "Editable.ini"), "utf8"),
+    expect(await readFile(path.join(root, "Editable.ini"), "utf8")).toBe(
       "[Editable]\nDisplayName=A&B <Player>\n",
     )
-    assert.equal(
-      await readFile(path.join(root, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).toBe(
       "<DisplayName>A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n",
     )
-    assert.equal(
-      await readFile(path.join(root, "Type.ini"), "utf8"),
-      "[ListPosition]\nPriority=1\n",
-    )
-    assert.equal(
-      await readFile(path.join(root, "Rebirth_settings", "playerConfig.lua"), "utf8"),
+    expect(await readFile(path.join(root, "Type.ini"), "utf8")).toBe("[ListPosition]\nPriority=1\n")
+    expect(await readFile(path.join(root, "Rebirth_settings", "playerConfig.lua"), "utf8")).toBe(
       "return { ReceptorSize= 107, NoteFieldY= -7, ComboY= -20, JudgmentY= 4, JudgmentZoom= 0.35, ComboZoom= 0.5 }\n",
     )
-    await assert.rejects(() => readFile(path.join(root, "playerConfig.lua"), "utf8"), {
+    await expect(
+      (() => readFile(path.join(root, "playerConfig.lua"), "utf8"))(),
+    ).rejects.toMatchObject({
       code: "ENOENT",
     })
   } finally {
@@ -70,12 +66,10 @@ test("preserves String.replace metacharacters literally in INI and escaped XML t
 
     await renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, profileName })
 
-    assert.equal(
-      await readFile(path.join(root, "Editable.ini"), "utf8"),
+    expect(await readFile(path.join(root, "Editable.ini"), "utf8")).toBe(
       "[Editable]\nDisplayName=A$$|$&|$'|$`|A&B <Player>\n",
     )
-    assert.equal(
-      await readFile(path.join(root, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).toBe(
       "<DisplayName>A$$|$&amp;|$&apos;|$`|A&amp;B &lt;Player&gt;</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n",
     )
   })
@@ -89,17 +83,16 @@ test("renders downscroll CMod modifiers without Reverse", async () => {
       skinName: "Down NoteSkin",
     })
 
-    assert.doesNotMatch(await readFile(path.join(root, "Etterna.xml"), "utf8"), /Reverse/)
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).not.toMatch(/Reverse/)
   })
 })
 
 for (const cmod of [0, -1, 888.5, Number.NaN, Number.POSITIVE_INFINITY]) {
   test(`rejects an invalid CMod ${String(cmod)}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, cmod }),
-        /positive integer CMod/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, cmod }))(),
+      ).rejects.toThrow(/positive integer CMod/i)
     })
   })
 }
@@ -107,10 +100,9 @@ for (const cmod of [0, -1, 888.5, Number.NaN, Number.POSITIVE_INFINITY]) {
 for (const skinName of ["Pink\nBlue", "Pink\rBlue"]) {
   test("rejects a skin name containing a line break", async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, skinName }),
-        /skin name.*line break/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, skinName }))(),
+      ).rejects.toThrow(/skin name.*line break/i)
     })
   })
 }
@@ -118,10 +110,9 @@ for (const skinName of ["Pink\nBlue", "Pink\rBlue"]) {
 for (const profileName of ["A\nB", "A\rB"]) {
   test(`rejects a profile name containing ${JSON.stringify(profileName[1])}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, profileName }),
-        /profile name.*line break/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, profileName }))(),
+      ).rejects.toThrow(/profile name.*line break/i)
     })
   })
 }
@@ -129,10 +120,9 @@ for (const profileName of ["A\nB", "A\rB"]) {
 for (const guid of ["", "0123456789abcde", "0123456789abcdeg", "0123456789ABCDEF"]) {
   test(`rejects invalid GUID ${JSON.stringify(guid)}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, guid }),
-        /guid.*16.*lowercase.*hex/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, guid }))(),
+      ).rejects.toThrow(/guid.*16.*lowercase.*hex/i)
     })
   })
 }
@@ -140,10 +130,9 @@ for (const guid of ["", "0123456789abcde", "0123456789abcdeg", "0123456789ABCDEF
 for (const theme of ["", ".", "..", "../Rebirth", "nested/Rebirth", "C:\\Rebirth"]) {
   test(`rejects unsafe theme ${JSON.stringify(theme)}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, theme, validValues),
-        /unsafe.*theme/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, theme, validValues))(),
+      ).rejects.toThrow(/unsafe.*theme/i)
     })
   })
 }
@@ -157,10 +146,10 @@ for (const [field, value] of [
 ] as const) {
   test(`rejects a non-finite ${field}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, [field]: value }),
-        new RegExp(`finite.*${field}`, "i"),
-      )
+      await expect(
+        (() =>
+          renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, [field]: value }))(),
+      ).rejects.toThrow(new RegExp(`finite.*${field}`, "i"))
     })
   })
 }
@@ -168,10 +157,9 @@ for (const [field, value] of [
 for (const comboScale of [0, -0.1]) {
   test(`rejects a non-positive comboScale ${comboScale}`, async () => {
     await withProfileTemplate(async (root) => {
-      await assert.rejects(
-        () => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, comboScale }),
-        /positive.*comboScale/i,
-      )
+      await expect(
+        (() => renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, comboScale }))(),
+      ).rejects.toThrow(/positive.*comboScale/i)
     })
   })
 }
@@ -180,17 +168,14 @@ test("rejects an unresolved wildcard before changing the profile", async () => {
   await withProfileTemplate(async (root) => {
     await writeFile(path.join(root, "Type.ini"), `[ListPosition]\nFuture=\${future_value}\n`)
 
-    await assert.rejects(
-      () => renderEtternaProfileTemplates(root, "Rebirth", validValues),
-      /unresolved.*future_value.*Type\.ini/i,
-    )
+    await expect(
+      (() => renderEtternaProfileTemplates(root, "Rebirth", validValues))(),
+    ).rejects.toThrow(/unresolved.*future_value.*Type\.ini/i)
 
-    assert.equal(
-      await readFile(path.join(root, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).toBe(
       `<DisplayName>\${profile_name}</DisplayName>\n<Guid>\${guid}</Guid>\n<dance>C\${cmod}, \${is_downscroll} Overhead, \${skin_name}</dance>\n`,
     )
-    assert.equal(
-      await readFile(path.join(root, "playerConfig.lua"), "utf8"),
+    expect(await readFile(path.join(root, "playerConfig.lua"), "utf8")).toBe(
       `return { ReceptorSize= \${receptor_size}, NoteFieldY= \${hit_position}, ComboY= \${combo_position}, JudgmentY= \${judgement_position}, JudgmentZoom= 0.35, ComboZoom= \${combo_zoom} }\n`,
     )
   })
@@ -200,10 +185,9 @@ test("rejects an unresolved wildcard whose name contains punctuation", async () 
   await withProfileTemplate(async (root) => {
     await writeFile(path.join(root, "Type.ini"), `[ListPosition]\nFuture=\${future-value}\n`)
 
-    await assert.rejects(
-      () => renderEtternaProfileTemplates(root, "Rebirth", validValues),
-      /unresolved.*future-value.*Type\.ini/i,
-    )
+    await expect(
+      (() => renderEtternaProfileTemplates(root, "Rebirth", validValues))(),
+    ).rejects.toThrow(/unresolved.*future-value.*Type\.ini/i)
   })
 })
 
@@ -211,10 +195,9 @@ test("rejects an unresolved wildcard matching an inherited object key", async ()
   await withProfileTemplate(async (root) => {
     await writeFile(path.join(root, "Type.ini"), `[ListPosition]\nFuture=\${toString}\n`)
 
-    await assert.rejects(
-      () => renderEtternaProfileTemplates(root, "Rebirth", validValues),
-      /unresolved.*toString.*Type\.ini/i,
-    )
+    await expect(
+      (() => renderEtternaProfileTemplates(root, "Rebirth", validValues))(),
+    ).rejects.toThrow(/unresolved.*toString.*Type\.ini/i)
   })
 })
 
@@ -224,12 +207,10 @@ test("does not reinterpret wildcard-like profile text after substitution", async
 
     await renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, profileName })
 
-    assert.equal(
-      await readFile(path.join(root, "Editable.ini"), "utf8"),
+    expect(await readFile(path.join(root, "Editable.ini"), "utf8")).toBe(
       `[Editable]\nDisplayName=Player \${literal_name}\n`,
     )
-    assert.equal(
-      await readFile(path.join(root, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).toBe(
       `<DisplayName>Player \${literal_name}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n`,
     )
   })
@@ -241,12 +222,10 @@ test("renders profile-name text matching a later owned wildcard in one pass", as
 
     await renderEtternaProfileTemplates(root, "Rebirth", { ...validValues, profileName })
 
-    assert.equal(
-      await readFile(path.join(root, "Editable.ini"), "utf8"),
+    expect(await readFile(path.join(root, "Editable.ini"), "utf8")).toBe(
       `[Editable]\nDisplayName=\${guid}\n`,
     )
-    assert.equal(
-      await readFile(path.join(root, "Etterna.xml"), "utf8"),
+    expect(await readFile(path.join(root, "Etterna.xml"), "utf8")).toBe(
       `<DisplayName>\${guid}</DisplayName>\n<Guid>0123456789abcdef</Guid>\n<dance>C888, Reverse, Overhead, Pink &amp; Blue</dance>\n`,
     )
   })
@@ -259,10 +238,9 @@ test("rejects a missing or duplicated owned wildcard", async () => {
       `[Editable]\nDisplayName=\${profile_name}\nAlias=\${profile_name}\n`,
     )
 
-    await assert.rejects(
-      () => renderEtternaProfileTemplates(root, "Rebirth", validValues),
-      /exactly one.*profile_name.*Editable\.ini/i,
-    )
+    await expect(
+      (() => renderEtternaProfileTemplates(root, "Rebirth", validValues))(),
+    ).rejects.toThrow(/exactly one.*profile_name.*Editable\.ini/i)
   })
 })
 
@@ -270,10 +248,9 @@ test("rejects a missing owned wildcard directly", async () => {
   await withProfileTemplate(async (root) => {
     await writeFile(path.join(root, "Editable.ini"), "[Editable]\nDisplayName=Fixed\n")
 
-    await assert.rejects(
-      () => renderEtternaProfileTemplates(root, "Rebirth", validValues),
-      /exactly one.*profile_name.*Editable\.ini.*found 0/i,
-    )
+    await expect(
+      (() => renderEtternaProfileTemplates(root, "Rebirth", validValues))(),
+    ).rejects.toThrow(/exactly one.*profile_name.*Editable\.ini.*found 0/i)
   })
 })
 
@@ -308,14 +285,14 @@ test("waits for every template read to settle before reporting a contextual fail
   })
 
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(readCalls, 4)
-  assert.equal(settled, false)
+  expect(readCalls).toBe(4)
+  expect(settled).toBe(false)
 
   sibling.resolve(profileTemplate("Editable.ini"))
-  await assert.rejects(rendering, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /read Etterna profile template.*Etterna\.xml/i)
-    assert.equal(error.cause, failure)
+  await expectRejectionSatisfies(rendering, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/read Etterna profile template.*Etterna\.xml/i)
+    expect(error.cause).toBe(failure)
     return true
   })
 })
@@ -350,14 +327,14 @@ test("waits for every rendered write to settle before reporting a contextual fai
   })
 
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(writeCalls, 3)
-  assert.equal(settled, false)
+  expect(writeCalls).toBe(3)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(rendering, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /write rendered Etterna profile file.*Etterna\.xml/i)
-    assert.equal(error.cause, failure)
+  await expectRejectionSatisfies(rendering, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/write rendered Etterna profile file.*Etterna\.xml/i)
+    expect(error.cause).toBe(failure)
     return true
   })
 })

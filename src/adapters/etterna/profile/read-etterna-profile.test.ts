@@ -1,9 +1,9 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import luaparse from "luaparse"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { extractEtternaPlayfieldConfiguration, readEtternaProfile } from "./read-etterna-profile.ts"
 
 test("extracts the real 4K coordinates from a profile with multiple key modes", () => {
@@ -54,7 +54,7 @@ test("extracts the real 4K coordinates from a profile with multiple key modes", 
     }
   `)
 
-  assert.deepEqual(extractEtternaPlayfieldConfiguration(ast), {
+  expect(extractEtternaPlayfieldConfiguration(ast)).toStrictEqual({
     hitPosition: -6,
     judgementPosition: 4.199984,
     comboPosition: -20.800002,
@@ -90,7 +90,7 @@ test("uses the last repeated Lua fields when extracting the playfield configurat
     }
   `)
 
-  assert.deepEqual(extractEtternaPlayfieldConfiguration(ast), {
+  expect(extractEtternaPlayfieldConfiguration(ast)).toStrictEqual({
     hitPosition: -6,
     judgementPosition: 4,
     comboPosition: -20,
@@ -115,8 +115,7 @@ test('rejects a missing GameplaySizes["4K"] table', () => {
     }
   `)
 
-  assert.throws(
-    () => extractEtternaPlayfieldConfiguration(ast),
+  expect(() => extractEtternaPlayfieldConfiguration(ast)).toThrow(
     /Expected GameplaySizes\["4K"\] to be a Lua table/,
   )
 })
@@ -134,8 +133,7 @@ test("does not mistake another key containing 4k for the 4k key", () => {
     }
   `)
 
-  assert.throws(
-    () => extractEtternaPlayfieldConfiguration(ast),
+  expect(() => extractEtternaPlayfieldConfiguration(ast)).toThrow(
     /Expected GameplayXYCoordinates\["4k"\] to be a Lua table/,
   )
 })
@@ -155,8 +153,7 @@ test("rejects a missing numeric coordinate instead of returning zero", () => {
     }
   `)
 
-  assert.throws(
-    () => extractEtternaPlayfieldConfiguration(ast),
+  expect(() => extractEtternaPlayfieldConfiguration(ast)).toThrow(
     /Expected "ComboY" to be a numeric value/,
   )
 })
@@ -177,8 +174,7 @@ test("rejects a missing receptor size", () => {
     }
   `)
 
-  assert.throws(
-    () => extractEtternaPlayfieldConfiguration(ast),
+  expect(() => extractEtternaPlayfieldConfiguration(ast)).toThrow(
     /Expected "ReceptorSize" to be a numeric value/,
   )
 })
@@ -214,7 +210,7 @@ test("discovers playerConfig.lua case-insensitively instead of using another Lua
       `,
     )
 
-    assert.deepEqual(await readEtternaProfile(gameRoot, "00000000", "Rebirth"), {
+    expect(await readEtternaProfile(gameRoot, "00000000", "Rebirth")).toStrictEqual({
       hitPosition: -6,
       judgementPosition: 4,
       comboPosition: -20,
@@ -249,8 +245,7 @@ test("reads playerConfig from the requested Etterna profile", async () => {
       `,
     )
 
-    assert.equal(
-      (await readEtternaProfile(gameRoot, "selected-profile", "Rebirth")).columnWidth,
+    expect((await readEtternaProfile(gameRoot, "selected-profile", "Rebirth")).columnWidth).toBe(
       106,
     )
   } finally {
@@ -268,8 +263,8 @@ test("adds the selected settings directory and cause when profile discovery fail
     "Custom_settings",
   )
   try {
-    await assert.rejects(
-      () => readEtternaProfile(gameRoot, "missing-profile", "Custom"),
+    await expectRejectionSatisfies(
+      (() => readEtternaProfile(gameRoot, "missing-profile", "Custom"))(),
       (error) =>
         error instanceof Error &&
         error.message.includes(profileDirectory) &&
@@ -294,8 +289,8 @@ test("adds the playerConfig path and cause when profile parsing fails", async ()
     await mkdir(profileDirectory, { recursive: true })
     await writeFile(profilePath, "return { GameplayXYCoordinates = {")
 
-    await assert.rejects(
-      () => readEtternaProfile(gameRoot, "00000000", "Rebirth"),
+    await expectRejectionSatisfies(
+      (() => readEtternaProfile(gameRoot, "00000000", "Rebirth"))(),
       (error) =>
         error instanceof Error &&
         error.message.includes(profilePath) &&

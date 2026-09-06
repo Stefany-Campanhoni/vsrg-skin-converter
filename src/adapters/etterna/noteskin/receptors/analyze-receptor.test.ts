@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -54,9 +53,9 @@ test("uses explicit visibility transitions to identify normal and pressed sprite
     `,
   )
 
-  assert.match(result.receptor.normal.filePath, /Release\.png$/)
-  assert.match(result.receptor.pressed.filePath, /Pressed\.png$/)
-  assert.deepEqual(result.warnings, [])
+  expect(result.receptor.normal.filePath).toMatch(/Release\.png$/)
+  expect(result.receptor.pressed.filePath).toMatch(/Pressed\.png$/)
+  expect(result.warnings).toStrictEqual([])
 })
 
 test("uses a ReceptorOverlay sprite as the pressed image only", async () => {
@@ -80,8 +79,8 @@ test("uses a ReceptorOverlay sprite as the pressed image only", async () => {
     `,
   )
 
-  assert.match(result.receptor.normal.filePath, /Go Receptor\.png$/)
-  assert.match(result.receptor.pressed.filePath, /tap Flash\.png$/)
+  expect(result.receptor.normal.filePath).toMatch(/Go Receptor\.png$/)
+  expect(result.receptor.pressed.filePath).toMatch(/tap Flash\.png$/)
 })
 
 test("maps frame zero and one of a lone 2x1 receptor to normal and pressed", async () => {
@@ -96,8 +95,8 @@ test("maps frame zero and one of a lone 2x1 receptor to normal and pressed", asy
     `,
   )
 
-  assert.deepEqual(result.receptor.normal.frame, { index: 0, columns: 2, rows: 1 })
-  assert.deepEqual(result.receptor.pressed.frame, { index: 1, columns: 2, rows: 1 })
+  expect(result.receptor.normal.frame).toStrictEqual({ index: 0, columns: 2, rows: 1 })
+  expect(result.receptor.pressed.frame).toStrictEqual({ index: 1, columns: 2, rows: 1 })
 })
 
 test("uses an unnamed base sprite as normal when another sprite is an explicit overlay", async () => {
@@ -118,8 +117,8 @@ test("uses an unnamed base sprite as normal when another sprite is an explicit o
     `,
   )
 
-  assert.deepEqual(result.receptor.normal.frame, { index: 0, columns: 4, rows: 1 })
-  assert.deepEqual(result.receptor.pressed.frame, { index: 1, columns: 4, rows: 1 })
+  expect(result.receptor.normal.frame).toStrictEqual({ index: 0, columns: 4, rows: 1 })
+  expect(result.receptor.pressed.frame).toStrictEqual({ index: 1, columns: 4, rows: 1 })
 })
 
 test("evaluates concatenated texture paths and warns about lower-confidence alternatives", async () => {
@@ -143,19 +142,18 @@ test("evaluates concatenated texture paths and warns about lower-confidence alte
     { Button: "Down" },
   )
 
-  assert.match(result.receptor.normal.filePath, /Go Receptor\.png$/)
-  assert.match(result.receptor.pressed.filePath, /Press Receptor\.png$/)
-  assert.equal(result.warnings.length, 1)
-  assert.match(result.warnings[0] ?? "", /normal.*alternative/i)
+  expect(result.receptor.normal.filePath).toMatch(/Go Receptor\.png$/)
+  expect(result.receptor.pressed.filePath).toMatch(/Press Receptor\.png$/)
+  expect(result.warnings.length).toBe(1)
+  expect(result.warnings[0] ?? "").toMatch(/normal.*alternative/i)
 })
 
 test("fails with a diagnostic when a receptor state cannot be identified", async () => {
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       analyze(
         { "_Down Go Receptor.png": "" },
         `return Def.Sprite { Texture=NOTESKIN:GetPath("_down", "Go Receptor") }`,
-      ),
-    /pressed receptor.*Down Receptor\.lua/i,
-  )
+      ))(),
+  ).rejects.toThrow(/pressed receptor.*Down Receptor\.lua/i)
 })

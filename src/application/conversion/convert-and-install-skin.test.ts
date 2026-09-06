@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import type { SkinModel, SkinReference } from "../../domain/skin.ts"
 import type { SkinInstaller } from "../ports/skin-installer.ts"
 import type { SkinReader } from "../ports/skin-reader.ts"
@@ -55,7 +54,7 @@ test("reads, converts, and installs once in order and returns ordered diagnostic
     game: "osu",
     readSkin: async (actualReference) => {
       calls.push("read")
-      assert.equal(actualReference, reference)
+      expect(actualReference).toBe(reference)
       return sourceSkin
     },
   }
@@ -64,7 +63,7 @@ test("reads, converts, and installs once in order and returns ordered diagnostic
     target: "etterna",
     convert: async (skin) => {
       calls.push("convert")
-      assert.equal(skin, sourceSkin)
+      expect(skin).toBe(sourceSkin)
       return convertedSkin
     },
   }
@@ -72,7 +71,7 @@ test("reads, converts, and installs once in order and returns ordered diagnostic
     game: "etterna",
     installSkin: async (skin) => {
       calls.push("install")
-      assert.equal(skin, convertedSkin)
+      expect(skin).toBe(convertedSkin)
     },
   }
 
@@ -85,13 +84,13 @@ test("reads, converts, and installs once in order and returns ordered diagnostic
     },
   )
 
-  assert.deepEqual(calls, ["read", "convert", "install"])
-  assert.deepEqual(result.diagnostics, convertedDiagnostics)
+  expect(calls).toStrictEqual(["read", "convert", "install"])
+  expect(result.diagnostics).toStrictEqual(convertedDiagnostics)
 })
 
 test("reports a missing source reader", async () => {
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       convertAndInstallSkin(
         { reference, targetGame: "etterna" },
         {
@@ -99,9 +98,8 @@ test("reports a missing source reader", async () => {
           installers: new Map(),
           conversions: new ConversionRegistry([]),
         },
-      ),
-    /No skin reader.*osu/i,
-  )
+      ))(),
+  ).rejects.toThrow(/No skin reader.*osu/i)
 })
 
 test("reports a missing target installer before reading", async () => {
@@ -114,8 +112,8 @@ test("reports a missing target installer before reading", async () => {
     },
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       convertAndInstallSkin(
         { reference, targetGame: "etterna" },
         {
@@ -123,10 +121,9 @@ test("reports a missing target installer before reading", async () => {
           installers: new Map(),
           conversions: new ConversionRegistry([]),
         },
-      ),
-    /No skin installer.*etterna/i,
-  )
-  assert.equal(readStarted, false)
+      ))(),
+  ).rejects.toThrow(/No skin installer.*etterna/i)
+  expect(readStarted).toBe(false)
 })
 
 test("does not convert or install after source reading fails", async () => {
@@ -153,8 +150,8 @@ test("does not convert or install after source reading fails", async () => {
     },
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       convertAndInstallSkin(
         { reference, targetGame: "etterna" },
         {
@@ -162,10 +159,9 @@ test("does not convert or install after source reading fails", async () => {
           installers: new Map([["etterna", installer]]),
           conversions: new ConversionRegistry([conversion]),
         },
-      ),
-    /read failed/i,
-  )
-  assert.deepEqual(calls, ["read"])
+      ))(),
+  ).rejects.toThrow(/read failed/i)
+  expect(calls).toStrictEqual(["read"])
 })
 
 test("does not install after conversion fails", async () => {
@@ -192,8 +188,8 @@ test("does not install after conversion fails", async () => {
     },
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       convertAndInstallSkin(
         { reference, targetGame: "etterna" },
         {
@@ -201,8 +197,7 @@ test("does not install after conversion fails", async () => {
           installers: new Map([["etterna", installer]]),
           conversions: new ConversionRegistry([conversion]),
         },
-      ),
-    /conversion failed/i,
-  )
-  assert.deepEqual(calls, ["read", "convert"])
+      ))(),
+  ).rejects.toThrow(/conversion failed/i)
+  expect(calls).toStrictEqual(["read", "convert"])
 })

@@ -1,5 +1,4 @@
-import { test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
@@ -31,22 +30,22 @@ test("loads shared redirects, rotations, rotation flags, and inline functions", 
 
     const context = await loadNoteSkinContext(directory)
 
-    assert.equal(context.filePath, noteSkinPath)
-    assert.deepEqual(context.buttonRedirections, {
+    expect(context.filePath).toBe(noteSkinPath)
+    expect(context.buttonRedirections).toStrictEqual({
       left: "Down",
       down: "Down",
       up: "Up",
       right: "Down",
     })
-    assert.deepEqual(context.rotations, {
+    expect(context.rotations).toStrictEqual({
       left: 90,
       down: 0,
       up: 180,
       right: -90,
     })
-    assert.equal(context.partsToRotate["Tap Note"], true)
-    assert.equal(context.partsToRotate.Receptor, false)
-    assert.match(context.getFunctionSource("createNote") ?? "", /function createNote/)
+    expect(context.partsToRotate["Tap Note"]).toBe(true)
+    expect(context.partsToRotate.Receptor).toBe(false)
+    expect(context.getFunctionSource("createNote") ?? "").toMatch(/function createNote/)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
@@ -59,7 +58,7 @@ test("finds NoteSkin.lua case-insensitively", async () => {
 
     const context = await loadNoteSkinContext(directory)
 
-    assert.match(context.filePath, /Noteskin\.lua$/)
+    expect(context.filePath).toMatch(/Noteskin\.lua$/)
   } finally {
     await rm(directory, { recursive: true, force: true })
   }

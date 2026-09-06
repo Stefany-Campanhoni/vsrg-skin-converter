@@ -1,5 +1,4 @@
-import { onTestFinished, test } from "bun:test"
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -15,8 +14,8 @@ test("parses a Lua file into a chunk", () => {
 
   const ast = parseLuaFile(luaFile)
 
-  assert.equal(ast.type, "Chunk")
-  assert.equal(ast.body[0]?.type, "ReturnStatement")
+  expect(ast.type).toBe("Chunk")
+  expect(ast.body[0]?.type).toBe("ReturnStatement")
 })
 
 test("file parsing has the same public AST behavior as source parsing", () => {
@@ -27,5 +26,5 @@ test("file parsing has the same public AST behavior as source parsing", () => {
   onTestFinished(() => rmSync(temporaryDirectory, { recursive: true }))
   writeFileSync(luaFile, source, "utf-8")
 
-  assert.deepEqual(parseLuaFile(luaFile), parseLuaSource(source))
+  expect(parseLuaFile(luaFile)).toStrictEqual(parseLuaSource(source))
 })
