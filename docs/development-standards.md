@@ -49,7 +49,7 @@ Respect the direction documented in [architecture.md](./architecture.md). Do not
 application port by importing a concrete adapter into the application layer. Do not place
 format-specific knowledge in the domain or shared infrastructure.
 
-Run `npm run test:architecture` whenever imports or module placement change.
+Run `bun run test:architecture` whenever imports or module placement change.
 
 ## Bun-first Runtime APIs
 
@@ -124,20 +124,20 @@ Do not narrate what the following code already states.
 Every completed change must pass:
 
 ```sh
-npm test
-npm run typecheck
-npm run lint
-npm run test:architecture
-npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+bun test
+bun run typecheck
+bun run lint
+bun run test:architecture
+bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
 Release changes additionally require:
 
 ```sh
-npm run build:windows
-npm run test:distribution
-npm run release:windows
+bun run build:windows
+bun run test:distribution
+bun run release:windows
 ```
 
 Never commit `build`, `release`, or `.cache/release` contents. Inspect the final ZIP manifest
@@ -154,7 +154,7 @@ tests so the Etterna-to-osu! route cannot regress while the reverse route evolve
 
 Changesets owns SemVer intent and `CHANGELOG.md`. Every ordinary pull request adds one new
 `.changeset/*.md` document. Use a real `patch`, `minor`, or `major` entry for a public change
-and `npm run changeset -- --empty` for maintenance-only work. The automated
+and `bun run changeset --empty` for maintenance-only work. The automated
 `changeset-release/main` branch may omit a new changeset because its job is to consume the
 pending set. Pull requests whose author login is exactly `dependabot[bot]` may also omit one;
 the exemption must not rely only on a branch name.
@@ -169,13 +169,14 @@ The Changesets Action is pinned by full SHA and its major version must remain co
 with the installed Changesets CLI major. It receives only the dedicated `CHANGESETS_TOKEN`
 through the action's `github-token` input. That fine-grained token requires read/write
 contents and pull-request access. The action may maintain the Release PR but must never
-publish the npm package, create release tags, or bypass protected-branch review. Keep
+publish the package to a registry, create release tags, or bypass protected-branch review. Keep
 `package.json` private and `privatePackages.version` enabled with `privatePackages.tag`
 disabled.
 
-The draft release workflow may publish only when `package.json` and the lockfile contain the
-same valid SemVer, that version is greater than the previous `main` version, and
-`CHANGELOG.md` contains its exact release heading. Ordinary pushes are successful no-ops.
+The draft release workflow may publish only when `package.json` contains a valid SemVer,
+`bun ci` has proved the lockfile coherent, that version is greater than the previous `main`
+version, and `CHANGELOG.md` contains its exact release heading. Ordinary pushes are
+successful no-ops.
 The release job runs the complete Windows release gate before creating a new immutable-name
 tag and draft; it must refuse to overwrite an existing tag. Prerelease SemVer values add the
 GitHub prerelease flag automatically.
@@ -187,7 +188,7 @@ Changesets CLI v3, `pre.json` contains only the mode and tag; already-versioned 
 entries belong under `.changeset/pre` and must not be reconstructed in the root state file.
 
 Place repository validation, build, and release automation under `.ci`, grouped by purpose.
-The programs in `.ci/release` remain supported for local execution through npm scripts.
+The programs in `.ci/release` remain supported for local execution through Bun scripts.
 Tests may import pure functions from `.ci`, but production modules must not depend on that
 directory.
 
@@ -225,7 +226,8 @@ cache, and release roots. Preserve the last complete unpacked package and ZIP/ch
 until a staged replacement passes structural, launcher, template, and real Sharp checks.
 Pin redistributed runtimes by exact version and official checksum. Keep Sharp external to
 the application bundle, copy only its proven Windows x64 dependency closure, retain required
-licenses, and reject TypeScript, tests, maps, caches, links, npm shims, and wasm artifacts.
+licenses, and reject TypeScript, tests, maps, caches, links, package-manager shims, and wasm
+artifacts.
 Runtime resource resolution must derive from `import.meta.url`, never `process.cwd()`.
 An extracted runtime cache is trusted only when a checked stamp binds it to the pinned archive
 SHA-256, pinned executable SHA-256, configured version, and a successful matching
