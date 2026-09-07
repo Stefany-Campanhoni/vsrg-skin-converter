@@ -4,7 +4,7 @@ Commit blocked: the pre-commit checks did not pass.
 
 How to continue:
   1. Fix the errors shown above.
-  2. Run the pre-commit checks again: npm run check:staged
+  2. Run the pre-commit checks again: bun run check:staged
   3. Stage the fixes: git add <files>
   4. Retry the commit.
 
@@ -17,9 +17,9 @@ Push blocked while checking the required release intent.
 
 If the error above reports a missing Changeset, choose one command:
   Public application change:
-    npm run changeset
+    bun run changeset
   Maintenance-only change:
-    npm run changeset -- --empty
+    bun run changeset --empty
 
 Then commit the generated file and retry:
   git add .changeset
@@ -31,7 +31,7 @@ Push blocked: the complete quality gate did not pass.
 
 How to continue:
   1. Fix the errors shown above.
-  2. Run the complete gate again: npm run check
+  2. Run the complete gate again: bun run check
   3. Retry: git push
 `,
 } as const

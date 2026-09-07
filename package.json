@@ -5,24 +5,24 @@
   "packageManager": "bun@1.4.0",
   "main": "src/cli.ts",
   "scripts": {
-    "build": "node .ci/release/build-application.ts",
-    "build:windows": "node .ci/release/assemble-windows-portable.ts",
-    "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && node .ci/release/create-windows-release.ts",
-    "release:windows": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters && npm run build:windows && node .ci/release/create-windows-release.ts",
-    "dev": "node --watch src/cli.ts",
-    "start": "node src/cli.ts",
-    "changeset": "changeset",
-    "changeset:status": "changeset status",
-    "changeset:version": "changeset version && npm install --package-lock-only --ignore-scripts",
-    "changeset:pre": "changeset pre",
-    "prepare": "husky",
-    "check": "npm test && npm run typecheck && npm run lint && npm run test:architecture && npx tsc --noEmit --noUnusedLocals --noUnusedParameters",
-    "check:staged": "npm run lint && npm run typecheck && git diff --cached --check",
-    "typecheck": "tsc --noEmit",
+    "build": "bun .ci/release/build-application.ts",
+    "build:windows": "bun .ci/release/assemble-windows-portable.ts",
+    "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && bun .ci/release/create-windows-release.ts",
+    "release:windows": "bun run test && bun run typecheck && bun run lint && bun run test:architecture && bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters && bun run build:windows && bun .ci/release/create-windows-release.ts",
+    "dev": "bun --watch src/cli.ts",
+    "start": "bun src/cli.ts",
+    "changeset": "bunx --bun --no-install changeset",
+    "changeset:status": "bunx --bun --no-install changeset status",
+    "changeset:version": "bunx --bun --no-install changeset version && bun install --lockfile-only",
+    "changeset:pre": "bunx --bun --no-install changeset pre",
+    "prepare": "bunx --bun --no-install husky",
+    "check": "bun run test && bun run typecheck && bun run lint && bun run test:architecture && bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters",
+    "check:staged": "bun run lint && bun run typecheck && git diff --cached --check",
+    "typecheck": "bunx --bun --no-install tsc --noEmit",
     "test": "bun test --timeout 15000 --max-concurrency 1",
     "test:architecture": "bun test tests/architecture --timeout 15000 --max-concurrency 1",
-    "lint": "npx @biomejs/biome check .ci src tests",
-    "format": "npx @biomejs/biome format --write .ci src tests"
+    "lint": "bunx --bun --no-install @biomejs/biome check .ci src tests",
+    "format": "bunx --bun --no-install @biomejs/biome format --write .ci src tests"
   },
   "keywords": [
     "etterna",
@@ -44,8 +44,7 @@
   "homepage": "https://github.com/Stefany-Campanhoni/vsrg-skin-converter#readme",
   "type": "module",
   "engines": {
-    "bun": "1.4.0",
-    "node": ">=22.18.0"
+    "bun": "1.4.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",

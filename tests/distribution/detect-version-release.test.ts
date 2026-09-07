@@ -8,7 +8,6 @@ test("skips ordinary main pushes without a package version change", () => {
     detectVersionRelease({
       previousVersion: "0.1.0-beta.1",
       packageVersion: "0.1.0-beta.1",
-      lockVersion: "0.1.0-beta.1",
       changelog: "# vsrg-skin-converter\n",
     }),
   ).toStrictEqual({ shouldRelease: false })
@@ -19,7 +18,6 @@ test("returns a stable release decision for a coherent SemVer bump", () => {
     detectVersionRelease({
       previousVersion: "0.1.0",
       packageVersion: "0.2.0",
-      lockVersion: "0.2.0",
       changelog: stableChangelog,
     }),
   ).toStrictEqual({
@@ -35,7 +33,6 @@ test("marks a beta bump as a prerelease", () => {
     detectVersionRelease({
       previousVersion: "0.2.0-beta.1",
       packageVersion: "0.2.0-beta.2",
-      lockVersion: "0.2.0-beta.2",
       changelog: "# vsrg-skin-converter\n\n## 0.2.0-beta.2\n",
     }),
   ).toStrictEqual({
@@ -46,23 +43,11 @@ test("marks a beta bump as a prerelease", () => {
   })
 })
 
-test("rejects a package-lock version that differs from package.json", () => {
-  expect(() =>
-    detectVersionRelease({
-      previousVersion: "0.1.0",
-      packageVersion: "0.2.0",
-      lockVersion: "0.1.0",
-      changelog: stableChangelog,
-    }),
-  ).toThrow(/package-lock\.json version/i)
-})
-
 test("rejects a non-increasing release version", () => {
   expect(() =>
     detectVersionRelease({
       previousVersion: "0.2.0",
       packageVersion: "0.1.0",
-      lockVersion: "0.1.0",
       changelog: "# vsrg-skin-converter\n\n## 0.1.0\n",
     }),
   ).toThrow(/must be greater/i)
@@ -73,7 +58,6 @@ test("rejects a release version missing from the changelog", () => {
     detectVersionRelease({
       previousVersion: "0.1.0",
       packageVersion: "0.2.0",
-      lockVersion: "0.2.0",
       changelog: "# vsrg-skin-converter\n",
     }),
   ).toThrow(/changelog/i)

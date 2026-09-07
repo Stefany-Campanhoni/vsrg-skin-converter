@@ -18,7 +18,7 @@ export function assertPullRequestHasChangeset(
   if (changedFiles.some(isChangesetDocument)) return
 
   throw new Error(
-    "Every pull request must include a Changeset. Run `npm run changeset` for a release or `npm run changeset -- --empty` for maintenance-only work.",
+    "Every pull request must include a Changeset. Run `bun run changeset` for a release or `bun run changeset --empty` for maintenance-only work.",
   )
 }
 

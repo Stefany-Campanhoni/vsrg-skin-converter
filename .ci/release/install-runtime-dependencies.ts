@@ -31,13 +31,9 @@ export interface InstallRuntimeDependenciesOptions {
 }
 
 export async function runRuntimeCommand(command: CommandInvocation): Promise<void> {
-  const executable =
-    process.platform === "win32" ? (Bun.env.ComSpec ?? "cmd.exe") : command.executable
-  const args =
-    process.platform === "win32"
-      ? ["/d", "/s", "/c", command.executable, ...command.args]
-      : [...command.args]
-  const result = await runInheritedSubprocess([executable, ...args], { cwd: command.cwd })
+  const result = await runInheritedSubprocess([command.executable, ...command.args], {
+    cwd: command.cwd,
+  })
   if (result.code !== 0) {
     throw new Error(
       `${command.executable} exited with code ${result.code} and signal ${result.signal}`,
@@ -75,7 +71,7 @@ export async function installRuntimeDependencies(
   }
   assertControlledReleasePath(controlledRoot, options.installationRoot, "runtime installation root")
   await assertRegularFile(path.join(sourcePackageDirectory, "package.json"))
-  await assertRegularFile(path.join(sourcePackageDirectory, "package-lock.json"))
+  await assertRegularFile(path.join(sourcePackageDirectory, "bun.lock"))
 
   const dependencies = { ...defaultDependencies, ...options.dependencies }
   const token = dependencies.token()
@@ -93,9 +89,11 @@ export async function installRuntimeDependencies(
       errorOnExist: true,
       force: false,
     })
+    const bunExecutable = Bun.argv[0]
+    if (!bunExecutable) throw new Error("Could not determine the Bun executable")
     const command = {
-      executable: process.platform === "win32" ? "npm.cmd" : "npm",
-      args: ["ci", "--omit=dev", "--os=win32", "--cpu=x64"],
+      executable: bunExecutable,
+      args: ["ci", "--production", "--os=win32", "--cpu=x64"],
       cwd: stagingRoot,
     } as const
     try {
