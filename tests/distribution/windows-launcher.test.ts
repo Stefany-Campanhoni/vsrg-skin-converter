@@ -103,7 +103,7 @@ async function createLauncherFixture(applicationSource: string): Promise<string>
   await mkdir(path.join(packageRoot, "runtime"))
   const executable = Bun.argv[0]
   if (!executable) throw new Error("Could not determine the Bun executable")
-  await copyFileContents(executable, path.join(packageRoot, "runtime", "node.exe"))
+  await copyFileContents(executable, path.join(packageRoot, "runtime", "bun.exe"))
   await copyFileContents(
     path.join(projectRoot, "distribution", "vsrg-skin-converter.cmd"),
     path.join(packageRoot, "vsrg-skin-converter.cmd"),

@@ -211,12 +211,12 @@ of `23`. These empirical values belong to the osu! target calibration module.
 ## Windows Portable Distribution
 
 The maintained distribution pipeline is owned by `.ci/release`; it does not belong to a
-conversion adapter. esbuild bundles `src/cli.ts` as Node-targeted ESM while keeping `sharp`
+conversion adapter. `Bun.build` bundles `src/cli.ts` as Bun-targeted ESM while keeping `sharp`
 external. `src/application-root.ts` derives resources from `import.meta.url`, so the same
 invariant resolves `src/templates` during source execution and sibling `templates` beside
 `app.mjs` after packaging. No runtime resource depends on `process.cwd()`.
 
-The Windows x64 package includes pinned Node.js 22.23.2 and only the proven Sharp runtime
+The Windows x64 package includes the pinned Bun 1.4.0 baseline runtime and only the proven Sharp runtime
 closure: `sharp`, `detect-libc`, `semver`, `@img/colour`, and `@img/sharp-win32-x64`.
 Typings, tests, source maps, caches, package-manager command shims, and wasm fallbacks are
 excluded. The
@@ -224,9 +224,9 @@ assembler copies external templates byte-for-byte into a unique staging sibling 
 the completed package transactionally. Only transient Windows `EPERM`/`EBUSY` rename failures
 receive bounded backoff; validation and content errors never retry.
 
-The Node cache is reusable only while the archive still matches its pinned SHA-256 and the
-extracted runtime has a matching verification stamp, pinned `node.exe` SHA-256, and reported
-`node --version`. A missing, stale, or tampered extraction is rebuilt from the verified
+The Bun cache is reusable only while the official archive still matches its pinned SHA-256 and
+the extracted runtime has a matching verification stamp, pinned `bun.exe` SHA-256, reported
+`bun --version`, and reported `bun --revision`. A missing, stale, or tampered extraction is rebuilt from the verified
 archive. Acquisition, runtime installation, and package assembly receive an explicit
 controlled root and validate every staging, backup, cache, and output path before mutation.
 Runtime installation retains its recovery backup when rollback cannot restore it.
@@ -235,8 +235,8 @@ The verifier rejects unexpected entries and links, compares every packaged templ
 runs the launcher from an external working directory, exercises paths containing spaces,
 performs a real Sharp resize with the included runtime, and reads both template roots. ZIP
 publication uses a temporary archive and checksum, validates SHA-256, extracts independently,
-repeats the full verifier, and only then replaces the previous release pair. The experimental
-Node SEA workstream remains unmerged and is not part of this architecture.
+repeats the full verifier, and only then replaces the previous release pair. Standalone Bun
+executables remain an isolated manual experiment and are not release assets.
 
 ## Version and Public Release Flow
 

@@ -10,14 +10,18 @@ test("declares a safe public version and the GPL-3.0-only license", () => {
   expect(packageJson.license).toBe("GPL-3.0-only")
 })
 
-test("ships the GPL and template contact notice in source and portable documentation", async () => {
-  const [license, sourceReadme, portableReadme] = await Promise.all([
+test("ships the GPL, Bun notice, and template contact in portable documentation", async () => {
+  const [license, sourceReadme, portableReadme, notices] = await Promise.all([
     readFile(new URL("../../LICENSE", import.meta.url), "utf8"),
     readFile(new URL("../../readme.md", import.meta.url), "utf8"),
     readFile(new URL("../../distribution/README.txt", import.meta.url), "utf8"),
+    readFile(new URL("../../distribution/THIRD-PARTY-NOTICES.txt", import.meta.url), "utf8"),
   ])
 
   expect(license).toMatch(/GNU GENERAL PUBLIC LICENSE\s+Version 3, 29 June 2007/)
   expectTruthy(sourceReadme.includes(contactEmail))
   expectTruthy(portableReadme.includes(contactEmail))
+  expect(portableReadme).toMatch(/Bun 1\.4\.0 is included/i)
+  expect(notices).toMatch(/Bun 1\.4\.0[\s\S]*oven-sh\/bun/i)
+  expect(notices).not.toMatch(/Node\.js 22\.23\.2/i)
 })

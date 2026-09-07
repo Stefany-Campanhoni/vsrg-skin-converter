@@ -20,11 +20,17 @@ interface PackageEntry {
 const requiredFiles = [
   "vsrg-skin-converter.cmd",
   "app.mjs",
-  "runtime/node.exe",
+  "runtime/bun.exe",
   "README.txt",
   "LICENSE",
   "THIRD-PARTY-NOTICES.txt",
+  "node_modules/sharp/LICENSE",
+  "node_modules/detect-libc/LICENSE",
+  "node_modules/semver/LICENSE",
+  "node_modules/@img/colour/LICENSE.md",
+  "node_modules/@img/sharp-win32-x64/LICENSE",
 ] as const
+const forbiddenNodeExecutableName = "node" + ".exe"
 
 function normalizedRelative(root: string, parentPath: string, name: string): string {
   return path.relative(root, path.join(parentPath, name)).replaceAll("\\", "/")
@@ -52,6 +58,10 @@ function isForbidden(relative: string): boolean {
   const lower = relative.toLowerCase()
   return (
     lower.endsWith(".ts") ||
+    lower.endsWith(".tsx") ||
+    lower.endsWith(".cts") ||
+    lower.endsWith(".mts") ||
+    lower.endsWith(".wasm") ||
     /(^|\/)\.?[^/]*\.test\.[^/]+$/.test(lower) ||
     lower.endsWith(".map") ||
     lower.split("/").includes(".cache")
@@ -171,8 +181,8 @@ async function verifyRuntime(
     "console.log(JSON.stringify({width:metadata.width,height:metadata.height,format:metadata.format}));",
   ].join("")
   const sharp = await runProcess(
-    path.join(packageRoot, "runtime", "node.exe"),
-    ["--input-type=module", "--eval", sharpProbe],
+    path.join(packageRoot, "runtime", "bun.exe"),
+    ["--eval", sharpProbe],
     packageRoot,
     timeoutMs,
   )
@@ -220,11 +230,12 @@ export async function verifyWindowsPortable(options: VerifyWindowsPortableOption
       fail(packageRoot, entry.relative, "unsupported entry type")
     if (isForbidden(entry.relative))
       fail(packageRoot, entry.relative, "forbidden development artifact")
-    if (
-      entry.relative.toLowerCase().endsWith("node.exe") &&
-      entry.relative !== "runtime/node.exe"
-    ) {
-      fail(packageRoot, entry.relative, "unexpected Node executable")
+    const lower = entry.relative.toLowerCase()
+    if (lower.endsWith(forbiddenNodeExecutableName)) {
+      fail(packageRoot, entry.relative, "forbidden Node executable")
+    }
+    if (lower.endsWith("bun.exe") && entry.relative !== "runtime/bun.exe") {
+      fail(packageRoot, entry.relative, "unexpected Bun executable")
     }
   }
 
