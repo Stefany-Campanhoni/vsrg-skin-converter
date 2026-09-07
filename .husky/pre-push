@@ -6,7 +6,7 @@ if ! bun .ci/quality/assert-pr-changeset.ts "$base_sha" "$head_sha" "$head_ref";
   exit 1
 fi
 
-if ! npm run check; then
+if ! bun run check; then
   bun .ci/quality/git-hook-feedback.ts pre-push-quality
   exit 1
 fi

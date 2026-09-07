@@ -286,7 +286,7 @@ test("installs the isolated Windows x64 Sharp dependency tree", async () => {
   const installationRoot = path.join(root, "installed")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   let command: unknown
 
   const result = await installRuntimeDependencies({
@@ -304,8 +304,8 @@ test("installs the isolated Windows x64 Sharp dependency tree", async () => {
   })
 
   expect(command).toStrictEqual({
-    executable: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["ci", "--omit=dev", "--os=win32", "--cpu=x64"],
+    executable: Bun.argv[0],
+    args: ["ci", "--production", "--os=win32", "--cpu=x64"],
     cwd: `${installationRoot}.test.staging`,
   })
   expect(result).toBe(path.join(installationRoot, "node_modules"))
@@ -317,7 +317,7 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
 
   for (const missing of ["sharp", "@img"] as const) {
     const installationRoot = path.join(root, `missing-${missing.replace("@", "")}`)
@@ -337,7 +337,7 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
     ).rejects.toThrow(new RegExp(`node_modules[\\\\/]${missing}`))
   }
 
-  const cause = new Error("npm exploded")
+  const cause = new Error("Bun install exploded")
   await expectRejectionSatisfies(
     installRuntimeDependencies({
       controlledRoot: root,
@@ -366,7 +366,7 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
     const backupRoot = `${installationRoot}.${token}.backup`
     await mkdir(sourcePackageDirectory)
     await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-    await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+    await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
     await mkdir(installationRoot, { recursive: true })
     await writeFile(path.join(installationRoot, "previous.txt"), "verified")
     const cause = new Error(`failed ${failedBoundary}`)
@@ -413,7 +413,7 @@ test("retains the runtime recovery backup when restoration fails", async () => {
   const backupRoot = `${installationRoot}.${token}.backup`
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   await mkdir(installationRoot, { recursive: true })
   await writeFile(path.join(installationRoot, "previous.txt"), "verified")
   const promotionCause = new Error("runtime promotion failed")
@@ -455,7 +455,7 @@ test("rejects runtime installation outside the explicit controlled root before m
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   let commandRan = false
   let callbackInvoked = false
 
@@ -480,13 +480,12 @@ test("rejects runtime installation outside the explicit controlled root before m
   expect(callbackInvoked).toBe(false)
 })
 
-test.skipIf(process.platform !== "win32")(
-  "executes the npm command wrapper on Windows without spawn EINVAL",
-  async () => {
-    await runRuntimeCommand({
-      executable: "npm.cmd",
-      args: ["--version"],
-      cwd: process.cwd(),
-    })
-  },
-)
+test("executes the Bun runtime command directly", async () => {
+  const bunExecutable = Bun.argv[0]
+  if (!bunExecutable) throw new Error("Could not determine the Bun executable")
+  await runRuntimeCommand({
+    executable: bunExecutable,
+    args: ["--version"],
+    cwd: process.cwd(),
+  })
+})

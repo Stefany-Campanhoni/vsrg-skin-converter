@@ -218,7 +218,8 @@ invariant resolves `src/templates` during source execution and sibling `template
 
 The Windows x64 package includes pinned Node.js 22.23.2 and only the proven Sharp runtime
 closure: `sharp`, `detect-libc`, `semver`, `@img/colour`, and `@img/sharp-win32-x64`.
-Typings, tests, source maps, caches, npm command shims, and wasm fallbacks are excluded. The
+Typings, tests, source maps, caches, package-manager command shims, and wasm fallbacks are
+excluded. The
 assembler copies external templates byte-for-byte into a unique staging sibling and promotes
 the completed package transactionally. Only transient Windows `EPERM`/`EBUSY` rename failures
 receive bounded backoff; validation and content errors never retry.
@@ -242,13 +243,13 @@ Node SEA workstream remains unmerged and is not part of this architecture.
 Changesets is repository infrastructure rather than application or conversion code. Feature
 branches add release-intent documents under `.changeset`; the pinned Changesets Action
 combines them into one protected Release PR that updates the package manifests and
-`CHANGELOG.md`. The application is private to npm, so Changesets versions it without tagging
-or publishing it.
+`CHANGELOG.md`. The application is private, so Changesets versions it without tagging or
+publishing it to a package registry.
 
 Merging the Release PR produces a `main` push with a coherent version change. The
-draft-release workflow compares that commit with the previous `main` SHA, requires matching
-package and lockfile versions plus an exact changelog heading, and treats all other pushes as
-no-ops. A verified release runs the existing Windows distribution pipeline, then creates the
+draft-release workflow compares that commit with the previous `main` SHA, requires a coherent
+frozen Bun lockfile plus an exact changelog heading, and treats all other pushes as no-ops. A
+verified release runs the existing Windows distribution pipeline, then creates the
 `v<version>` tag and a GitHub draft containing the ZIP and SHA-256. Prerelease SemVer values
 are marked as prereleases, but no draft is publicly published without a second human action.
 
@@ -259,7 +260,7 @@ the Windows release job broader credentials; only that job receives `contents: w
 
 Repository validation, build, and release programs live under `.ci`, grouped into `quality`
 and `release` responsibilities. Contributors invoke the supported release programs through
-npm scripts; placing them under `.ci` makes their repository-automation ownership explicit.
+Bun scripts; placing them under `.ci` makes their repository-automation ownership explicit.
 
 ## Dependency Rules
 
@@ -276,7 +277,7 @@ config -> no other project layer
 ```
 
 Dependencies within the same layer are allowed. Production dependency cycles are forbidden.
-`npm run test:architecture` enforces the matrix and cycle rule from relative imports.
+`bun run test:architecture` enforces the matrix and cycle rule from relative imports.
 
 ## Domain Boundary
 

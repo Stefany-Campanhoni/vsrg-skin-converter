@@ -4,7 +4,6 @@ import { runCapturedSubprocess } from "../runtime/run-subprocess.ts"
 export interface VersionReleaseInput {
   readonly previousVersion: string
   readonly packageVersion: string
-  readonly lockVersion: string
   readonly changelog: string
 }
 
@@ -28,13 +27,6 @@ function escapeRegExp(value: string): string {
 export function detectVersionRelease(input: VersionReleaseInput): VersionReleaseDecision {
   assertVersion(input.previousVersion, "previous package")
   assertVersion(input.packageVersion, "package.json")
-  assertVersion(input.lockVersion, "package-lock.json")
-
-  if (input.lockVersion !== input.packageVersion) {
-    throw new Error(
-      `package-lock.json version ${input.lockVersion} does not match package.json version ${input.packageVersion}`,
-    )
-  }
   if (input.packageVersion === input.previousVersion) return { shouldRelease: false }
   if (!semver.gt(input.packageVersion, input.previousVersion)) {
     throw new Error(
@@ -72,10 +64,9 @@ async function main(): Promise<void> {
   if (!previousSha) throw new Error("Usage: detect-version-release.ts <previous-main-sha>")
   assertPreviousSha(previousSha)
 
-  const [previousPackageResult, currentPackage, currentLock, changelog] = await Promise.all([
+  const [previousPackageResult, currentPackage, changelog] = await Promise.all([
     runCapturedSubprocess(["git", "show", `${previousSha}:package.json`]),
     Bun.file("package.json").text(),
-    Bun.file("package-lock.json").text(),
     Bun.file("CHANGELOG.md").text(),
   ])
   if (previousPackageResult.code !== 0) {
@@ -87,7 +78,6 @@ async function main(): Promise<void> {
   const decision = detectVersionRelease({
     previousVersion: readVersion(previousPackageResult.stdout, "previous package.json"),
     packageVersion: readVersion(currentPackage, "package.json"),
-    lockVersion: readVersion(currentLock, "package-lock.json"),
     changelog,
   })
   await Bun.write(Bun.stdout, `${JSON.stringify(decision)}\n`)

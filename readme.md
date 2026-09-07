@@ -58,7 +58,7 @@ Get-Content .\vsrg-skin-converter-v<version>-win-x64.zip.sha256
 ```
 
 The two hashes must match. Keep `app.mjs`, `runtime`, `node_modules`, and `templates` beside
-the launcher. The portable package already includes Node.js and npm.
+the launcher. The portable package already includes Node.js and the required runtime dependencies.
 
 The portable build is not an installer, is not currently code-signed, and does not update
 itself. Windows ARM64, Linux, and macOS are not supported.
@@ -89,21 +89,21 @@ fails, it restores the previous files and removes incomplete output.
 Requirements:
 
 - Windows 10 or newer
-- Node.js 22.18 or newer
+- Bun 1.4.0
 - Etterna and osu!, depending on the conversion direction
 
 Install the exact dependency tree and start the CLI:
 
 ```powershell
-npm ci
-npm start
+bun ci
+bun run start
 ```
 
-Use `npm run dev` to restart automatically while editing. Add `--verbose` to include the
+Use `bun run dev` to restart automatically while editing. Add `--verbose` to include the
 complete error stack:
 
 ```powershell
-npm start -- --verbose
+bun run start --verbose
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development, testing, Changesets, and pull request
