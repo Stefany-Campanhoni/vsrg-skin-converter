@@ -73,9 +73,8 @@ replacement:
 
 Do not add `node:child_process`, `node:url`, `node:util`, `node:stream`, `process.argv`,
 `process.env`, or `process.execPath`. The architecture suite enforces this boundary across
-`src`, `.ci`, and `tests`. Until the Windows portable switches from Node to Bun, the legacy
-esbuild step may inject only an `argv`/`env` startup shim into its generated bundle; this
-single allowlisted bridge must be removed with the portable runtime cutover.
+`src`, `.ci`, and `tests`. The Windows portable bundle targets Bun directly and must not inject
+a Node startup shim.
 
 ## Errors and Diagnostics
 
@@ -231,7 +230,7 @@ artifacts.
 Runtime resource resolution must derive from `import.meta.url`, never `process.cwd()`.
 An extracted runtime cache is trusted only when a checked stamp binds it to the pinned archive
 SHA-256, pinned executable SHA-256, configured version, and a successful matching
-`node --version`. Missing or mismatched evidence requires re-extraction. Release functions
+`bun --version` and `bun --revision`. Missing or mismatched evidence requires re-extraction. Release functions
 that remove, replace, or promote paths must receive an explicit controlled root, validate all
 derived transaction paths before callbacks or mutations, and retain recovery backups when a
 rollback cannot complete.

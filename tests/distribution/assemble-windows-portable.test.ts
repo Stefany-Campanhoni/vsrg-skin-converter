@@ -16,21 +16,32 @@ async function packageFixture() {
   const source = path.join(root, "source")
   const packageRoot = path.join(root, "output", "vsrg-skin-converter-v1.0.0-win-x64")
   const bundlePath = await writeFixture(path.join(source, "app.mjs"), "bundle")
-  const nodeExecutablePath = await writeFixture(path.join(source, "node.exe"), "node")
+  const bunExecutablePath = await writeFixture(path.join(source, "bun.exe"), "bun")
   const runtimeNodeModulesPath = path.join(source, "node_modules")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js"), "sharp")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "LICENSE"), "sharp license")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "lib", "index.d.ts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "example.tsx"), "source")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "index.d.cts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "index.d.mts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "runtime.wasm"), "wasm")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "test", "runtime.test.js"), "test")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js.map"), "map")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", ".cache", "state"), "cache")
   await writeFixture(path.join(runtimeNodeModulesPath, "detect-libc", "index.js"), "detect-libc")
+  await writeFixture(path.join(runtimeNodeModulesPath, "detect-libc", "LICENSE"), "license")
   await writeFixture(path.join(runtimeNodeModulesPath, "semver", "index.js"), "semver")
+  await writeFixture(path.join(runtimeNodeModulesPath, "semver", "LICENSE"), "license")
   await writeFixture(path.join(runtimeNodeModulesPath, ".bin", "semver.cmd"), "bin")
   await writeFixture(path.join(runtimeNodeModulesPath, "@img", "colour", "index.js"), "colour")
+  await writeFixture(path.join(runtimeNodeModulesPath, "@img", "colour", "LICENSE.md"), "license")
   await writeFixture(
     path.join(runtimeNodeModulesPath, "@img", "sharp-win32-x64", "sharp.node"),
     "native",
+  )
+  await writeFixture(
+    path.join(runtimeNodeModulesPath, "@img", "sharp-win32-x64", "LICENSE"),
+    "license",
   )
   await writeFixture(
     path.join(runtimeNodeModulesPath, "@img", "sharp-wasm32", "sharp.wasm"),
@@ -53,7 +64,7 @@ async function packageFixture() {
     controlledRoot: path.dirname(packageRoot),
     packageRoot,
     bundlePath,
-    nodeExecutablePath,
+    bunExecutablePath,
     runtimeNodeModulesPath,
     templatesRoot,
     launcherPath,
@@ -86,20 +97,24 @@ test("assembles exactly the supported portable package with byte-identical templ
     root: fixture.packageRoot,
     launcher: path.join(fixture.packageRoot, "vsrg-skin-converter.cmd"),
     bundle: path.join(fixture.packageRoot, "app.mjs"),
-    nodeExecutable: path.join(fixture.packageRoot, "runtime", "node.exe"),
+    bunExecutable: path.join(fixture.packageRoot, "runtime", "bun.exe"),
   })
   expect(await listFiles(fixture.packageRoot)).toStrictEqual([
     "LICENSE",
     "README.txt",
     "THIRD-PARTY-NOTICES.txt",
     "app.mjs",
+    "node_modules/@img/colour/LICENSE.md",
     "node_modules/@img/colour/index.js",
+    "node_modules/@img/sharp-win32-x64/LICENSE",
     "node_modules/@img/sharp-win32-x64/sharp.node",
+    "node_modules/detect-libc/LICENSE",
     "node_modules/detect-libc/index.js",
+    "node_modules/semver/LICENSE",
     "node_modules/semver/index.js",
     "node_modules/sharp/LICENSE",
     "node_modules/sharp/index.js",
-    "runtime/node.exe",
+    "runtime/bun.exe",
     "templates/etterna/template.txt",
     "templates/osu/template.txt",
     "vsrg-skin-converter.cmd",

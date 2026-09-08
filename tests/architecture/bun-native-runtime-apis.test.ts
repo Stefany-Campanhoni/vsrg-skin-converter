@@ -13,10 +13,6 @@ const forbiddenRuntimeApis = [
     reason: "use Bun.argv or Bun.env",
   },
 ] as const
-const transitionalPortableFile = ".ci/release/build-application.ts"
-const transitionalPortableShim =
-  "globalThis.Bun ??= { argv: globalThis.process" + ".argv, env: globalThis.process" + ".env };"
-
 test("controlled code uses Bun-native process, URL, and stream APIs", async () => {
   const violations: string[] = []
 
@@ -26,14 +22,7 @@ test("controlled code uses Bun-native process, URL, and stream APIs", async () =
       if (!entry.isFile() || !entry.name.endsWith(".ts")) continue
       const filePath = path.join(entry.parentPath, entry.name)
       const normalizedFilePath = filePath.replaceAll("\\", "/")
-      let source = await Bun.file(filePath).text()
-      if (normalizedFilePath === transitionalPortableFile) {
-        const shimOccurrences = source.split(transitionalPortableShim).length - 1
-        if (shimOccurrences !== 1) {
-          violations.push(`${normalizedFilePath}: keep the exact transitional portable shim`)
-        }
-        source = source.replace(transitionalPortableShim, "")
-      }
+      const source = await Bun.file(filePath).text()
       for (const rule of forbiddenRuntimeApis) {
         if (rule.pattern.test(source)) {
           violations.push(`${normalizedFilePath}: ${rule.reason}`)

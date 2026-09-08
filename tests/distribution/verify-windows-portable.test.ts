@@ -25,12 +25,17 @@ async function verificationFixture() {
   for (const relative of [
     "vsrg-skin-converter.cmd",
     "app.mjs",
-    "runtime/node.exe",
+    "runtime/bun.exe",
     "node_modules/sharp/index.js",
+    "node_modules/sharp/LICENSE",
     "node_modules/detect-libc/index.js",
+    "node_modules/detect-libc/LICENSE",
     "node_modules/semver/index.js",
+    "node_modules/semver/LICENSE",
     "node_modules/@img/colour/index.js",
+    "node_modules/@img/colour/LICENSE.md",
     "node_modules/@img/sharp-win32-x64/sharp.node",
+    "node_modules/@img/sharp-win32-x64/LICENSE",
     "README.txt",
     "LICENSE",
     "THIRD-PARTY-NOTICES.txt",
@@ -98,15 +103,35 @@ test("names a missing required entry and the package root", async () => {
   await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, "app.mjs")
 })
 
-test("rejects forbidden development artifacts and unexpected node executables", async () => {
+for (const license of [
+  "node_modules/sharp/LICENSE",
+  "node_modules/detect-libc/LICENSE",
+  "node_modules/semver/LICENSE",
+  "node_modules/@img/colour/LICENSE.md",
+  "node_modules/@img/sharp-win32-x64/LICENSE",
+] as const) {
+  test(`requires dependency license ${license}`, async () => {
+    const fixture = await verificationFixture()
+    onTestFinished(() => rm(fixture.root, { recursive: true }))
+    await rm(path.join(fixture.packageRoot, license))
+    await assertInvalidEntry(fixture.packageRoot, fixture.sourceTemplatesRoot, license)
+  })
+}
+
+test("rejects forbidden development artifacts and unexpected runtime executables", async () => {
   const fixture = await verificationFixture()
   onTestFinished(() => rm(fixture.root, { recursive: true }))
   for (const entry of [
     "unexpected.ts",
+    "node_modules/sharp/example.tsx",
+    "node_modules/sharp/dist/index.d.cts",
+    "node_modules/sharp/dist/index.d.mts",
+    "node_modules/sharp/dist/runtime.wasm",
     "node_modules/sharp/internal.test.js",
     "app.mjs.map",
     "node_modules/sharp/.cache/data",
-    "node_modules/sharp/nested/node.exe",
+    `node_modules/sharp/nested/${"node"}.exe`,
+    "node_modules/sharp/nested/bun.exe",
     "node_modules/@img/sharp-wasm32/sharp.wasm",
   ]) {
     await writeFixture(path.join(fixture.packageRoot, entry), "forbidden")

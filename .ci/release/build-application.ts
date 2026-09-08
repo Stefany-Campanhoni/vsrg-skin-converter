@@ -1,6 +1,5 @@
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
-import { build } from "esbuild"
 import packageJson from "../../package.json" with { type: "json" }
 import { getReleasePaths } from "./release-config.ts"
 
@@ -14,20 +13,21 @@ export async function buildApplication(options: BuildApplicationOptions): Promis
   const outputFile = path.resolve(options.outputFile)
   await mkdir(path.dirname(outputFile), { recursive: true })
   try {
-    await build({
-      entryPoints: [entryPoint],
-      outfile: outputFile,
-      bundle: true,
-      platform: "node",
+    const result = await Bun.build({
+      entrypoints: [entryPoint],
+      outdir: path.dirname(outputFile),
+      naming: path.basename(outputFile),
+      target: "bun",
       format: "esm",
-      target: "node22",
       external: ["sharp"],
-      banner: {
-        js: "globalThis.Bun ??= { argv: globalThis.process.argv, env: globalThis.process.env };",
-      },
-      sourcemap: false,
-      legalComments: "none",
+      sourcemap: "none",
     })
+    if (!result.success) {
+      throw new AggregateError(result.logs, `Bun.build failed for ${entryPoint}`)
+    }
+    if (result.outputs.length !== 1 || path.resolve(result.outputs[0]?.path ?? "") !== outputFile) {
+      throw new Error(`Bun.build produced an unexpected output set for ${entryPoint}`)
+    }
   } catch (error) {
     throw new Error(`Failed to build application from ${entryPoint} to ${outputFile}`, {
       cause: error,

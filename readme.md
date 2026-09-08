@@ -58,7 +58,8 @@ Get-Content .\vsrg-skin-converter-v<version>-win-x64.zip.sha256
 ```
 
 The two hashes must match. Keep `app.mjs`, `runtime`, `node_modules`, and `templates` beside
-the launcher. The portable package already includes Node.js and the required runtime dependencies.
+the launcher. The portable package already includes Bun 1.4.0 and the required runtime
+dependencies.
 
 The portable build is not an installer, is not currently code-signed, and does not update
 itself. Windows ARM64, Linux, and macOS are not supported.
