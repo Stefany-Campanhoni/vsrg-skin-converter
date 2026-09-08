@@ -1,6 +1,7 @@
-import { readdir, readFile, writeFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { FileContentExpectation } from "../../../application/ports/file-content-expectation.ts"
+import { readBinaryFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export interface PreparedOsuUserConfigurationUpdate {
   readonly targetPath: string
@@ -24,9 +25,11 @@ export interface WriteOsuUserConfigurationUpdateDependencies {
 
 const defaultPrepareDependencies: PrepareOsuUserConfigurationUpdateDependencies = {
   readDirectory: (directory) => readdir(directory, { withFileTypes: true }),
-  readFile,
+  readFile: readBinaryFile,
 }
-const defaultWriteDependencies: WriteOsuUserConfigurationUpdateDependencies = { writeFile }
+const defaultWriteDependencies: WriteOsuUserConfigurationUpdateDependencies = {
+  writeFile: async (filePath, content) => writeFileContents(filePath, content),
+}
 const maniaSpeedPattern = /^([ \t]*ManiaSpeed[ \t]*=[ \t]*)([^\r\n]*?)([ \t]*)(\r?)$/gim
 
 export async function prepareOsuUserConfigurationUpdate(

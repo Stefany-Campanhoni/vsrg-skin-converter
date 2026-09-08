@@ -1,11 +1,9 @@
 import { expect, test } from "bun:test"
-import { spawn } from "node:child_process"
-import { fileURLToPath } from "node:url"
 
 test("prints the complete error stack when started through the dev script", async () => {
-  const cliPath = fileURLToPath(new URL("cli.ts", import.meta.url))
+  const cliPath = Bun.fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--unknown"], {
-    ...process.env,
+    ...Bun.env,
     npm_lifecycle_event: "dev",
   })
 
@@ -14,9 +12,9 @@ test("prints the complete error stack when started through the dev script", asyn
 })
 
 test("prints the complete error stack when started with --verbose", async () => {
-  const cliPath = fileURLToPath(new URL("cli.ts", import.meta.url))
+  const cliPath = Bun.fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--verbose", "--unknown"], {
-    ...process.env,
+    ...Bun.env,
     npm_lifecycle_event: "start",
   })
 
@@ -25,9 +23,9 @@ test("prints the complete error stack when started with --verbose", async () => 
 })
 
 test("prints the complete error stack when --verbose is repeated", async () => {
-  const cliPath = fileURLToPath(new URL("cli.ts", import.meta.url))
+  const cliPath = Bun.fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--verbose", "--verbose", "--unknown"], {
-    ...process.env,
+    ...Bun.env,
     npm_lifecycle_event: "start",
   })
 
@@ -36,9 +34,9 @@ test("prints the complete error stack when --verbose is repeated", async () => {
 })
 
 test("keeps error output concise outside the dev script", async () => {
-  const cliPath = fileURLToPath(new URL("cli.ts", import.meta.url))
+  const cliPath = Bun.fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--unknown"], {
-    ...process.env,
+    ...Bun.env,
     npm_lifecycle_event: "start",
   })
 
@@ -47,20 +45,26 @@ test("keeps error output concise outside the dev script", async () => {
 })
 
 interface ProcessResult {
-  readonly exitCode: number | null
+  readonly exitCode: number
   readonly stderr: string
 }
 
-async function runCli(args: readonly string[], env: NodeJS.ProcessEnv): Promise<ProcessResult> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, args, { env, stdio: ["ignore", "ignore", "pipe"] })
-    let stderr = ""
-
-    child.stderr.setEncoding("utf8")
-    child.stderr.on("data", (chunk: string) => {
-      stderr += chunk
-    })
-    child.once("error", reject)
-    child.once("close", (exitCode) => resolve({ exitCode, stderr }))
+async function runCli(
+  args: readonly string[],
+  env: Record<string, string | undefined>,
+): Promise<ProcessResult> {
+  const executable = Bun.argv[0]
+  if (!executable) throw new Error("Could not determine the Bun executable")
+  const subprocess = Bun.spawn({
+    cmd: [executable, ...args],
+    env,
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "pipe",
   })
+  const [exitCode, stderr] = await Promise.all([
+    subprocess.exited,
+    new Response(subprocess.stderr).text(),
+  ])
+  return { exitCode, stderr }
 }

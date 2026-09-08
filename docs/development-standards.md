@@ -51,6 +51,32 @@ format-specific knowledge in the domain or shared infrastructure.
 
 Run `npm run test:architecture` whenever imports or module placement change.
 
+## Bun-first Runtime APIs
+
+First-party runtime code and tests use Bun-native or Web APIs whenever Bun 1.4 provides a
+stable semantic equivalent. Use `Bun.spawn`/`Bun.spawnSync` for subprocesses,
+`Bun.fileURLToPath` or `import.meta.dir/path/main` for module locations and entrypoints,
+`Bun.argv` and `Bun.env` for arguments and environment variables, Web streams for streamed
+data, and `Bun.file`/`Bun.write` for simple file reads, writes, and copies.
+
+Node-compatible fallbacks are limited to operations for which Bun has no complete or safe
+replacement:
+
+- `node:path` for path manipulation and `node:os` for operating-system locations;
+- `node:fs` for directories, metadata, links, real paths, temporary paths, recursive tree
+  operations, transactional rename/removal, and synchronous reads required by synchronous
+  interfaces;
+- exclusive `wx` file creation in release transactions, because overwriting an existing
+  checksum or verification stamp must remain impossible;
+- `process.platform`, `process.cwd()`, and `process.exitCode`, which have no complete Bun
+  replacement for these contracts.
+
+Do not add `node:child_process`, `node:url`, `node:util`, `node:stream`, `process.argv`,
+`process.env`, or `process.execPath`. The architecture suite enforces this boundary across
+`src`, `.ci`, and `tests`. Until the Windows portable switches from Node to Bun, the legacy
+esbuild step may inject only an `argv`/`env` startup shim into its generated bundle; this
+single allowlisted bridge must be removed with the portable runtime cutover.
+
 ## Errors and Diagnostics
 
 Throw an error when the conversion cannot produce a valid complete target. Wrap lower-level

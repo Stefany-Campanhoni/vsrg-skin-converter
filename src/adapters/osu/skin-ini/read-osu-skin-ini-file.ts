@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises"
+import { readBinaryFile } from "../../../infrastructure/filesystem/bun-file.ts"
 
 const utf8Bom = new Uint8Array([0xef, 0xbb, 0xbf])
 const utf16LittleEndianBom = new Uint8Array([0xff, 0xfe])
 const utf16BigEndianBom = new Uint8Array([0xfe, 0xff])
 
 export async function readOsuSkinIniFile(filePath: string): Promise<string> {
-  const contents = await readFile(filePath)
+  const contents = await readBinaryFile(filePath)
   const source = decodeOsuSkinIni(contents, filePath)
   if (source.includes("\0")) {
     throw new Error(

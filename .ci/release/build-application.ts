@@ -1,6 +1,5 @@
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import { build } from "esbuild"
 import packageJson from "../../package.json" with { type: "json" }
 import { getReleasePaths } from "./release-config.ts"
@@ -23,6 +22,9 @@ export async function buildApplication(options: BuildApplicationOptions): Promis
       format: "esm",
       target: "node22",
       external: ["sharp"],
+      banner: {
+        js: "globalThis.Bun ??= { argv: globalThis.process.argv, env: globalThis.process.env };",
+      },
       sourcemap: false,
       legalComments: "none",
     })
@@ -34,7 +36,7 @@ export async function buildApplication(options: BuildApplicationOptions): Promis
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   await buildApplication({
     entryPoint: path.join(projectRoot, "src", "cli.ts"),
@@ -42,8 +44,8 @@ async function main(): Promise<void> {
   })
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })

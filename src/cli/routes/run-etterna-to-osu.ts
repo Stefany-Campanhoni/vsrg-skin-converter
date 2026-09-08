@@ -69,8 +69,8 @@ const installationDirectoryDependencies: InstallationDirectoryDependencies = {
 
 const defaultDependencies: Omit<EtternaToOsuRouteDependencies, "convertAndInstallSkin"> = {
   etternaDefaultLocation: gameDefaults.etterna.location,
-  localAppData: process.env.LOCALAPPDATA,
-  windowsUsername: process.env.USERNAME,
+  localAppData: Bun.env.LOCALAPPDATA,
+  windowsUsername: Bun.env.USERNAME,
   resolveInstallationDirectory: (defaultDirectory, prompt) =>
     resolveInstallationDirectory(defaultDirectory, prompt, installationDirectoryDependencies),
   listEtternaProfiles,

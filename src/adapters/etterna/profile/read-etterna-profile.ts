@@ -1,8 +1,9 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { Chunk } from "luaparse"
 import luaparse from "luaparse"
 import type { PlayfieldConfiguration } from "../../../domain/skin.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   type AstObject,
   asAstObject,
@@ -50,7 +51,7 @@ async function readProfileEntries(profileDirectory: string) {
 
 async function readProfileSource(profilePath: string): Promise<string> {
   try {
-    return await readFile(profilePath, "utf8")
+    return await readTextFile(profilePath)
   } catch (cause) {
     throw new Error(`Could not read Etterna profile configuration ${profilePath}`, { cause })
   }

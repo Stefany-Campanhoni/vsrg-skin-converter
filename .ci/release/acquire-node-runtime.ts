@@ -1,11 +1,7 @@
-import { spawn } from "node:child_process"
-import { createReadStream, createWriteStream } from "node:fs"
-import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
+import { access, mkdir, open, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { Readable } from "node:stream"
-import { pipeline } from "node:stream/promises"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import { runCapturedSubprocess, runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import {
   assertControlledReleasePath,
   assertSafeTransactionToken,
@@ -66,53 +62,61 @@ async function defaultDownloadFile(url: string, destination: string): Promise<vo
   if (!response.ok || !response.body) {
     throw new Error(`Node runtime download failed with HTTP ${response.status}: ${url}`)
   }
-  await pipeline(
-    Readable.from(response.body as unknown as AsyncIterable<Uint8Array>),
-    createWriteStream(destination, { flags: "wx" }),
-  )
+  const destinationHandle = await open(destination, "wx")
+  try {
+    await response.body.pipeTo(
+      new WritableStream<Uint8Array>({
+        async write(chunk) {
+          let offset = 0
+          while (offset < chunk.byteLength) {
+            const { bytesWritten } = await destinationHandle.write(
+              chunk,
+              offset,
+              chunk.byteLength - offset,
+            )
+            if (bytesWritten === 0) {
+              throw new Error(`Node runtime download made no write progress: ${destination}`)
+            }
+            offset += bytesWritten
+          }
+        },
+      }),
+    )
+  } finally {
+    await destinationHandle.close()
+  }
 }
 
 async function defaultHashFile(file: string): Promise<string> {
   const hash = new Bun.CryptoHasher("sha256")
-  for await (const chunk of createReadStream(file)) {
-    hash.update(chunk)
+  const reader = Bun.file(file).stream().getReader()
+  try {
+    while (true) {
+      const result = await reader.read()
+      if (result.done) break
+      hash.update(result.value)
+    }
+  } finally {
+    reader.releaseLock()
   }
   return hash.digest("hex")
 }
 
-function readNodeVersion(nodeExecutable: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(nodeExecutable, ["--version"], { windowsHide: true })
-    const stdout: Uint8Array[] = []
-    const stderr: Uint8Array[] = []
-    child.stdout.on("data", (chunk: Uint8Array) => stdout.push(chunk))
-    child.stderr.on("data", (chunk: Uint8Array) => stderr.push(chunk))
-    child.once("error", reject)
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve(decodeChunks(stdout).trim())
-      else
-        reject(
-          new Error(
-            `${nodeExecutable} --version exited with code ${code} and signal ${signal}: ${decodeChunks(stderr).trim()}`,
-          ),
-        )
-    })
-  })
+async function readNodeVersion(nodeExecutable: string): Promise<string> {
+  const result = await runCapturedSubprocess([nodeExecutable, "--version"])
+  if (result.code !== 0) {
+    throw new Error(
+      `${nodeExecutable} --version exited with code ${result.code} and signal ${result.signal}: ${result.stderr.trim()}`,
+    )
+  }
+  return result.stdout.trim()
 }
 
-function decodeChunks(chunks: readonly Uint8Array[]): string {
-  return new TextDecoder().decode(Bun.concatArrayBuffers([...chunks]))
-}
-
-function runProcess(executable: string, args: readonly string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(executable, args, { stdio: "inherit", windowsHide: true })
-    child.once("error", reject)
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve()
-      else reject(new Error(`${executable} exited with code ${code} and signal ${signal}`))
-    })
-  })
+async function runProcess(executable: string, args: readonly string[]): Promise<void> {
+  const result = await runInheritedSubprocess([executable, ...args])
+  if (result.code !== 0) {
+    throw new Error(`${executable} exited with code ${result.code} and signal ${result.signal}`)
+  }
 }
 
 async function defaultExtractArchive(archive: string, destination: string): Promise<void> {
@@ -149,7 +153,7 @@ async function isVerifiedExtraction(
   const nodeExecutable = path.join(extractionRoot, "node.exe")
   if (!(await isRegularFile(nodeExecutable))) return false
   try {
-    const stamp = await readFile(path.join(extractionRoot, verificationStampName), "utf8")
+    const stamp = await Bun.file(path.join(extractionRoot, verificationStampName)).text()
     if (stamp !== expectedVerificationStamp()) return false
     const executableHash = (await dependencies.hashFile(nodeExecutable)).toLowerCase()
     if (executableHash !== nodeRuntime.executableSha256) return false
@@ -254,7 +258,7 @@ export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Pr
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await acquireNodeRuntime({
@@ -265,8 +269,8 @@ async function main(): Promise<void> {
   )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })

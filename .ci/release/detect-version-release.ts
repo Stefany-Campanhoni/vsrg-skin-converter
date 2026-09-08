@@ -1,11 +1,5 @@
-import { execFile } from "node:child_process"
-import { readFile } from "node:fs/promises"
-import path from "node:path"
-import { fileURLToPath } from "node:url"
-import { promisify } from "node:util"
 import semver from "semver"
-
-const execFileAsync = promisify(execFile)
+import { runCapturedSubprocess } from "../runtime/run-subprocess.ts"
 
 export interface VersionReleaseInput {
   readonly previousVersion: string
@@ -74,27 +68,31 @@ function assertPreviousSha(value: string): void {
 }
 
 async function main(): Promise<void> {
-  const [previousSha] = process.argv.slice(2)
+  const [previousSha] = Bun.argv.slice(2)
   if (!previousSha) throw new Error("Usage: detect-version-release.ts <previous-main-sha>")
   assertPreviousSha(previousSha)
 
-  const [{ stdout: previousPackage }, currentPackage, currentLock, changelog] = await Promise.all([
-    execFileAsync("git", ["show", `${previousSha}:package.json`], { encoding: "utf8" }),
-    readFile("package.json", "utf8"),
-    readFile("package-lock.json", "utf8"),
-    readFile("CHANGELOG.md", "utf8"),
+  const [previousPackageResult, currentPackage, currentLock, changelog] = await Promise.all([
+    runCapturedSubprocess(["git", "show", `${previousSha}:package.json`]),
+    Bun.file("package.json").text(),
+    Bun.file("package-lock.json").text(),
+    Bun.file("CHANGELOG.md").text(),
   ])
+  if (previousPackageResult.code !== 0) {
+    throw new Error(
+      `git show exited with code ${previousPackageResult.code} and signal ${previousPackageResult.signal}: ${previousPackageResult.stderr.trim()}`,
+    )
+  }
 
   const decision = detectVersionRelease({
-    previousVersion: readVersion(previousPackage, "previous package.json"),
+    previousVersion: readVersion(previousPackageResult.stdout, "previous package.json"),
     packageVersion: readVersion(currentPackage, "package.json"),
     lockVersion: readVersion(currentLock, "package-lock.json"),
     changelog,
   })
-  process.stdout.write(`${JSON.stringify(decision)}\n`)
+  await Bun.write(Bun.stdout, `${JSON.stringify(decision)}\n`)
 }
 
-const entryPoint = process.argv[1]
-if (entryPoint && path.resolve(entryPoint) === fileURLToPath(import.meta.url)) {
+if (import.meta.main) {
   await main()
 }

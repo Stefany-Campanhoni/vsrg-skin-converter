@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises"
 import type { Diagnostic } from "../../../../domain/diagnostics.ts"
 import {
   type ColumnDirection,
   columnDirections,
   type TapNoteSet,
 } from "../../../../domain/image.ts"
+import { readTextFile } from "../../../../infrastructure/filesystem/bun-file.ts"
 import { type NoteSkinContext, normalizeRotation, titleByDirection } from "../note-skin-context.ts"
 import type { ResolvedSkinAsset } from "../resolve-skin-files.ts"
 import { analyzeTapNoteLua } from "./analyze-tap-note.ts"
@@ -80,7 +80,7 @@ export async function analyzeEtternaNotes(context: NoteSkinContext): Promise<Ett
 
     try {
       const analysis = analyzeTapNoteLua({
-        source: await readFile(tapNoteLuaPath, "utf8"),
+        source: await readTextFile(tapNoteLuaPath),
         filePath: tapNoteLuaPath,
         variables: createVariables(redirectedTitle, redirectedTitle),
         resolver: context.resolver,
