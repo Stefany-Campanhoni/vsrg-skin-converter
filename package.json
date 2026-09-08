@@ -6,6 +6,7 @@
   "main": "src/cli.ts",
   "scripts": {
     "build": "bun .ci/release/build-application.ts",
+    "build:standalone": "bun .ci/standalone/build-standalone.ts",
     "build:windows": "bun .ci/release/assemble-windows-portable.ts",
     "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && bun .ci/release/create-windows-release.ts",
     "release:windows": "bun run test && bun run typecheck && bun run lint && bun run test:architecture && bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters && bun run build:windows && bun .ci/release/create-windows-release.ts",

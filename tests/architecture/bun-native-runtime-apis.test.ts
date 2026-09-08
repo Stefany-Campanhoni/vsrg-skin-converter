@@ -77,6 +77,8 @@ const bareNodeBuiltins = new Set([
   "zlib",
 ])
 const allowedProductionFsPromiseFiles = new Set([
+  ".ci/standalone/build-standalone.ts",
+  ".ci/standalone/native-cache.ts",
   ".ci/release/acquire-bun-runtime.ts",
   ".ci/release/assemble-windows-portable.ts",
   ".ci/release/build-application.ts",
@@ -107,6 +109,7 @@ const allowedProductionFsPromiseFiles = new Set([
   "src/infrastructure/filesystem/transactional-output-publisher.ts",
   "src/infrastructure/filesystem/transactional-output-set-publisher.ts",
 ])
+const allowedProductionOsFiles = new Set([".ci/standalone/embedded-sharp-loader.ts"])
 const allowedDirectFsFiles = new Set([
   "src/infrastructure/lua/parse-lua-file.test.ts",
   "src/infrastructure/lua/parse-lua-file.ts",
@@ -249,7 +252,12 @@ function isTestFile(file: string): boolean {
 
 function isAllowedNodeImport(use: NodeImportUse): boolean {
   if (use.specifier === "node:path") return use.kind === "import-statement"
-  if (use.specifier === "node:os") return use.kind === "import-statement" && isTestFile(use.file)
+  if (use.specifier === "node:os") {
+    return (
+      use.kind === "import-statement" &&
+      (isTestFile(use.file) || allowedProductionOsFiles.has(use.file))
+    )
+  }
   if (use.specifier === "node:fs") {
     return use.kind === "import-statement" && allowedDirectFsFiles.has(use.file)
   }
@@ -282,6 +290,12 @@ test("controlled code matches the explicit Node compatibility allowlist", async 
       .map((use) => use.file),
   )
   expect([...observedProductionFsFiles].sort()).toEqual([...allowedProductionFsPromiseFiles].sort())
+  const observedProductionOsFiles = new Set(
+    nodeImports
+      .filter((use) => use.specifier === "node:os" && !isTestFile(use.file))
+      .map((use) => use.file),
+  )
+  expect([...observedProductionOsFiles].sort()).toEqual([...allowedProductionOsFiles].sort())
   const observedDirectFsFiles = new Set(
     nodeImports.filter((use) => use.specifier === "node:fs").map((use) => use.file),
   )

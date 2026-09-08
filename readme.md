@@ -40,6 +40,7 @@ through [Buy Me a Coffee](https://buymeacoffee.com/tefyyay).
 - [Download and run](#download-and-run)
 - [How to use it](#how-to-use-it)
 - [Run from source](#run-from-source)
+- [Experimental standalone build](#experimental-standalone-build)
 - [License and template assets](#license-and-template-assets)
 
 ## Download and run
@@ -109,6 +110,16 @@ bun run start --verbose
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development, testing, Changesets, and pull request
 requirements.
+
+## Experimental standalone build
+
+Maintainers can compile an unsupported single-file Windows x64 candidate with
+`bun run build:standalone`. The command also performs local startup, help, exit-code, and
+real Sharp/PNG smoke tests without Bun or Node.js on `PATH`.
+
+This executable is for manual compatibility evaluation only. It is never published by the
+release workflows. See [the standalone experiment guide](docs/standalone-experiment.md) for
+the artifact location and the required real-skin comparison.
 
 ## License and template assets
 
