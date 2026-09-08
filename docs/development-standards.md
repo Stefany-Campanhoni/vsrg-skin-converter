@@ -152,6 +152,11 @@ bun run release:windows
 Never commit `build`, `release`, or `.cache/release` contents. Inspect the final ZIP manifest
 and checksum even when unit tests pass.
 
+The Bun standalone executable is a separate manual experiment. Build it only with
+`bun run build:standalone`, keep its candidate under the ignored `build/standalone`
+directory, and follow [the manual validation guide](./standalone-experiment.md). Workflows,
+release drafts, tags, and supported release assets must not reference this experiment.
+
 Changes to Etterna analysis or image conversion also require a compatibility audit against
 the applicable real skins under `tmp`.
 
