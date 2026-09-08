@@ -4,9 +4,11 @@ THIRD-PARTY NOTICES
 This distribution includes third-party software. The VSRG Skin Converter authors do not claim
 authorship of these components.
 
-Node.js 22.23.2
-Copyright Node.js contributors. Distributed under the MIT License.
-Source and license: https://github.com/nodejs/node
+Bun 1.4.0
+Bun is distributed under the MIT License and includes third-party components under the
+licenses documented by the Bun project.
+Source: https://github.com/oven-sh/bun/tree/bun-v1.4.0
+License and bundled component notices: https://github.com/oven-sh/bun/blob/bun-v1.4.0/LICENSE.md
 
 Sharp 0.35.3
 Copyright Lovell Fuller and contributors. Distributed under the Apache License 2.0.

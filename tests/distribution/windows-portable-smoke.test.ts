@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
+import { acquireBunRuntime } from "../../.ci/release/acquire-bun-runtime.ts"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
 import { buildApplication } from "../../.ci/release/build-application.ts"
 import { installRuntimeDependencies } from "../../.ci/release/install-runtime-dependencies.ts"
@@ -45,10 +45,10 @@ test("runs the real portable package from an external cwd and a path containing 
   onTestFinished(() => rm(temporaryRoot, { recursive: true }))
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
   const bundlePath = path.join(temporaryRoot, "bundle", "app.mjs")
-  const nodeExecutablePath = await acquireNodeRuntime({
+  const bunExecutablePath = await acquireBunRuntime({
     controlledRoot: releasePaths.cacheRoot,
-    archivePath: releasePaths.nodeArchivePath,
-    extractionRoot: releasePaths.nodeRuntimeRoot,
+    archivePath: releasePaths.bunArchivePath,
+    extractionRoot: releasePaths.bunRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
     controlledRoot: temporaryRoot,
@@ -63,7 +63,7 @@ test("runs the real portable package from an external cwd and a path containing 
     controlledRoot: temporaryRoot,
     packageRoot,
     bundlePath,
-    nodeExecutablePath,
+    bunExecutablePath,
     runtimeNodeModulesPath,
     templatesRoot: path.join(projectRoot, "src", "templates"),
     launcherPath: path.join(projectRoot, "distribution", "vsrg-skin-converter.cmd"),

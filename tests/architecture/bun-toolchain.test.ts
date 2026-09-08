@@ -16,6 +16,8 @@ const forbiddenTooling = [
   [new RegExp("\\b" + "n" + "px\\b", "iu"), "use bunx for package executables"],
   [new RegExp("actions/setup-" + "node@", "iu"), "set up pinned Bun instead of Node"],
   [new RegExp("bun-" + "compatibility", "u"), "remove the completed migration-only CI job"],
+  [new RegExp("es" + "build", "iu"), "use Bun.build for the application bundle"],
+  [new RegExp("runtime[/\\\\]node" + "\\.exe", "iu"), "ship runtime/bun.exe only"],
   [new RegExp("package-" + "lock\\.json", "iu"), "use bun.lock as the only lockfile"],
   [new RegExp("\\b" + "node\\s+(?:\\.ci|src[/\\\\])", "iu"), "run first-party code with Bun"],
 ] as const

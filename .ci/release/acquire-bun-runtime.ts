@@ -7,23 +7,24 @@ import {
   assertSafeTransactionToken,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
-import { getReleasePaths, nodeRuntime } from "./release-config.ts"
+import { bunRuntime, getReleasePaths } from "./release-config.ts"
 
 const verificationStampName = ".vsrg-runtime-verification.json"
 
-export interface NodeRuntimeDependencies {
+export interface BunRuntimeDependencies {
   readonly token: () => string
   readonly downloadFile: (url: string, destination: string) => Promise<void>
   readonly hashFile: (file: string) => Promise<string>
   readonly extractArchive: (archive: string, destination: string) => Promise<void>
-  readonly readNodeVersion: (nodeExecutable: string) => Promise<string>
+  readonly readBunVersion: (bunExecutable: string) => Promise<string>
+  readonly readBunRevision: (bunExecutable: string) => Promise<string>
 }
 
-export interface AcquireNodeRuntimeOptions {
+export interface AcquireBunRuntimeOptions {
   readonly controlledRoot: string
   readonly archivePath: string
   readonly extractionRoot: string
-  readonly dependencies?: Partial<NodeRuntimeDependencies>
+  readonly dependencies?: Partial<BunRuntimeDependencies>
 }
 
 function assertOwnedPaths(
@@ -32,20 +33,20 @@ function assertOwnedPaths(
   extractionRoot: string,
 ): void {
   for (const [candidate, label] of [
-    [archivePath, "Node runtime archive path"],
-    [extractionRoot, "Node runtime extraction path"],
+    [archivePath, "Bun runtime archive path"],
+    [extractionRoot, "Bun runtime extraction path"],
   ] as const) {
     assertControlledReleasePath(controlledRoot, candidate, label)
   }
-  if (!path.isAbsolute(archivePath) || path.basename(archivePath) !== nodeRuntime.archiveName) {
-    throw new Error(`Unsafe Node runtime archive path: ${archivePath}`)
+  if (!path.isAbsolute(archivePath) || path.basename(archivePath) !== bunRuntime.archiveName) {
+    throw new Error(`Unsafe Bun runtime archive path: ${archivePath}`)
   }
-  const expectedDirectory = `node-v${nodeRuntime.version}-win-x64`
+  const expectedDirectory = `bun-v${bunRuntime.version}-windows-x64-baseline`
   if (!path.isAbsolute(extractionRoot) || path.basename(extractionRoot) !== expectedDirectory) {
-    throw new Error(`Unsafe Node runtime extraction path: ${extractionRoot}`)
+    throw new Error(`Unsafe Bun runtime extraction path: ${extractionRoot}`)
   }
   if (path.dirname(archivePath) !== path.dirname(extractionRoot)) {
-    throw new Error(`Node runtime cache paths must share one controlled parent: ${archivePath}`)
+    throw new Error(`Bun runtime cache paths must share one controlled parent: ${archivePath}`)
   }
 }
 
@@ -60,7 +61,7 @@ async function isRegularFile(file: string): Promise<boolean> {
 async function defaultDownloadFile(url: string, destination: string): Promise<void> {
   const response = await fetch(url)
   if (!response.ok || !response.body) {
-    throw new Error(`Node runtime download failed with HTTP ${response.status}: ${url}`)
+    throw new Error(`Bun runtime download failed with HTTP ${response.status}: ${url}`)
   }
   const destinationHandle = await open(destination, "wx")
   try {
@@ -75,7 +76,7 @@ async function defaultDownloadFile(url: string, destination: string): Promise<vo
               chunk.byteLength - offset,
             )
             if (bytesWritten === 0) {
-              throw new Error(`Node runtime download made no write progress: ${destination}`)
+              throw new Error(`Bun runtime download made no write progress: ${destination}`)
             }
             offset += bytesWritten
           }
@@ -102,11 +103,21 @@ async function defaultHashFile(file: string): Promise<string> {
   return hash.digest("hex")
 }
 
-async function readNodeVersion(nodeExecutable: string): Promise<string> {
-  const result = await runCapturedSubprocess([nodeExecutable, "--version"])
+async function readBunVersion(bunExecutable: string): Promise<string> {
+  const result = await runCapturedSubprocess([bunExecutable, "--version"])
   if (result.code !== 0) {
     throw new Error(
-      `${nodeExecutable} --version exited with code ${result.code} and signal ${result.signal}: ${result.stderr.trim()}`,
+      `${bunExecutable} --version exited with code ${result.code} and signal ${result.signal}: ${result.stderr.trim()}`,
+    )
+  }
+  return result.stdout.trim()
+}
+
+async function readBunRevision(bunExecutable: string): Promise<string> {
+  const result = await runCapturedSubprocess([bunExecutable, "--revision"])
+  if (result.code !== 0) {
+    throw new Error(
+      `${bunExecutable} --revision exited with code ${result.code} and signal ${result.signal}: ${result.stderr.trim()}`,
     )
   }
   return result.stdout.trim()
@@ -130,34 +141,40 @@ async function defaultExtractArchive(archive: string, destination: string): Prom
   ])
 }
 
-const defaultDependencies: NodeRuntimeDependencies = {
+const defaultDependencies: BunRuntimeDependencies = {
   token: () => crypto.randomUUID(),
   downloadFile: defaultDownloadFile,
   hashFile: defaultHashFile,
   extractArchive: defaultExtractArchive,
-  readNodeVersion,
+  readBunVersion,
+  readBunRevision,
 }
 
 function expectedVerificationStamp(): string {
   return `${JSON.stringify({
-    archiveSha256: nodeRuntime.sha256,
-    nodeExecutableSha256: nodeRuntime.executableSha256,
-    nodeVersion: nodeRuntime.version,
+    archiveSha256: bunRuntime.sha256,
+    bunExecutableSha256: bunRuntime.executableSha256,
+    bunVersion: bunRuntime.version,
+    bunRevision: bunRuntime.revision,
   })}\n`
 }
 
 async function isVerifiedExtraction(
   extractionRoot: string,
-  dependencies: NodeRuntimeDependencies,
+  dependencies: BunRuntimeDependencies,
 ): Promise<boolean> {
-  const nodeExecutable = path.join(extractionRoot, "node.exe")
-  if (!(await isRegularFile(nodeExecutable))) return false
+  const bunExecutable = path.join(extractionRoot, "bun.exe")
+  if (!(await isRegularFile(bunExecutable))) return false
   try {
     const stamp = await Bun.file(path.join(extractionRoot, verificationStampName)).text()
     if (stamp !== expectedVerificationStamp()) return false
-    const executableHash = (await dependencies.hashFile(nodeExecutable)).toLowerCase()
-    if (executableHash !== nodeRuntime.executableSha256) return false
-    return (await dependencies.readNodeVersion(nodeExecutable)) === `v${nodeRuntime.version}`
+    const executableHash = (await dependencies.hashFile(bunExecutable)).toLowerCase()
+    if (executableHash !== bunRuntime.executableSha256) return false
+    const version = await dependencies.readBunVersion(bunExecutable)
+    const revision = await dependencies.readBunRevision(bunExecutable)
+    return (
+      version === bunRuntime.version && revision === `${bunRuntime.version}+${bunRuntime.revision}`
+    )
   } catch {
     return false
   }
@@ -165,22 +182,29 @@ async function isVerifiedExtraction(
 
 async function verifyFreshExtraction(
   extractedRuntime: string,
-  dependencies: NodeRuntimeDependencies,
+  dependencies: BunRuntimeDependencies,
 ): Promise<void> {
-  const nodeExecutable = path.join(extractedRuntime, "node.exe")
-  if (!(await isRegularFile(nodeExecutable))) {
-    throw new Error(`Extracted Node runtime is missing a regular file: ${nodeExecutable}`)
+  const bunExecutable = path.join(extractedRuntime, "bun.exe")
+  if (!(await isRegularFile(bunExecutable))) {
+    throw new Error(`Extracted Bun runtime is missing a regular file: ${bunExecutable}`)
   }
-  const executableHash = (await dependencies.hashFile(nodeExecutable)).toLowerCase()
-  if (executableHash !== nodeRuntime.executableSha256) {
+  const executableHash = (await dependencies.hashFile(bunExecutable)).toLowerCase()
+  if (executableHash !== bunRuntime.executableSha256) {
     throw new Error(
-      `Extracted node.exe checksum mismatch for ${nodeExecutable}: expected ${nodeRuntime.executableSha256}, received ${executableHash}`,
+      `Extracted bun.exe checksum mismatch for ${bunExecutable}: expected ${bunRuntime.executableSha256}, received ${executableHash}`,
     )
   }
-  const version = await dependencies.readNodeVersion(nodeExecutable)
-  if (version !== `v${nodeRuntime.version}`) {
+  const version = await dependencies.readBunVersion(bunExecutable)
+  if (version !== bunRuntime.version) {
     throw new Error(
-      `Extracted Node runtime version mismatch for ${nodeExecutable}: expected v${nodeRuntime.version}, received ${version}`,
+      `Extracted Bun runtime version mismatch for ${bunExecutable}: expected ${bunRuntime.version}, received ${version}`,
+    )
+  }
+  const revision = await dependencies.readBunRevision(bunExecutable)
+  const expectedRevision = `${bunRuntime.version}+${bunRuntime.revision}`
+  if (revision !== expectedRevision) {
+    throw new Error(
+      `Extracted Bun runtime revision mismatch for ${bunExecutable}: expected ${expectedRevision}, received ${revision}`,
     )
   }
   await writeFile(path.join(extractedRuntime, verificationStampName), expectedVerificationStamp(), {
@@ -188,7 +212,7 @@ async function verifyFreshExtraction(
   })
 }
 
-export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Promise<string> {
+export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Promise<string> {
   const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const archivePath = path.resolve(options.archivePath)
   const extractionRoot = path.resolve(options.extractionRoot)
@@ -201,12 +225,12 @@ export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Pr
   assertControlledReleasePath(
     controlledRoot,
     temporaryArchive,
-    "temporary Node runtime archive path",
+    "temporary Bun runtime archive path",
   )
   assertControlledReleasePath(
     controlledRoot,
     extractionContainer,
-    "temporary Node runtime extraction path",
+    "temporary Bun runtime extraction path",
   )
   await mkdir(path.dirname(archivePath), { recursive: true })
 
@@ -219,19 +243,19 @@ export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Pr
 
   if (archiveExists) {
     const cachedHash = (await dependencies.hashFile(archivePath)).toLowerCase()
-    if (cachedHash !== nodeRuntime.sha256) {
+    if (cachedHash !== bunRuntime.sha256) {
       await rm(archivePath)
       throw new Error(
-        `Node runtime checksum mismatch for ${archivePath}: expected ${nodeRuntime.sha256}, received ${cachedHash}`,
+        `Bun runtime checksum mismatch for ${archivePath}: expected ${bunRuntime.sha256}, received ${cachedHash}`,
       )
     }
   } else {
     try {
-      await dependencies.downloadFile(nodeRuntime.url, temporaryArchive)
+      await dependencies.downloadFile(bunRuntime.url, temporaryArchive)
       const downloadedHash = (await dependencies.hashFile(temporaryArchive)).toLowerCase()
-      if (downloadedHash !== nodeRuntime.sha256) {
+      if (downloadedHash !== bunRuntime.sha256) {
         throw new Error(
-          `Node runtime checksum mismatch for ${temporaryArchive}: expected ${nodeRuntime.sha256}, received ${downloadedHash}`,
+          `Bun runtime checksum mismatch for ${temporaryArchive}: expected ${bunRuntime.sha256}, received ${downloadedHash}`,
         )
       }
       await rename(temporaryArchive, archivePath)
@@ -240,10 +264,10 @@ export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Pr
     }
   }
 
-  const nodeExecutable = path.join(extractionRoot, "node.exe")
-  if (await isVerifiedExtraction(extractionRoot, dependencies)) return nodeExecutable
+  const bunExecutable = path.join(extractionRoot, "bun.exe")
+  if (await isVerifiedExtraction(extractionRoot, dependencies)) return bunExecutable
 
-  const extractedRuntime = path.join(extractionContainer, path.basename(extractionRoot))
+  const extractedRuntime = path.join(extractionContainer, bunRuntime.archiveDirectoryName)
   await rm(extractionContainer, { recursive: true, force: true })
   try {
     await mkdir(extractionContainer, { recursive: true })
@@ -254,17 +278,17 @@ export async function acquireNodeRuntime(options: AcquireNodeRuntimeOptions): Pr
   } finally {
     await rm(extractionContainer, { recursive: true, force: true })
   }
-  return nodeExecutable
+  return bunExecutable
 }
 
 async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
-    await acquireNodeRuntime({
+    await acquireBunRuntime({
       controlledRoot: paths.cacheRoot,
-      archivePath: paths.nodeArchivePath,
-      extractionRoot: paths.nodeRuntimeRoot,
+      archivePath: paths.bunArchivePath,
+      extractionRoot: paths.bunRuntimeRoot,
     }),
   )
 }
