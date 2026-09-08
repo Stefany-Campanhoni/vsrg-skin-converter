@@ -1,8 +1,8 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { writeOsuNotes } from "./write-osu-notes.ts"
 
@@ -20,11 +20,11 @@ test("writes every note using the names referenced by the osu template", async (
     await writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
     })
 
     const names = await readdir(path.join(outputDirectory, "mania", "notes"))
-    assert.deepEqual(names.sort(), ["down.png", "left.png", "right.png", "up.png"])
+    expect(names.sort()).toStrictEqual(["down.png", "left.png", "right.png", "up.png"])
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -34,8 +34,8 @@ test("does not create note output when any render fails", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-note-writer-"))
   let calls = 0
   try {
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         writeOsuNotes({
           notes,
           outputDirectory,
@@ -44,13 +44,12 @@ test("does not create note output when any render fails", async () => {
             if (calls === 3) {
               throw new Error("render failed")
             }
-            return Buffer.from("png")
+            return new TextEncoder().encode("png")
           },
-        }),
-      /render failed/,
-    )
+        }))(),
+    ).rejects.toThrow(/render failed/)
 
-    assert.deepEqual(await readdir(outputDirectory), [])
+    expect(await readdir(outputDirectory)).toStrictEqual([])
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -58,7 +57,7 @@ test("does not create note output when any render fails", async () => {
 
 test("waits for every note render before rethrowing the exact render failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-note-writer-"))
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact render failure")
   let calls = 0
@@ -75,7 +74,7 @@ test("waits for every note render before rethrowing the exact render failure", a
           failureStarted.resolve()
           throw failure
         }
-        return Buffer.from("png")
+        return new TextEncoder().encode("png")
       },
     })
     let settled = false
@@ -85,10 +84,10 @@ test("waits for every note render before rethrowing the exact render failure", a
 
     await failureStarted.promise
     await new Promise<void>((resolve) => setImmediate(resolve))
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
-    sibling.resolve(Buffer.from("png"))
-    await assert.rejects(writing, (error) => error === failure)
+    sibling.resolve(new TextEncoder().encode("png"))
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -104,7 +103,7 @@ test("waits for every note write before rethrowing the exact write failure", asy
     const writing = writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
       write: async () => {
         calls += 1
         if (calls === 4) {
@@ -126,17 +125,17 @@ test("waits for every note write before rethrowing the exact write failure", asy
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
+    expect(phase).toBe("started")
 
     let settled = false
     void writing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(writing, (error) => error === failure)
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -152,7 +151,7 @@ test("starts every note write and waits for siblings after a synchronous failure
     const writing = writeOsuNotes({
       notes,
       outputDirectory,
-      render: async () => Buffer.from("png"),
+      render: async () => new TextEncoder().encode("png"),
       write: () => {
         calls += 1
         if (calls === 4) {
@@ -175,17 +174,17 @@ test("starts every note write and waits for siblings after a synchronous failure
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
-    assert.equal(calls, 4)
+    expect(phase).toBe("started")
+    expect(calls).toBe(4)
     let settled = false
     void writing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(writing, (error) => error === failure)
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }

@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function writeFixture(file: string, contents: string): Promise<string> {
   await mkdir(path.dirname(file), { recursive: true })
@@ -16,21 +16,32 @@ async function packageFixture() {
   const source = path.join(root, "source")
   const packageRoot = path.join(root, "output", "vsrg-skin-converter-v1.0.0-win-x64")
   const bundlePath = await writeFixture(path.join(source, "app.mjs"), "bundle")
-  const nodeExecutablePath = await writeFixture(path.join(source, "node.exe"), "node")
+  const bunExecutablePath = await writeFixture(path.join(source, "bun.exe"), "bun")
   const runtimeNodeModulesPath = path.join(source, "node_modules")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js"), "sharp")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "LICENSE"), "sharp license")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "lib", "index.d.ts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "example.tsx"), "source")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "index.d.cts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "index.d.mts"), "types")
+  await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "dist", "runtime.wasm"), "wasm")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "test", "runtime.test.js"), "test")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", "index.js.map"), "map")
   await writeFixture(path.join(runtimeNodeModulesPath, "sharp", ".cache", "state"), "cache")
   await writeFixture(path.join(runtimeNodeModulesPath, "detect-libc", "index.js"), "detect-libc")
+  await writeFixture(path.join(runtimeNodeModulesPath, "detect-libc", "LICENSE"), "license")
   await writeFixture(path.join(runtimeNodeModulesPath, "semver", "index.js"), "semver")
+  await writeFixture(path.join(runtimeNodeModulesPath, "semver", "LICENSE"), "license")
   await writeFixture(path.join(runtimeNodeModulesPath, ".bin", "semver.cmd"), "bin")
   await writeFixture(path.join(runtimeNodeModulesPath, "@img", "colour", "index.js"), "colour")
+  await writeFixture(path.join(runtimeNodeModulesPath, "@img", "colour", "LICENSE.md"), "license")
   await writeFixture(
     path.join(runtimeNodeModulesPath, "@img", "sharp-win32-x64", "sharp.node"),
     "native",
+  )
+  await writeFixture(
+    path.join(runtimeNodeModulesPath, "@img", "sharp-win32-x64", "LICENSE"),
+    "license",
   )
   await writeFixture(
     path.join(runtimeNodeModulesPath, "@img", "sharp-wasm32", "sharp.wasm"),
@@ -53,7 +64,7 @@ async function packageFixture() {
     controlledRoot: path.dirname(packageRoot),
     packageRoot,
     bundlePath,
-    nodeExecutablePath,
+    bunExecutablePath,
     runtimeNodeModulesPath,
     templatesRoot,
     launcherPath,
@@ -73,76 +84,75 @@ async function listFiles(root: string): Promise<string[]> {
     .sort()
 }
 
-test("assembles exactly the supported portable package with byte-identical templates", async (context) => {
+test("assembles exactly the supported portable package with byte-identical templates", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
 
   const portable = await assembleWindowsPortable({
     ...fixture,
     dependencies: { token: () => "success" },
   })
 
-  assert.deepEqual(portable, {
+  expect(portable).toStrictEqual({
     root: fixture.packageRoot,
     launcher: path.join(fixture.packageRoot, "vsrg-skin-converter.cmd"),
     bundle: path.join(fixture.packageRoot, "app.mjs"),
-    nodeExecutable: path.join(fixture.packageRoot, "runtime", "node.exe"),
+    bunExecutable: path.join(fixture.packageRoot, "runtime", "bun.exe"),
   })
-  assert.deepEqual(await listFiles(fixture.packageRoot), [
+  expect(await listFiles(fixture.packageRoot)).toStrictEqual([
     "LICENSE",
     "README.txt",
     "THIRD-PARTY-NOTICES.txt",
     "app.mjs",
+    "node_modules/@img/colour/LICENSE.md",
     "node_modules/@img/colour/index.js",
+    "node_modules/@img/sharp-win32-x64/LICENSE",
     "node_modules/@img/sharp-win32-x64/sharp.node",
+    "node_modules/detect-libc/LICENSE",
     "node_modules/detect-libc/index.js",
+    "node_modules/semver/LICENSE",
     "node_modules/semver/index.js",
     "node_modules/sharp/LICENSE",
     "node_modules/sharp/index.js",
-    "runtime/node.exe",
+    "runtime/bun.exe",
     "templates/etterna/template.txt",
     "templates/osu/template.txt",
     "vsrg-skin-converter.cmd",
   ])
-  assert.equal(
+  expect(
     await readFile(path.join(fixture.packageRoot, "templates", "osu", "template.txt"), "utf8"),
-    "osu-template",
-  )
-  assert.equal(
+  ).toBe("osu-template")
+  expect(
     await readFile(path.join(fixture.packageRoot, "templates", "etterna", "template.txt"), "utf8"),
-    "etterna-template",
-  )
-  assert.deepEqual(
+  ).toBe("etterna-template")
+  expect(
     (await readdir(path.dirname(fixture.packageRoot))).filter((name) => name.includes(".staging")),
-    [],
-  )
+  ).toStrictEqual([])
 })
 
-test("preserves a previous package and removes staging when assembly fails", async (context) => {
+test("preserves a previous package and removes staging when assembly fails", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await mkdir(fixture.packageRoot, { recursive: true })
   await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
 
-  await assert.rejects(
+  await expect(
     assembleWindowsPortable({
       ...fixture,
       readmePath: path.join(fixture.source, "missing-readme.txt"),
       dependencies: { token: () => "failure" },
     }),
-    /missing-readme\.txt/i,
-  )
+  ).rejects.toThrow(/missing-readme\.txt/i)
 
-  assert.equal(await readFile(path.join(fixture.packageRoot, "previous.txt"), "utf8"), "verified")
-  assert.deepEqual(
+  expect(await readFile(path.join(fixture.packageRoot, "previous.txt"), "utf8")).toBe("verified")
+  expect(
     (await readdir(path.dirname(fixture.packageRoot))).filter((name) => name.includes(".staging")),
-    [],
-  )
+  ).toStrictEqual([])
 })
 
-test("retries a transient Windows sharing violation while promoting staging", async (context) => {
+test("retries a transient Windows sharing violation while promoting staging", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   let promotionAttempts = 0
   const events: string[] = []
 
@@ -168,13 +178,13 @@ test("retries a transient Windows sharing violation while promoting staging", as
     },
   })
 
-  assert.equal(promotionAttempts, 2)
-  assert.deepEqual(events, ["rename", "delay:50", "rename"])
+  expect(promotionAttempts).toBe(2)
+  expect(events).toStrictEqual(["rename", "delay:50", "rename"])
 })
 
-test("retains the previous package backup when rollback restoration fails", async (context) => {
+test("retains the previous package backup when rollback restoration fails", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   await mkdir(fixture.packageRoot, { recursive: true })
   await writeFile(path.join(fixture.packageRoot, "previous.txt"), "verified")
   const token = "recovery"
@@ -182,7 +192,7 @@ test("retains the previous package backup when rollback restoration fails", asyn
   const promotionCause = new Error("promotion failed")
   const restorationCause = new Error("restoration failed")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     assembleWindowsPortable({
       ...fixture,
       dependencies: {
@@ -200,24 +210,24 @@ test("retains the previous package backup when rollback restoration fails", asyn
       },
     }),
     (error: unknown) => {
-      assert.ok(error instanceof AggregateError)
-      assert.equal(error.cause, promotionCause)
-      assert.deepEqual(error.errors, [promotionCause, restorationCause])
+      expectTruthy(error instanceof AggregateError)
+      expect(error.cause).toBe(promotionCause)
+      expect(error.errors).toStrictEqual([promotionCause, restorationCause])
       return true
     },
   )
 
-  assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+  expect(await readFile(path.join(backupRoot, "previous.txt"), "utf8")).toBe("verified")
 })
 
-test("rejects package output outside the explicit controlled root before mutation", async (context) => {
+test("rejects package output outside the explicit controlled root before mutation", async () => {
   const fixture = await packageFixture()
-  context.after(() => rm(fixture.root, { recursive: true }))
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
   const outsidePackageRoot = path.join(fixture.root, "outside", path.basename(fixture.packageRoot))
   let renamed = false
   let callbackInvoked = false
 
-  await assert.rejects(
+  await expect(
     assembleWindowsPortable({
       ...fixture,
       packageRoot: outsidePackageRoot,
@@ -233,10 +243,9 @@ test("rejects package output outside the explicit controlled root before mutatio
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(renamed, false)
-  assert.equal(callbackInvoked, false)
-  await assert.rejects(readFile(path.join(outsidePackageRoot, "app.mjs")), /ENOENT/)
+  expect(renamed).toBe(false)
+  expect(callbackInvoked).toBe(false)
+  await expect(readFile(path.join(outsidePackageRoot, "app.mjs"))).rejects.toThrow(/ENOENT/)
 })

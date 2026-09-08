@@ -8,16 +8,15 @@ directions, the transactional publication guarantees, and the supported Windows 
 Requirements:
 
 - Windows 10 or newer;
-- Node.js 22.18 or newer;
-- npm from the selected Node.js installation.
+- Bun 1.4.0.
 
 Install the exact dependency tree:
 
 ```powershell
-npm ci
+bun ci
 ```
 
-Run the interactive application with `npm start` or use `npm run dev` while developing.
+Run the interactive application with `bun run start` or use `bun run dev` while developing.
 
 ## Architecture and Code Standards
 
@@ -31,20 +30,25 @@ particular:
 - keep CLI interaction separate from conversion and installation behavior;
 - keep repository quality and release automation under the applicable `.ci` subdirectory;
 - preserve contextual errors, async quiescence, path validation, and transactional output;
+- prefer stable Bun or Web APIs and keep Node compatibility calls inside the documented
+  allowlist;
 - write technical identifiers, diagnostics, comments, and documentation in English.
 
 Use test-driven development for behavior changes: write a focused failing test, confirm it
 fails for the intended reason, implement the smallest change, and confirm the complete suite
 remains green.
 
+An intentional new Node fallback must update both the runtime allowlist and its rationale in
+[the development standards](docs/development-standards.md) in the same pull request.
+
 ## Required Verification
 
-`npm ci` installs the repository's Husky hooks. Before each commit, Husky runs lint,
+`bun ci` installs the repository's Husky hooks. Before each commit, Husky runs lint,
 type-checking, and staged whitespace validation. Before each push, it runs the complete
 quality gate:
 
 ```powershell
-npm run check
+bun run check
 ```
 
 The hooks are a local feedback mechanism, not a substitute for CI. The `windows-quality`
@@ -53,11 +57,11 @@ GitHub check runs the same complete gate for every pull request and push to `mai
 The complete gate is equivalent to:
 
 ```powershell
-npm test
-npm run typecheck
-npm run lint
-npm run test:architecture
-npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+bun test
+bun run typecheck
+bun run lint
+bun run test:architecture
+bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
@@ -84,9 +88,9 @@ All commits and pull request titles must follow Conventional Commits. Supported 
 request commit plus the title that becomes the squash commit.
 
 Every non-release pull request must also add a new `.changeset/*.md` file. Run
-`npm run changeset` for a public change and choose its `patch`, `minor`, or `major` impact.
+`bun run changeset` for a public change and choose its `patch`, `minor`, or `major` impact.
 For documentation, tests, CI, or other maintenance that needs no application version, run
-`npm run changeset -- --empty`. The automated `changeset-release/main` Release PR and pull
+`bun run changeset --empty`. The automated `changeset-release/main` Release PR and pull
 requests authored by `dependabot[bot]` are the only exceptions. The Release PR consumes the
 pending files, while Dependabot dependency updates do not need to create release intent.
 
@@ -102,14 +106,14 @@ For concerns about bundled templates or assets, contact `scampanhoni@gmail.com`.
 ## Versions and Releases
 
 Changesets is the only owner of version planning and changelog entries. Contributors declare
-release intent in their pull requests; they must not edit `package.json` versions,
-`package-lock.json` versions, or `CHANGELOG.md` release sections manually.
+release intent in their pull requests; they must not edit `package.json`, `bun.lock`, or
+`CHANGELOG.md` release sections manually.
 
 After changes land on `main`, the Changesets Action maintains one Release PR. Its merge is the
 human approval for the calculated SemVer version. A separate workflow verifies that exact
 bump, builds the supported Windows ZIP, creates `v<version>`, and attaches the ZIP and
 SHA-256 to a draft release. Maintainers review and publish the draft manually. The workflow
-does not publish this private package to npm.
+does not publish this private package to a package registry.
 
 The repository secret `CHANGESETS_TOKEN` must contain a fine-grained token with read/write
 contents and pull-request access. Without it, the Action cannot maintain a Release PR whose
@@ -119,8 +123,8 @@ Beta trains use Changesets prerelease mode and must enter or exit through a revi
 request:
 
 ```powershell
-npm run changeset:pre -- enter beta
-npm run changeset:pre -- exit
+bun run changeset:pre enter beta
+bun run changeset:pre exit
 ```
 
 Contributors must not create tags, releases, or prerelease state from feature branches.

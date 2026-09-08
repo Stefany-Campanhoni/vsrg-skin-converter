@@ -1,5 +1,4 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import { asAstObject } from "./ast.ts"
 import { parseLuaSource } from "./parse-lua-source.ts"
 
@@ -10,9 +9,9 @@ test("parses Lua source and optionally includes exact node ranges", () => {
   const table =
     returned?.type === "ReturnStatement" ? asAstObject(returned.arguments[0]) : undefined
 
-  assert.deepEqual(table?.range, [7, source.length])
+  expect(table?.range).toStrictEqual([7, source.length])
 })
 
 test("preserves the original luaparse syntax error", () => {
-  assert.throws(() => parseLuaSource("return {"), /'}' expected near '<eof>'/i)
+  expect(() => parseLuaSource("return {")).toThrow(/'}' expected near '<eof>'/i)
 })

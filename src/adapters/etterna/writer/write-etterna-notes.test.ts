@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, TapNoteSet } from "../../../domain/image.ts"
 import { writeEtternaNotes } from "./write-etterna-notes.ts"
 
@@ -73,7 +73,7 @@ test("scales tap notes proportionally to 150px wide with proportional Etterna re
     })
 
     const notesDirectory = path.join(outputDirectory, "Notes")
-    assert.deepEqual((await readdir(notesDirectory)).sort(), [
+    expect((await readdir(notesDirectory)).sort()).toStrictEqual([
       "_Down Tap Note (res 64x53).png",
       "_Left Tap Note (res 64x32).png",
       "_Right Tap Note (res 64x107).png",
@@ -82,18 +82,19 @@ test("scales tap notes proportionally to 150px wide with proportional Etterna re
     for (const fixture of Object.values(fixtures)) {
       const outputPath = path.join(notesDirectory, fixture.outputFilename)
       const metadata = await sharp(outputPath).metadata()
-      assert.deepEqual(
-        { width: metadata.width, height: metadata.height },
-        { width: 150, height: fixture.outputHeight },
-      )
+      expect({ width: metadata.width, height: metadata.height }).toStrictEqual({
+        width: 150,
+        height: fixture.outputHeight,
+      })
       const { data } = await sharp(outputPath).raw().toBuffer({ resolveWithObject: true })
-      assert.deepEqual(
-        [...data.subarray(0, 4)],
-        [fixture.color.r, fixture.color.g, fixture.color.b, 255],
-      )
+      expect([...data.subarray(0, 4)]).toStrictEqual([
+        fixture.color.r,
+        fixture.color.g,
+        fixture.color.b,
+        255,
+      ])
     }
-    assert.deepEqual(
-      await readFile(path.join(notesDirectory, fixtures.up.outputFilename)),
+    expect(await readFile(path.join(notesDirectory, fixtures.up.outputFilename))).toStrictEqual(
       await readFile(path.join(root, "up.png")),
     )
   } finally {
@@ -102,7 +103,7 @@ test("scales tap notes proportionally to 150px wide with proportional Etterna re
 })
 
 test("settles every tap-note resize before failing and does not start the write phase", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const resizesStarted = deferred<void>()
   const failure = new Error("exact note resize failure")
   const writes: string[] = []
@@ -110,7 +111,7 @@ test("settles every tap-note resize before failing and does not start the write 
   const writing = writeEtternaNotes({
     notes: completeNotes("standard"),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async () => {
       calls += 1
       if (calls === 4) {
@@ -122,7 +123,7 @@ test("settles every tap-note resize before failing and does not start the write 
       if (calls === 2) {
         throw failure
       }
-      return Buffer.from("resized png")
+      return new TextEncoder().encode("resized png")
     },
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
@@ -141,23 +142,23 @@ test("settles every tap-note resize before failing and does not start the write 
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "resizes started")
-  assert.equal(calls, 4)
+  expect(phase).toBe("resizes started")
+  expect(calls).toBe(4)
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
-  sibling.resolve(Buffer.from("resized png"))
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /resize.*tap note.*down.*down\.png.*width 150/i)
-    assert.equal(error.cause, failure)
+  sibling.resolve(new TextEncoder().encode("resized png"))
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/resize.*tap note.*down.*down\.png.*width 150/i)
+    expect(error.cause).toBe(failure)
     return true
   })
-  assert.deepEqual(writes, [])
+  expect(writes).toStrictEqual([])
 })
 
 test("settles every tap-note read before failing and does not start the write phase", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact note read failure")
   const writes: string[] = []
@@ -174,7 +175,7 @@ test("settles every tap-note read before failing and does not start the write ph
         failureStarted.resolve()
         throw failure
       }
-      return Buffer.from("png")
+      return new TextEncoder().encode("png")
     },
     write: async (filePath) => {
       writes.push(filePath)
@@ -187,16 +188,16 @@ test("settles every tap-note read before failing and does not start the write ph
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
-  sibling.resolve(Buffer.from("png"))
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /read.*tap note.*down.*down\.png/i)
-    assert.equal(error.cause, failure)
+  sibling.resolve(new TextEncoder().encode("png"))
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/read.*tap note.*down.*down\.png/i)
+    expect(error.cause).toBe(failure)
     return true
   })
-  assert.deepEqual(writes, [])
+  expect(writes).toStrictEqual([])
 })
 
 test("starts and settles every tap-note write when a writer throws synchronously", async () => {
@@ -207,7 +208,7 @@ test("starts and settles every tap-note write when a writer throws synchronously
   const writing = writeEtternaNotes({
     notes: completeNotes("standard"),
     outputDirectory: "output",
-    read: async () => Buffer.from("png"),
+    read: async () => new TextEncoder().encode("png"),
     resize: async (buffer) => buffer,
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
@@ -232,23 +233,22 @@ test("starts and settles every tap-note write when a writer throws synchronously
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
-  assert.equal(calls, 4)
+  expect(phase).toBe("started")
+  expect(calls).toBe(4)
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(
-      error.message,
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(
       /write generated Etterna asset.*_Down Tap Note \(res 64x64\)\.png.*output.*Notes/i,
     )
-    assert.equal(error.cause, failure)
+    expect(error.cause).toBe(failure)
     return true
   })
 })
@@ -270,7 +270,7 @@ async function solidPng(
   width: number,
   height: number,
   color: { r: number; g: number; b: number; alpha: number },
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return sharp({ create: { width, height, channels: 4, background: color } })
     .png()
     .toBuffer()

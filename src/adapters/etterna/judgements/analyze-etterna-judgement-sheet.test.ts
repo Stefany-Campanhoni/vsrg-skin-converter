@@ -1,8 +1,7 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
 import { judgementGrades } from "../../../domain/judgement.ts"
 import { analyzeEtternaJudgementSheet } from "./analyze-etterna-judgement-sheet.ts"
@@ -16,7 +15,7 @@ async function writeJudgementSheet(
 ): Promise<void> {
   const width = columns * frameWidth
   const height = rows * frameHeight
-  const data = Buffer.alloc(width * height * 4)
+  const data = new Uint8Array(width * height * 4)
 
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
@@ -39,9 +38,9 @@ async function writeJudgementSheet(
     .toFile(filePath)
 }
 
-test("analyzes supported judgement layouts and rejects invalid sheets", async (t) => {
+test("analyzes supported judgement layouts and rejects invalid sheets", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-sheet-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const oneBySixPath = path.join(directory, "Fixture 1x6.png")
   const twoBySixDoubleresPath = path.join(directory, "Fixture 2x6 (Doubleres).png")
@@ -49,18 +48,16 @@ test("analyzes supported judgement layouts and rejects invalid sheets", async (t
   await writeJudgementSheet(twoBySixDoubleresPath, 2, 6, 7, 5)
 
   const oneColumn = await analyzeEtternaJudgementSheet(oneBySixPath)
-  assert.equal(oneColumn.sourceDensity, 1)
-  assert.deepEqual(
-    judgementGrades.map((grade) => oneColumn.images[grade]?.frame?.index),
-    [0, 1, 2, 3, 4, 5],
-  )
+  expect(oneColumn.sourceDensity).toBe(1)
+  expect(judgementGrades.map((grade) => oneColumn.images[grade]?.frame?.index)).toStrictEqual([
+    0, 1, 2, 3, 4, 5,
+  ])
 
   const twoColumns = await analyzeEtternaJudgementSheet(twoBySixDoubleresPath)
-  assert.equal(twoColumns.sourceDensity, 2)
-  assert.deepEqual(
-    judgementGrades.map((grade) => twoColumns.images[grade]?.frame?.index),
-    [0, 2, 4, 6, 8, 10],
-  )
+  expect(twoColumns.sourceDensity).toBe(2)
+  expect(judgementGrades.map((grade) => twoColumns.images[grade]?.frame?.index)).toStrictEqual([
+    0, 2, 4, 6, 8, 10,
+  ])
 
   const noLayoutPath = path.join(directory, "No Layout.png")
   const threeBySixPath = path.join(directory, "Invalid 3x6.png")
@@ -78,7 +75,13 @@ test("analyzes supported judgement layouts and rejects invalid sheets", async (t
     .png()
     .toFile(indivisiblePath)
 
-  await assert.rejects(() => analyzeEtternaJudgementSheet(noLayoutPath), /expected 1x6 or 2x6/i)
-  await assert.rejects(() => analyzeEtternaJudgementSheet(threeBySixPath), /expected 1x6 or 2x6/i)
-  await assert.rejects(() => analyzeEtternaJudgementSheet(indivisiblePath), /dimensions.*layout/i)
+  await expect((() => analyzeEtternaJudgementSheet(noLayoutPath))()).rejects.toThrow(
+    /expected 1x6 or 2x6/i,
+  )
+  await expect((() => analyzeEtternaJudgementSheet(threeBySixPath))()).rejects.toThrow(
+    /expected 1x6 or 2x6/i,
+  )
+  await expect((() => analyzeEtternaJudgementSheet(indivisiblePath))()).rejects.toThrow(
+    /dimensions.*layout/i,
+  )
 })

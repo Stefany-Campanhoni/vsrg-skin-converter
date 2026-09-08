@@ -3,7 +3,7 @@ VSRG Skin Converter — Windows x64 Portable
 
 Requirements
 ------------
-Windows 10 or newer on an x64 processor. Node.js and npm are included; do not install them.
+Windows 10 or newer on an x64 processor. Bun 1.4.0 is included; do not install a runtime.
 
 Run
 ---

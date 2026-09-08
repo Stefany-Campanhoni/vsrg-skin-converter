@@ -1,11 +1,11 @@
-import { readFile } from "node:fs/promises"
+import { readBinaryFile } from "../../../infrastructure/filesystem/bun-file.ts"
 
-const utf8Bom = Buffer.from([0xef, 0xbb, 0xbf])
-const utf16LittleEndianBom = Buffer.from([0xff, 0xfe])
-const utf16BigEndianBom = Buffer.from([0xfe, 0xff])
+const utf8Bom = new Uint8Array([0xef, 0xbb, 0xbf])
+const utf16LittleEndianBom = new Uint8Array([0xff, 0xfe])
+const utf16BigEndianBom = new Uint8Array([0xfe, 0xff])
 
 export async function readOsuSkinIniFile(filePath: string): Promise<string> {
-  const contents = await readFile(filePath)
+  const contents = await readBinaryFile(filePath)
   const source = decodeOsuSkinIni(contents, filePath)
   if (source.includes("\0")) {
     throw new Error(
@@ -15,20 +15,24 @@ export async function readOsuSkinIniFile(filePath: string): Promise<string> {
   return source
 }
 
-function decodeOsuSkinIni(contents: Buffer, filePath: string): string {
-  if (contents.subarray(0, utf8Bom.length).equals(utf8Bom)) {
+function decodeOsuSkinIni(contents: Uint8Array, filePath: string): string {
+  if (startsWithBytes(contents, utf8Bom)) {
     return decode(contents.subarray(utf8Bom.length), "utf-8", filePath)
   }
-  if (contents.subarray(0, utf16LittleEndianBom.length).equals(utf16LittleEndianBom)) {
+  if (startsWithBytes(contents, utf16LittleEndianBom)) {
     return decode(contents.subarray(utf16LittleEndianBom.length), "utf-16le", filePath)
   }
-  if (contents.subarray(0, utf16BigEndianBom.length).equals(utf16BigEndianBom)) {
+  if (startsWithBytes(contents, utf16BigEndianBom)) {
     return decode(contents.subarray(utf16BigEndianBom.length), "utf-16be", filePath)
   }
   return decode(contents, "utf-8", filePath)
 }
 
-function decode(contents: Buffer, encoding: string, filePath: string): string {
+function startsWithBytes(contents: Uint8Array, prefix: Uint8Array): boolean {
+  return prefix.length <= contents.length && prefix.every((byte, index) => contents[index] === byte)
+}
+
+function decode(contents: Uint8Array, encoding: string, filePath: string): string {
   try {
     return new TextDecoder(encoding, { fatal: true }).decode(contents)
   } catch (cause) {

@@ -1,12 +1,11 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import { getEtternaHitPosition } from "./convert-hit-position.ts"
 
 test("converts osu hit positions to Etterna coordinates", () => {
-  assert.equal(getEtternaHitPosition(439), 0)
-  assert.equal(getEtternaHitPosition(432), -7)
+  expect(getEtternaHitPosition(439)).toBe(0)
+  expect(getEtternaHitPosition(432)).toBe(-7)
 })
 
 test("rounds an osu hit position before applying the Etterna offset", () => {
-  assert.equal(getEtternaHitPosition(432.6), -6)
+  expect(getEtternaHitPosition(432.6)).toBe(-6)
 })

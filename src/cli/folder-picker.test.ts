@@ -1,13 +1,13 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
+import { expectRejectionSatisfies, expectTruthy } from "../../tests/support/expectations.ts"
 import { createDirectoryPicker, parseSelectedDirectory } from "./folder-picker.ts"
 
 test("returns the selected directory", () => {
-  assert.equal(parseSelectedDirectory(" C:\\Games\\Etterna \r\n"), "C:\\Games\\Etterna")
+  expect(parseSelectedDirectory(" C:\\Games\\Etterna \r\n")).toBe("C:\\Games\\Etterna")
 })
 
 test("returns undefined when the dialog is cancelled", () => {
-  assert.equal(parseSelectedDirectory("\r\n"), undefined)
+  expect(parseSelectedDirectory("\r\n")).toBe(undefined)
 })
 
 test("preserves PowerShell failures with folder-picker context", async () => {
@@ -16,13 +16,10 @@ test("preserves PowerShell failures with folder-picker context", async () => {
     throw cause
   })
 
-  await assert.rejects(
-    () => pickDirectory(),
-    (error: unknown) => {
-      assert(error instanceof Error)
-      assert.match(error.message, /could not open the Windows folder picker/i)
-      assert.equal(error.cause, cause)
-      return true
-    },
-  )
+  await expectRejectionSatisfies((() => pickDirectory())(), (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/could not open the Windows folder picker/i)
+    expect(error.cause).toBe(cause)
+    return true
+  })
 })

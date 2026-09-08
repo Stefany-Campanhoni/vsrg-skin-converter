@@ -49,7 +49,42 @@ Respect the direction documented in [architecture.md](./architecture.md). Do not
 application port by importing a concrete adapter into the application layer. Do not place
 format-specific knowledge in the domain or shared infrastructure.
 
-Run `npm run test:architecture` whenever imports or module placement change.
+Run `bun run test:architecture` whenever imports or module placement change.
+
+## Bun-first Runtime APIs
+
+First-party runtime code and tests use Bun-native or Web APIs whenever Bun 1.4 provides a
+stable semantic equivalent. Use `Bun.spawn`/`Bun.spawnSync` for subprocesses,
+`Bun.fileURLToPath` or `import.meta.dir/path/main` for module locations and entrypoints,
+`Bun.argv` and `Bun.env` for arguments and environment variables, Web streams for streamed
+data, and `Bun.file`/`Bun.write` for simple file reads, writes, and copies.
+
+Node-compatible fallbacks are limited to operations for which Bun has no complete or safe
+replacement:
+
+- `node:path` for path manipulation and `node:os` for operating-system locations;
+- `node:fs` for directories, metadata, links, real paths, temporary paths, recursive tree
+  operations, transactional rename/removal, and synchronous reads required by synchronous
+  interfaces;
+- exclusive `wx` file creation in release transactions, because overwriting an existing
+  checksum or verification stamp must remain impossible;
+- `process.platform`, `process.cwd()`, and `process.exitCode`, which have no complete Bun
+  replacement for these contracts;
+- `process.stdin` only at the CLI key-wait boundary, where raw TTY mode requires the
+  Node-compatible `isTTY` and `setRawMode` interface; output at that boundary still uses
+  `Bun.write(Bun.stdout, ...)`;
+- `process.chdir` only in the resource-resolution test that proves behavior is independent
+  from the working directory.
+
+Do not add `node:child_process`, `node:url`, `node:util`, `node:stream`, `process.argv`,
+`process.env`, or `process.execPath`. The architecture suite enforces this boundary across
+`src`, `.ci`, and `tests`. The Windows portable bundle targets Bun directly and must not inject
+a Node startup shim. Its runtime-contract test parses imports with `Bun.Transpiler`, rejects
+first-party `Buffer`, and keeps exact production-file allowlists for `node:fs` operations.
+Bare Node built-in specifiers are prohibited; every approved fallback must use its explicit
+`node:` specifier.
+Adding a new fallback requires a reviewed allowlist and documentation change that explains
+why no stable Bun or Web API preserves the contract.
 
 ## Errors and Diagnostics
 
@@ -98,20 +133,20 @@ Do not narrate what the following code already states.
 Every completed change must pass:
 
 ```sh
-npm test
-npm run typecheck
-npm run lint
-npm run test:architecture
-npx tsc --noEmit --noUnusedLocals --noUnusedParameters
+bun test
+bun run typecheck
+bun run lint
+bun run test:architecture
+bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters
 git diff --check
 ```
 
 Release changes additionally require:
 
 ```sh
-npm run build:windows
-npm run test:distribution
-npm run release:windows
+bun run build:windows
+bun run test:distribution
+bun run release:windows
 ```
 
 Never commit `build`, `release`, or `.cache/release` contents. Inspect the final ZIP manifest
@@ -128,7 +163,7 @@ tests so the Etterna-to-osu! route cannot regress while the reverse route evolve
 
 Changesets owns SemVer intent and `CHANGELOG.md`. Every ordinary pull request adds one new
 `.changeset/*.md` document. Use a real `patch`, `minor`, or `major` entry for a public change
-and `npm run changeset -- --empty` for maintenance-only work. The automated
+and `bun run changeset --empty` for maintenance-only work. The automated
 `changeset-release/main` branch may omit a new changeset because its job is to consume the
 pending set. Pull requests whose author login is exactly `dependabot[bot]` may also omit one;
 the exemption must not rely only on a branch name.
@@ -143,13 +178,14 @@ The Changesets Action is pinned by full SHA and its major version must remain co
 with the installed Changesets CLI major. It receives only the dedicated `CHANGESETS_TOKEN`
 through the action's `github-token` input. That fine-grained token requires read/write
 contents and pull-request access. The action may maintain the Release PR but must never
-publish the npm package, create release tags, or bypass protected-branch review. Keep
+publish the package to a registry, create release tags, or bypass protected-branch review. Keep
 `package.json` private and `privatePackages.version` enabled with `privatePackages.tag`
 disabled.
 
-The draft release workflow may publish only when `package.json` and the lockfile contain the
-same valid SemVer, that version is greater than the previous `main` version, and
-`CHANGELOG.md` contains its exact release heading. Ordinary pushes are successful no-ops.
+The draft release workflow may publish only when `package.json` contains a valid SemVer,
+`bun ci` has proved the lockfile coherent, that version is greater than the previous `main`
+version, and `CHANGELOG.md` contains its exact release heading. Ordinary pushes are
+successful no-ops.
 The release job runs the complete Windows release gate before creating a new immutable-name
 tag and draft; it must refuse to overwrite an existing tag. Prerelease SemVer values add the
 GitHub prerelease flag automatically.
@@ -161,7 +197,7 @@ Changesets CLI v3, `pre.json` contains only the mode and tag; already-versioned 
 entries belong under `.changeset/pre` and must not be reconstructed in the root state file.
 
 Place repository validation, build, and release automation under `.ci`, grouped by purpose.
-The programs in `.ci/release` remain supported for local execution through npm scripts.
+The programs in `.ci/release` remain supported for local execution through Bun scripts.
 Tests may import pure functions from `.ci`, but production modules must not depend on that
 directory.
 
@@ -199,11 +235,12 @@ cache, and release roots. Preserve the last complete unpacked package and ZIP/ch
 until a staged replacement passes structural, launcher, template, and real Sharp checks.
 Pin redistributed runtimes by exact version and official checksum. Keep Sharp external to
 the application bundle, copy only its proven Windows x64 dependency closure, retain required
-licenses, and reject TypeScript, tests, maps, caches, links, npm shims, and wasm artifacts.
+licenses, and reject TypeScript, tests, maps, caches, links, package-manager shims, and wasm
+artifacts.
 Runtime resource resolution must derive from `import.meta.url`, never `process.cwd()`.
 An extracted runtime cache is trusted only when a checked stamp binds it to the pinned archive
 SHA-256, pinned executable SHA-256, configured version, and a successful matching
-`node --version`. Missing or mismatched evidence requires re-extraction. Release functions
+`bun --version` and `bun --revision`. Missing or mismatched evidence requires re-extraction. Release functions
 that remove, replace, or promote paths must receive an explicit controlled root, validate all
 derived transaction paths before callbacks or mutations, and retain recovery backups when a
 rollback cannot complete.

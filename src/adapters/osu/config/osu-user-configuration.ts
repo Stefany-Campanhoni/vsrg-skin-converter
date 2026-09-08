@@ -1,6 +1,7 @@
-import { readdir, readFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export interface OsuUserConfiguration {
   readonly filePath: string
@@ -51,7 +52,7 @@ export async function listOsuUserConfigurations(osuRoot: string): Promise<OsuUse
     configurationPaths.map((filePath) =>
       invokeAsPromise(async () => {
         try {
-          return parseOsuUserConfiguration(await readFile(filePath, "utf8"), filePath)
+          return parseOsuUserConfiguration(await readTextFile(filePath), filePath)
         } catch (cause) {
           if (cause instanceof Error && cause.message.includes(filePath)) {
             throw cause

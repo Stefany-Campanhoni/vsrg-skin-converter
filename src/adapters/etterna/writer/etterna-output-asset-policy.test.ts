@@ -1,5 +1,4 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import {
   etternaReceptorOutputWidth,
   etternaTapNoteOutputWidth,
@@ -8,37 +7,35 @@ import {
 } from "./etterna-output-asset-policy.ts"
 
 test("decorates an Etterna output asset with a logical height proportional to its image", () => {
-  assert.equal(
-    getEtternaOutputAssetFilename("_Left Tap Note", { width: 150, height: 75 }),
+  expect(getEtternaOutputAssetFilename("_Left Tap Note", { width: 150, height: 75 })).toBe(
     "_Left Tap Note (res 64x32).png",
   )
 })
 
 test("keeps square Etterna output assets at the standard logical resolution", () => {
-  assert.equal(
-    getEtternaOutputAssetFilename("_Left Tap Note", { width: 146, height: 146 }),
+  expect(getEtternaOutputAssetFilename("_Left Tap Note", { width: 146, height: 146 })).toBe(
     "_Left Tap Note (res 64x64).png",
   )
 })
 
 test("defines the Etterna tap note output width", () => {
-  assert.equal(etternaTapNoteOutputWidth, 150)
+  expect(etternaTapNoteOutputWidth).toBe(150)
 })
 
 test("defines the Etterna receptor output width", () => {
-  assert.equal(etternaReceptorOutputWidth, 146)
+  expect(etternaReceptorOutputWidth).toBe(146)
 })
 
 test("derives exact receptor dimensions from the matching note proportions", () => {
-  assert.deepEqual(getEtternaReceptorOutputDimensions({ width: 100, height: 100 }), {
+  expect(getEtternaReceptorOutputDimensions({ width: 100, height: 100 })).toStrictEqual({
     width: 146,
     height: 146,
   })
-  assert.deepEqual(getEtternaReceptorOutputDimensions({ width: 100, height: 50 }), {
+  expect(getEtternaReceptorOutputDimensions({ width: 100, height: 50 })).toStrictEqual({
     width: 146,
     height: 73,
   })
-  assert.deepEqual(getEtternaReceptorOutputDimensions({ width: 100, height: 150 }), {
+  expect(getEtternaReceptorOutputDimensions({ width: 100, height: 150 })).toStrictEqual({
     width: 146,
     height: 219,
   })

@@ -1,9 +1,9 @@
-import { writeFile } from "node:fs/promises"
 import type { ImageAsset } from "../../../domain/image.ts"
 import type { JudgementSet } from "../../../domain/judgement.ts"
 import { judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   type CenteredSpriteSheetFrame,
   composeCenteredVerticalSpriteSheet,
@@ -21,15 +21,15 @@ export interface EtternaJudgementWriterDependencies {
     sourceDensity: 1 | 2,
     scale: number,
   ): Promise<JudgementImageVariants>
-  compose(frames: readonly CenteredSpriteSheetFrame[]): Promise<Buffer>
-  writeFile(filePath: string, data: Buffer): Promise<void>
+  compose(frames: readonly CenteredSpriteSheetFrame[]): Promise<Uint8Array>
+  writeFile(filePath: string, data: Uint8Array): Promise<void>
 }
 
 const defaultDependencies: EtternaJudgementWriterDependencies = {
   analyzeDefaultJudgements: analyzeEtternaJudgementSheet,
   render: renderJudgementImageVariants,
   compose: composeCenteredVerticalSpriteSheet,
-  writeFile,
+  writeFile: writeFileContents,
 }
 
 export class EtternaJudgementWriter {
@@ -100,7 +100,7 @@ export class EtternaJudgementWriter {
       }),
     )
 
-    let sheet: Buffer
+    let sheet: Uint8Array
     try {
       sheet = await this.#dependencies.compose(frames)
     } catch (cause) {

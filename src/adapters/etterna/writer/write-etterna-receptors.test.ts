@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type {
   ColumnDirection,
   ImageAsset,
@@ -31,7 +31,7 @@ test("normalizes each receptor to its direction's note proportions", async () =>
     await writeEtternaReceptors({ receptors, noteDimensions, outputDirectory })
 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
-    assert.deepEqual((await readdir(receptorDirectory)).sort(), [
+    expect((await readdir(receptorDirectory)).sort()).toStrictEqual([
       "pressed Down (res 64x32).png",
       "pressed Left (res 64x64).png",
       "pressed Right (res 64x51).png",
@@ -45,20 +45,21 @@ test("normalizes each receptor to its direction's note proportions", async () =>
       const output = await readFile(path.join(receptorDirectory, filename))
       const direction = directionFromFilename(filename)
       const renderedHeight = renderedHeights[direction]
-      assert.deepEqual(await imageSize(output), { width: 146, height: renderedHeight }, filename)
-      assert.equal(
+      expect(await imageSize(output), filename).toStrictEqual({
+        width: 146,
+        height: renderedHeight,
+      })
+      expect(
         await alphaAt(output, 0, Math.floor(renderedHeight / 2)),
-        0,
         `${filename} keeps its left margin transparent`,
-      )
-      assert.equal(
+      ).toBe(0)
+      expect(
         await alphaAt(output, 145, Math.floor(renderedHeight / 2)),
-        0,
         `${filename} keeps its right margin transparent`,
-      )
+      ).toBe(0)
       const color = colors[filename]
-      assert.ok(color, `${filename} has a fixture color`)
-      assert.equal(await containsRgba(output, color), true, `${filename} keeps its own color`)
+      expectTruthy(color, `${filename} has a fixture color`)
+      expect(await containsRgba(output, color), `${filename} keeps its own color`).toBe(true)
     }
   } finally {
     await rm(root, { recursive: true, force: true })
@@ -85,8 +86,8 @@ test("normalizes a fully transparent normal receptor to the note proportions", a
     const normal = await readFile(
       path.join(outputDirectory, "Receptors", "release Up (res 64x64).png"),
     )
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
-    assert.equal(await isImageFullyTransparent(normal), true)
+    expect(await imageSize(normal)).toStrictEqual({ width: 146, height: 146 })
+    expect(await isImageFullyTransparent(normal)).toBe(true)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -113,9 +114,9 @@ test("uses the processed normal when pressed is fully transparent", async () => 
     const receptorDirectory = path.join(outputDirectory, "Receptors")
     const normal = await readFile(path.join(receptorDirectory, "release Left (res 64x64).png"))
     const pressed = await readFile(path.join(receptorDirectory, "pressed Left (res 64x64).png"))
-    assert.deepEqual(await imageSize(normal), { width: 146, height: 146 })
-    assert.deepEqual(await imageSize(pressed), { width: 146, height: 146 })
-    assert.deepEqual(pressed, normal)
+    expect(await imageSize(normal)).toStrictEqual({ width: 146, height: 146 })
+    expect(await imageSize(pressed)).toStrictEqual({ width: 146, height: 146 })
+    expect(pressed).toStrictEqual(normal)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -124,8 +125,8 @@ test("uses the processed normal when pressed is fully transparent", async () => 
 test("reports receptor source read failures with direction, state, path, and exact cause", async () => {
   const failure = new Error("exact pressed receptor read failure")
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       writeEtternaReceptors({
         receptors: inMemoryReceptors(),
         noteDimensions: squareNoteDimensions(),
@@ -134,16 +135,16 @@ test("reports receptor source read failures with direction, state, path, and exa
           if (filePath === "left-pressed.png") {
             throw failure
           }
-          return Buffer.from(filePath)
+          return new TextEncoder().encode(filePath)
         },
         inspectTransparency: async () => false,
         normalize: async (buffer) => buffer,
         write: async () => {},
-      }),
+      }))(),
     (error) => {
-      assert.ok(error instanceof Error)
-      assert.match(error.message, /read.*pressed receptor.*left.*left-pressed\.png/i)
-      assert.equal(error.cause, failure)
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/read.*pressed receptor.*left.*left-pressed\.png/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
@@ -158,7 +159,7 @@ test("settles sibling transparency inspections before reporting contextual exact
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: () => {
       inspectionCalls += 1
       if (inspectionCalls === 1) {
@@ -180,20 +181,22 @@ test("settles sibling transparency inspections before reporting contextual exact
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(inspectionCalls, 8)
-  assert.equal(settled, false)
+  expect(inspectionCalls).toBe(8)
+  expect(settled).toBe(false)
 
   sibling.resolve(false)
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /inspect transparency.*pressed receptor.*left.*left-pressed\.png/i)
-    assert.equal(error.cause, failure)
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(
+      /inspect transparency.*pressed receptor.*left.*left-pressed\.png/i,
+    )
+    expect(error.cause).toBe(failure)
     return true
   })
 })
 
 test("settles sibling receptor processing after a decode failure before rejecting without writes", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const decodeFailure = new Error("exact decode failure")
   const writes: string[] = []
@@ -202,7 +205,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
     normalize: async () => {
       normalizeCalls += 1
@@ -213,7 +216,7 @@ test("settles sibling receptor processing after a decode failure before rejectin
         failureStarted.resolve()
         throw decodeFailure
       }
-      return Buffer.from("normalized")
+      return new TextEncoder().encode("normalized")
     },
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: async (filePath) => {
@@ -227,17 +230,17 @@ test("settles sibling receptor processing after a decode failure before rejectin
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(settled, false)
-  assert.equal(normalizeCalls, 8)
+  expect(settled).toBe(false)
+  expect(normalizeCalls).toBe(8)
 
-  sibling.resolve(Buffer.from("normalized"))
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /normalize.*pressed receptor.*left.*left-pressed\.png/i)
-    assert.equal(error.cause, decodeFailure)
+  sibling.resolve(new TextEncoder().encode("normalized"))
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/normalize.*pressed receptor.*left.*left-pressed\.png/i)
+    expect(error.cause).toBe(decodeFailure)
     return true
   })
-  assert.deepEqual(writes, [])
+  expect(writes).toStrictEqual([])
 })
 
 test("settles sibling dimension reads after a synchronous failure with receptor context", async () => {
@@ -250,7 +253,7 @@ test("settles sibling dimension reads after a synchronous failure with receptor 
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
     normalize: async (buffer) => buffer,
     readDimensions: () => {
@@ -275,17 +278,17 @@ test("settles sibling dimension reads after a synchronous failure with receptor 
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(dimensionCalls, 8)
-  assert.equal(settled, false)
+  expect(dimensionCalls).toBe(8)
+  expect(settled).toBe(false)
 
   sibling.resolve({ width: 64, height: 64 })
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(error.message, /read dimensions.*pressed receptor.*left.*left-pressed\.png/i)
-    assert.equal(error.cause, failure)
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/read dimensions.*pressed receptor.*left.*left-pressed\.png/i)
+    expect(error.cause).toBe(failure)
     return true
   })
-  assert.deepEqual(writes, [])
+  expect(writes).toStrictEqual([])
 })
 
 test("starts and settles every receptor write when a writer throws synchronously", async () => {
@@ -297,9 +300,9 @@ test("starts and settles every receptor write when a writer throws synchronously
     receptors: inMemoryReceptors(),
     noteDimensions: squareNoteDimensions(),
     outputDirectory: "output",
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     inspectTransparency: async () => false,
-    normalize: async () => Buffer.from("normalized"),
+    normalize: async () => new TextEncoder().encode("normalized"),
     readDimensions: async () => ({ width: 64, height: 64 }),
     write: () => {
       calls += 1
@@ -323,23 +326,22 @@ test("starts and settles every receptor write when a writer throws synchronously
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
-  assert.equal(calls, 8)
+  expect(phase).toBe("started")
+  expect(calls).toBe(8)
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => {
-    assert.ok(error instanceof Error)
-    assert.match(
-      error.message,
+  await expectRejectionSatisfies(writing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(
       /write generated Etterna asset.*pressed Left \(res 64x64\)\.png.*output.*Receptors/i,
     )
-    assert.equal(error.cause, failure)
+    expect(error.cause).toBe(failure)
     return true
   })
 })
@@ -417,7 +419,7 @@ function png(
   width: number,
   height: number,
   background: { r: number; g: number; b: number; alpha: number },
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   return sharp({ create: { width, height, channels: 4, background } })
     .png()
     .toBuffer()
@@ -429,10 +431,10 @@ function titleCase(value: string): string {
   return `${value[0]?.toUpperCase()}${value.slice(1)}`
 }
 
-async function receptorPng(color: Rgba): Promise<Buffer> {
+async function receptorPng(color: Rgba): Promise<Uint8Array> {
   const width = 10
   const height = 16
-  const pixels = Buffer.alloc(width * height * 4)
+  const pixels = new Uint8Array(width * height * 4)
   for (let y = 4; y < 12; y += 1) {
     for (let x = 2; x < 8; x += 1) {
       pixels.set([color.r, color.g, color.b, color.alpha], (y * width + x) * 4)
@@ -443,14 +445,14 @@ async function receptorPng(color: Rgba): Promise<Buffer> {
     .toBuffer()
 }
 
-async function imageSize(image: Buffer): Promise<{ width: number; height: number }> {
+async function imageSize(image: Uint8Array): Promise<{ width: number; height: number }> {
   const metadata = await sharp(image).metadata()
-  assert.ok(metadata.width)
-  assert.ok(metadata.height)
+  expectTruthy(metadata.width)
+  expectTruthy(metadata.height)
   return { width: metadata.width, height: metadata.height }
 }
 
-async function alphaAt(image: Buffer, x: number, y: number): Promise<number> {
+async function alphaAt(image: Uint8Array, x: number, y: number): Promise<number> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()
@@ -458,7 +460,7 @@ async function alphaAt(image: Buffer, x: number, y: number): Promise<number> {
   return data[(y * info.width + x) * info.channels + 3] ?? -1
 }
 
-async function containsRgba(image: Buffer, color: Rgba): Promise<boolean> {
+async function containsRgba(image: Uint8Array, color: Rgba): Promise<boolean> {
   const { data, info } = await sharp(image)
     .ensureAlpha()
     .raw()

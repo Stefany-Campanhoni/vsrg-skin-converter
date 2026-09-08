@@ -1,14 +1,13 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { analyzeArchitecture } from "./dependency-rules.ts"
 
 test("production modules follow layer boundaries and contain no cycles", async () => {
   const violations = await analyzeArchitecture(path.resolve("src"))
 
-  assert.deepEqual(violations, [])
+  expect(violations).toStrictEqual([])
 })
 
 test("application-root.ts belongs to the config boundary", async () => {
@@ -25,7 +24,7 @@ test("application-root.ts belongs to the config boundary", async () => {
       'export { root } from "../application-root.ts"\n',
     )
 
-    assert.deepEqual(await analyzeArchitecture(sourceRoot), [])
+    expect(await analyzeArchitecture(sourceRoot)).toStrictEqual([])
   } finally {
     await rm(sourceRoot, { force: true, recursive: true })
   }
@@ -42,7 +41,7 @@ test("config modules still cannot depend on arbitrary root modules", async () =>
       'export { root } from "../other-root.ts"\n',
     )
 
-    assert.deepEqual(await analyzeArchitecture(sourceRoot), [
+    expect(await analyzeArchitecture(sourceRoot)).toStrictEqual([
       "Forbidden dependency: config/paths.ts (config) -> other-root.ts (root)",
     ])
   } finally {

@@ -1,6 +1,6 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies } from "../../../tests/support/expectations.ts"
 import { readImageDimensions } from "./read-image-dimensions.ts"
 
 test("reads the exact encoded image dimensions", async () => {
@@ -15,12 +15,12 @@ test("reads the exact encoded image dimensions", async () => {
     .png()
     .toBuffer()
 
-  assert.deepEqual(await readImageDimensions(image), { width: 13, height: 21 })
+  expect(await readImageDimensions(image)).toStrictEqual({ width: 13, height: 21 })
 })
 
 test("retains decoder failures as the cause of a contextual dimensions error", async () => {
-  await assert.rejects(
-    () => readImageDimensions(Buffer.from("not an image")),
+  await expectRejectionSatisfies(
+    (() => readImageDimensions(new TextEncoder().encode("not an image")))(),
     (error) =>
       error instanceof Error &&
       /read image dimensions/i.test(error.message) &&

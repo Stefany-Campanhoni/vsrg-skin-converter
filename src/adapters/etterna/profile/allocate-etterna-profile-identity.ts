@@ -1,4 +1,3 @@
-import { randomBytes as defaultRandomBytes } from "node:crypto"
 import type { Dirent } from "node:fs"
 import { readdir } from "node:fs/promises"
 import path from "node:path"
@@ -20,7 +19,7 @@ export interface EtternaProfileIdentity {
 }
 
 export interface AllocateEtternaProfileIdentityOptions {
-  readonly randomBytes?: (size: number) => Buffer
+  readonly randomBytes?: (size: number) => Uint8Array
   readonly maxGuidAttempts?: number
 }
 
@@ -90,7 +89,7 @@ function allocateGuid(
   existingGuids: ReadonlySet<string>,
   options: AllocateEtternaProfileIdentityOptions,
 ): string {
-  const randomBytes = options.randomBytes ?? defaultRandomBytes
+  const randomBytes = options.randomBytes ?? secureRandomBytes
   const maxGuidAttempts = options.maxGuidAttempts ?? defaultMaxGuidAttempts
   if (!Number.isInteger(maxGuidAttempts) || maxGuidAttempts < 1) {
     throw new Error("Etterna GUID attempts must be a positive integer")
@@ -98,16 +97,20 @@ function allocateGuid(
 
   for (let attempt = 0; attempt < maxGuidAttempts; attempt += 1) {
     const bytes = randomBytes(guidByteLength)
-    if (!Buffer.isBuffer(bytes) || bytes.length !== guidByteLength) {
+    if (!(bytes instanceof Uint8Array) || bytes.length !== guidByteLength) {
       throw new Error("Etterna GUID random source must return exactly 8 bytes")
     }
-    const guid = bytes.toString("hex")
+    const guid = bytes.toHex()
     if (!existingGuids.has(guid)) {
       return guid
     }
   }
 
   throw new Error(`Could not allocate a unique Etterna GUID after ${maxGuidAttempts} attempts`)
+}
+
+function secureRandomBytes(size: number): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(size))
 }
 
 function isNotFoundError(cause: unknown): cause is NodeJS.ErrnoException {

@@ -1,20 +1,19 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { extractEtternaProfileDisplayName, listEtternaProfiles } from "./etterna-profile-catalog.ts"
 
 test("extracts a trimmed Etterna profile display name", () => {
-  assert.equal(
+  expect(
     extractEtternaProfileDisplayName("<Stats><DisplayName> porquispinho </DisplayName></Stats>"),
-    "porquispinho",
-  )
+  ).toBe("porquispinho")
 })
 
 test("uses unknown when the Etterna profile display name is missing or empty", () => {
-  assert.equal(extractEtternaProfileDisplayName("<Stats />"), "unknown")
-  assert.equal(extractEtternaProfileDisplayName("<DisplayName> </DisplayName>"), "unknown")
+  expect(extractEtternaProfileDisplayName("<Stats />")).toBe("unknown")
+  expect(extractEtternaProfileDisplayName("<DisplayName> </DisplayName>")).toBe("unknown")
 })
 
 test("lists immediate Etterna profiles in directory-ID order", async () => {
@@ -23,7 +22,7 @@ test("lists immediate Etterna profiles in directory-ID order", async () => {
     await writeProfile(root, "00000001", "Second")
     await writeProfile(root, "00000000", "First")
 
-    assert.deepEqual(await listEtternaProfiles(root), [
+    expect(await listEtternaProfiles(root)).toStrictEqual([
       { id: "00000000", displayName: "First" },
       { id: "00000001", displayName: "Second" },
     ])
@@ -37,7 +36,7 @@ test("rejects when LocalProfiles contains no profile directories", async () => {
   try {
     await mkdir(path.join(root, "Save", "LocalProfiles"), { recursive: true })
 
-    await assert.rejects(() => listEtternaProfiles(root), /No Etterna profiles found/i)
+    await expect((() => listEtternaProfiles(root))()).rejects.toThrow(/No Etterna profiles found/i)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -73,16 +72,16 @@ test("starts and settles every profile read before rethrowing the first failure"
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
+    expect(phase).toBe("started")
     let settled = false
     void listing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     pendingRead.resolve("<DisplayName>First</DisplayName>")
-    await assert.rejects(
+    await expectRejectionSatisfies(
       listing,
       (error) =>
         error instanceof Error &&

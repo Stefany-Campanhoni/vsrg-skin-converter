@@ -1,14 +1,14 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { writeOsuComboImages } from "./write-osu-combo-images.ts"
 
-test("resizes every copied osu combo image with rounded proportional dimensions", async (t) => {
+test("resizes every copied osu combo image with rounded proportional dimensions", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-combo-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
 
   const expectedFilenames: string[] = []
   for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
@@ -32,17 +32,20 @@ test("resizes every copied osu combo image with rounded proportional dimensions"
 
   await writeOsuComboImages({ outputDirectory, scale: 0.6 })
 
-  assert.deepEqual((await readdir(outputDirectory)).sort(), expectedFilenames.sort())
+  expect((await readdir(outputDirectory)).sort()).toStrictEqual(expectedFilenames.sort())
   for (const character of ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "comma", "dot"]) {
     const standard = await sharp(path.join(outputDirectory, `combo-${character}.png`)).metadata()
-    assert.deepEqual({ width: standard.width, height: standard.height }, { width: 6, height: 4 })
+    expect({ width: standard.width, height: standard.height }).toStrictEqual({
+      width: 6,
+      height: 4,
+    })
     const double = await sharp(path.join(outputDirectory, `combo-${character}@2x.png`)).metadata()
-    assert.deepEqual({ width: double.width, height: double.height }, { width: 12, height: 7 })
+    expect({ width: double.width, height: double.height }).toStrictEqual({ width: 12, height: 7 })
   }
 })
 
 test("finishes every resize and writes nothing when combo preparation fails", async () => {
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const preparationsStarted = deferred<void>()
   const failure = new Error("exact combo resize failure")
   let resizeCalls = 0
@@ -51,7 +54,7 @@ test("finishes every resize and writes nothing when combo preparation fails", as
   const writing = writeOsuComboImages({
     outputDirectory: "workspace",
     scale: 0.6,
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async (image) => {
       resizeCalls += 1
       if (resizeCalls === 24) {
@@ -77,22 +80,22 @@ test("finishes every resize and writes nothing when combo preparation fails", as
       () => "rejected",
     ),
   ])
-  assert.equal(preparationPhase, "started")
+  expect(preparationPhase).toBe("started")
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
-  assert.equal(writeCalls, 0)
+  expect(settled).toBe(false)
+  expect(writeCalls).toBe(0)
 
-  sibling.resolve(Buffer.from("resized"))
-  await assert.rejects(
+  sibling.resolve(new TextEncoder().encode("resized"))
+  await expectRejectionSatisfies(
     writing,
     (error) =>
       error instanceof Error && error.cause === failure && /combo-0@2x\.png/.test(error.message),
   )
-  assert.equal(writeCalls, 0)
+  expect(writeCalls).toBe(0)
 })
 
 test("starts every combo write and waits for siblings when a writer throws synchronously", async () => {
@@ -104,7 +107,7 @@ test("starts every combo write and waits for siblings when a writer throws synch
   const writing = writeOsuComboImages({
     outputDirectory: "workspace",
     scale: 1,
-    read: async (filePath) => Buffer.from(filePath),
+    read: async (filePath) => new TextEncoder().encode(filePath),
     resize: async (image) => image,
     write: () => {
       writeCalls += 1
@@ -128,17 +131,17 @@ test("starts every combo write and waits for siblings when a writer throws synch
       () => "rejected",
     ),
   ])
-  assert.equal(writePhase, "started")
-  assert.equal(writeCalls, 24)
+  expect(writePhase).toBe("started")
+  expect(writeCalls).toBe(24)
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(
+  await expectRejectionSatisfies(
     writing,
     (error) =>
       error instanceof Error && error.cause === failure && /combo-0@2x\.png/.test(error.message),

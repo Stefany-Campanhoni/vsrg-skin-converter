@@ -1,7 +1,7 @@
-import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { type ColumnDirection, columnDirections, type TapNoteSet } from "../../../domain/image.ts"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readBinaryFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import {
   type ImageDimensions,
   readImageDimensions,
@@ -18,9 +18,9 @@ import {
   writePreparedEtternaAssets,
 } from "./write-prepared-etterna-assets.ts"
 
-type AssetReader = (filePath: string) => Promise<Buffer>
+type AssetReader = (filePath: string) => Promise<Uint8Array>
 type AssetResizer = typeof resizeImageToWidth
-type AssetDimensionReader = (image: Buffer) => Promise<ImageDimensions>
+type AssetDimensionReader = (image: Uint8Array) => Promise<ImageDimensions>
 
 const tapNoteLogicalNames: Readonly<Record<ColumnDirection, string>> = {
   left: "_Left Tap Note",
@@ -44,7 +44,7 @@ export interface WriteEtternaNotesOptions extends PrepareEtternaNotesOptions {
 export async function prepareEtternaNotes(
   options: PrepareEtternaNotesOptions,
 ): Promise<readonly PreparedEtternaAsset[]> {
-  const read = options.read ?? readFile
+  const read = options.read ?? readBinaryFile
   const resize = options.resize ?? resizeImageToWidth
   const readDimensions = options.readDimensions ?? readImageDimensions
   const assets = columnDirections.map((direction) => ({

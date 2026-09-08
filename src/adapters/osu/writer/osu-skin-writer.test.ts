@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectResolves } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, ReceptorSet, TapNoteSet } from "../../../domain/image.ts"
 import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
@@ -15,8 +15,8 @@ test("writes a complete osu skin workspace", async () => {
   const templates = path.join(root, "templates")
   const workspace = path.join(root, "workspace")
   const source = path.join(root, "source.png")
-  const longNoteBody = Buffer.from([1, 2, 3])
-  const longNoteTail = Buffer.from([4, 5])
+  const longNoteBody = new Uint8Array([1, 2, 3])
+  const longNoteTail = new Uint8Array([4, 5])
   try {
     await mkdir(templates, { recursive: true })
     await writeFile(
@@ -51,28 +51,31 @@ test("writes a complete osu skin workspace", async () => {
 
     await new OsuSkinWriter(templates).writeSkin(skin, workspace)
 
-    assert.equal(
-      await readFile(path.join(workspace, "skin.ini"), "utf8"),
+    expect(await readFile(path.join(workspace, "skin.ini"), "utf8")).toBe(
       "Name: Fixture\nHitPosition: 432\nComboPosition: 210\nScorePosition: 244\nColumnWidth: 62,62,62,62\n",
     )
-    await assert.doesNotReject(() =>
-      readFile(path.join(workspace, "mania", "receptors", "left@2x.png")),
+    await expectResolves(
+      (() => readFile(path.join(workspace, "mania", "receptors", "left@2x.png")))(),
     )
     const note = await sharp(path.join(workspace, "mania", "notes", "left.png")).metadata()
-    assert.deepEqual({ width: note.width, height: note.height }, { width: 24, height: 16 })
+    expect({ width: note.width, height: note.height }).toStrictEqual({ width: 24, height: 16 })
     const judgement = await sharp(
       path.join(workspace, "mania", "judgements", "marvelous.png"),
     ).metadata()
-    assert.deepEqual(
-      { width: judgement.width, height: judgement.height },
-      { width: 16, height: 11 },
-    )
+    expect({ width: judgement.width, height: judgement.height }).toStrictEqual({
+      width: 16,
+      height: 11,
+    })
     const combo = await sharp(path.join(workspace, "combo-0.png")).metadata()
-    assert.deepEqual({ width: combo.width, height: combo.height }, { width: 6, height: 4 })
-    assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "body.png")), longNoteBody)
-    assert.deepEqual(await readFile(path.join(workspace, "mania", "lns", "tail.png")), longNoteTail)
+    expect({ width: combo.width, height: combo.height }).toStrictEqual({ width: 6, height: 4 })
+    expect([...(await readFile(path.join(workspace, "mania", "lns", "body.png")))]).toStrictEqual([
+      ...longNoteBody,
+    ])
+    expect([...(await readFile(path.join(workspace, "mania", "lns", "tail.png")))]).toStrictEqual([
+      ...longNoteTail,
+    ])
     for (const filename of ["receptor-base.png", "LNB.png", "LNT.png"]) {
-      await assert.rejects(() => readFile(path.join(workspace, filename)), {
+      await expect((() => readFile(path.join(workspace, filename)))()).rejects.toMatchObject({
         code: "ENOENT",
       })
     }
@@ -92,7 +95,7 @@ test("preserves template artifacts when long-note publication fails", async () =
       path.join(templates, "skin.ini"),
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
-    await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeFile(path.join(templates, "LNB.png"), new Uint8Array([1, 2, 3]))
     await writeComboTemplates(templates)
     await sharp({
       create: {
@@ -117,14 +120,16 @@ test("preserves template artifacts when long-note publication fails", async () =
 
     const skin = completeOsuSkin(source)
 
-    await assert.rejects(() => new OsuSkinWriter(templates).writeSkin(skin, workspace), {
+    await expect(
+      (() => new OsuSkinWriter(templates).writeSkin(skin, workspace))(),
+    ).rejects.toMatchObject({
       code: "ENOENT",
     })
-    await assert.doesNotReject(() => readFile(path.join(workspace, "receptor-base.png")))
-    await assert.doesNotReject(() =>
-      readFile(path.join(workspace, "mania", "receptors", "left@2x.png")),
+    await expectResolves((() => readFile(path.join(workspace, "receptor-base.png")))())
+    await expectResolves(
+      (() => readFile(path.join(workspace, "mania", "receptors", "left@2x.png")))(),
     )
-    await assert.doesNotReject(() => readFile(path.join(workspace, "mania", "notes", "left.png")))
+    await expectResolves((() => readFile(path.join(workspace, "mania", "notes", "left.png")))())
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -143,7 +148,7 @@ test("publisher preserves the previous target and removes staging after a writer
       path.join(templates, "skin.ini"),
       `Name: \${skin_name}\nHitPosition: \${hit_position}\nComboPosition: \${combo_position}\nScorePosition: \${score_position}\nColumnWidth: \${column_width},\${column_width},\${column_width},\${column_width}\n`,
     )
-    await writeFile(path.join(templates, "LNB.png"), Buffer.from([1, 2, 3]))
+    await writeFile(path.join(templates, "LNB.png"), new Uint8Array([1, 2, 3]))
     await writeComboTemplates(templates)
     await sharp({
       create: {
@@ -167,17 +172,16 @@ test("publisher preserves the previous target and removes staging after a writer
       .toFile(source)
 
     const writer = new OsuSkinWriter(templates)
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         new TransactionalOutputPublisher().publish(output, (workspace) =>
           writer.writeSkin(completeOsuSkin(source), workspace),
-        ),
-      { code: "ENOENT" },
-    )
+        ))(),
+    ).rejects.toMatchObject({ code: "ENOENT" })
 
-    assert.deepEqual(await readdir(output), ["current.txt"])
-    assert.equal(await readFile(path.join(output, "current.txt"), "utf8"), "current")
-    assert.deepEqual((await readdir(root)).sort(), ["output", "source.png", "templates"])
+    expect(await readdir(output)).toStrictEqual(["current.txt"])
+    expect(await readFile(path.join(output, "current.txt"), "utf8")).toBe("current")
+    expect((await readdir(root)).sort()).toStrictEqual(["output", "source.png", "templates"])
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -201,11 +205,10 @@ test("rejects incomplete or non-osu models", async () => {
     diagnostics: [],
   }
 
-  await assert.rejects(() => writer.writeSkin(base, "workspace"), /receptors/i)
-  await assert.rejects(
-    () => writer.writeSkin({ ...base, game: "etterna" }, "workspace"),
-    /osu writer.*etterna/i,
-  )
+  await expect((() => writer.writeSkin(base, "workspace"))()).rejects.toThrow(/receptors/i)
+  await expect(
+    (() => writer.writeSkin({ ...base, game: "etterna" }, "workspace"))(),
+  ).rejects.toThrow(/osu writer.*etterna/i)
 
   const complete = completeOsuSkin("source.png")
   const withoutJudgements: SkinModel = {
@@ -215,8 +218,7 @@ test("rejects incomplete or non-osu models", async () => {
       tapNotes: complete.assets.tapNotes,
     },
   }
-  await assert.rejects(
-    () => writer.writeSkin(withoutJudgements, "workspace"),
+  await expect((() => writer.writeSkin(withoutJudgements, "workspace"))()).rejects.toThrow(
     /does not contain judgements/i,
   )
 })

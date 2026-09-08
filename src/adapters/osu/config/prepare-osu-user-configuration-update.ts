@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto"
-import { readdir, readFile, writeFile } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import path from "node:path"
 import type { FileContentExpectation } from "../../../application/ports/file-content-expectation.ts"
+import { readBinaryFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export interface PreparedOsuUserConfigurationUpdate {
   readonly targetPath: string
@@ -16,7 +16,7 @@ export interface OsuUserConfigurationDirectoryEntry {
 
 export interface PrepareOsuUserConfigurationUpdateDependencies {
   readDirectory(directory: string): Promise<readonly OsuUserConfigurationDirectoryEntry[]>
-  readFile(filePath: string): Promise<Buffer>
+  readFile(filePath: string): Promise<Uint8Array>
 }
 
 export interface WriteOsuUserConfigurationUpdateDependencies {
@@ -25,9 +25,11 @@ export interface WriteOsuUserConfigurationUpdateDependencies {
 
 const defaultPrepareDependencies: PrepareOsuUserConfigurationUpdateDependencies = {
   readDirectory: (directory) => readdir(directory, { withFileTypes: true }),
-  readFile,
+  readFile: readBinaryFile,
 }
-const defaultWriteDependencies: WriteOsuUserConfigurationUpdateDependencies = { writeFile }
+const defaultWriteDependencies: WriteOsuUserConfigurationUpdateDependencies = {
+  writeFile: async (filePath, content) => writeFileContents(filePath, content),
+}
 const maniaSpeedPattern = /^([ \t]*ManiaSpeed[ \t]*=[ \t]*)([^\r\n]*?)([ \t]*)(\r?)$/gim
 
 export async function prepareOsuUserConfigurationUpdate(
@@ -52,25 +54,32 @@ export async function prepareOsuUserConfigurationUpdate(
     windowsUsername,
     dependencies,
   )
-  const source = original.toString("utf8")
+  const byteOrderMark = hasUtf8ByteOrderMark(original) ? "\uFEFF" : ""
+  const source = new TextDecoder().decode(original)
   const matches = [...source.matchAll(maniaSpeedPattern)]
   if (matches.length !== 1) {
     throw new Error(`Expected exactly one ManiaSpeed assignment in ${targetPath}`)
   }
-  const content = source.replace(
-    maniaSpeedPattern,
-    (_line, prefix: string, _value: string, suffix: string, carriageReturn: string) =>
-      `${prefix}${maniaSpeed}${suffix}${carriageReturn}`,
-  )
+  const content =
+    byteOrderMark +
+    source.replace(
+      maniaSpeedPattern,
+      (_line, prefix: string, _value: string, suffix: string, carriageReturn: string) =>
+        `${prefix}${maniaSpeed}${suffix}${carriageReturn}`,
+    )
 
   return {
     targetPath,
     content,
     expectation: {
       state: "sha256",
-      sha256: createHash("sha256").update(original).digest("hex"),
+      sha256: new Bun.CryptoHasher("sha256").update(original).digest("hex"),
     },
   }
+}
+
+function hasUtf8ByteOrderMark(content: Uint8Array): boolean {
+  return content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf
 }
 
 export async function writeOsuUserConfigurationUpdate(
@@ -126,7 +135,7 @@ async function readCurrentUserConfiguration(
   expectedFilename: string,
   windowsUsername: string,
   dependencies: PrepareOsuUserConfigurationUpdateDependencies,
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   try {
     return await dependencies.readFile(targetPath)
   } catch (cause) {

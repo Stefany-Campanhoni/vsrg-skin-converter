@@ -1,8 +1,7 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { loadNoteSkinContext } from "../note-skin-context.ts"
 import { analyzeEtternaReceptors } from "./analyze-receptors.ts"
 
@@ -48,12 +47,12 @@ test("resolves external receptors through ButtonRedir and applies per-direction 
     async (directory) => {
       const result = await analyzeEtternaReceptors(await loadNoteSkinContext(directory))
 
-      assert.equal(result.receptors.left.normal.filePath, result.receptors.down.normal.filePath)
-      assert.equal(result.receptors.up.pressed.filePath, result.receptors.down.pressed.filePath)
-      assert.equal(result.receptors.down.normal.rotation, 0)
-      assert.equal(result.receptors.left.normal.rotation, 90)
-      assert.equal(result.receptors.up.normal.rotation, 180)
-      assert.equal(result.receptors.right.normal.rotation, 270)
+      expect(result.receptors.left.normal.filePath).toBe(result.receptors.down.normal.filePath)
+      expect(result.receptors.up.pressed.filePath).toBe(result.receptors.down.pressed.filePath)
+      expect(result.receptors.down.normal.rotation).toBe(0)
+      expect(result.receptors.left.normal.rotation).toBe(90)
+      expect(result.receptors.up.normal.rotation).toBe(180)
+      expect(result.receptors.right.normal.rotation).toBe(270)
     },
   )
 })
@@ -82,8 +81,8 @@ test("supports legacy RedirTable direction mappings", async () => {
     async (directory) => {
       const result = await analyzeEtternaReceptors(await loadNoteSkinContext(directory))
 
-      assert.match(result.receptors.left.normal.filePath, /_receptor\.png$/)
-      assert.equal(result.receptors.left.normal.rotation, 90)
+      expect(result.receptors.left.normal.filePath).toMatch(/_receptor\.png$/)
+      expect(result.receptors.left.normal.rotation).toBe(90)
     },
   )
 })
@@ -118,8 +117,8 @@ test("analyzes an inline createReceptor function for every direction", async () 
   await withSkin(files, async (directory) => {
     const result = await analyzeEtternaReceptors(await loadNoteSkinContext(directory))
 
-    assert.match(result.receptors.left.normal.filePath, /_Left Go Receptor\.png$/)
-    assert.match(result.receptors.up.pressed.filePath, /_Up Press Receptor\.png$/)
+    expect(result.receptors.left.normal.filePath).toMatch(/_Left Go Receptor\.png$/)
+    expect(result.receptors.up.pressed.filePath).toMatch(/_Up Press Receptor\.png$/)
   })
 })
 
@@ -133,10 +132,9 @@ test("reports the direction when either receptor state is missing", async () => 
       "_Down Go Receptor.png": "",
     },
     async (directory) => {
-      await assert.rejects(
-        async () => analyzeEtternaReceptors(await loadNoteSkinContext(directory)),
-        /direction left|left receptor/i,
-      )
+      await expect(
+        (async () => analyzeEtternaReceptors(await loadNoteSkinContext(directory)))(),
+      ).rejects.toThrow(/direction left|left receptor/i)
     },
   )
 })

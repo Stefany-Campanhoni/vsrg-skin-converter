@@ -1,35 +1,31 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { extractEtternaTheme, readEtternaTheme } from "./read-etterna-theme.ts"
 
 test("uses the configured Etterna theme from Options", () => {
-  assert.equal(
+  expect(
     extractEtternaTheme("[Options]\nTheme= Til Death \nDefaultTheme=Rebirth", "Preferences.ini"),
-    "Til Death",
-  )
+  ).toBe("Til Death")
 })
 
 test("falls back to DefaultTheme when Theme is missing or empty", () => {
-  assert.equal(extractEtternaTheme("[Options]\nDefaultTheme=Rebirth", "Preferences.ini"), "Rebirth")
-  assert.equal(
-    extractEtternaTheme("[Options]\ntheme= \nDefaultTheme=Rebirth", "Preferences.ini"),
+  expect(extractEtternaTheme("[Options]\nDefaultTheme=Rebirth", "Preferences.ini")).toBe("Rebirth")
+  expect(extractEtternaTheme("[Options]\ntheme= \nDefaultTheme=Rebirth", "Preferences.ini")).toBe(
     "Rebirth",
   )
 })
 
 test("ignores theme assignments outside Options", () => {
-  assert.equal(
+  expect(
     extractEtternaTheme("Theme=Ignored\n[Options]\nDefaultTheme=Rebirth", "Preferences.ini"),
-    "Rebirth",
-  )
+  ).toBe("Rebirth")
 })
 
 test("rejects Options without an assigned theme", () => {
-  assert.throws(
-    () => extractEtternaTheme("[Options]\nTheme=\nDefaultTheme= ", "Preferences.ini"),
+  expect(() => extractEtternaTheme("[Options]\nTheme=\nDefaultTheme= ", "Preferences.ini")).toThrow(
     /theme.*Preferences\.ini/i,
   )
 })
@@ -40,7 +36,7 @@ test("reads the active theme from Preferences.ini", async () => {
     await mkdir(path.join(root, "Save"), { recursive: true })
     await writeFile(path.join(root, "Save", "Preferences.ini"), "[Options]\nTheme=Custom")
 
-    assert.equal(await readEtternaTheme(root), "Custom")
+    expect(await readEtternaTheme(root)).toBe("Custom")
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -50,8 +46,8 @@ test("adds the Preferences.ini path and cause when theme reading fails", async (
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-theme-read-failure-"))
   const preferencesPath = path.join(root, "Save", "Preferences.ini")
   try {
-    await assert.rejects(
-      () => readEtternaTheme(root),
+    await expectRejectionSatisfies(
+      (() => readEtternaTheme(root))(),
       (error) =>
         error instanceof Error &&
         error.message.includes(preferencesPath) &&

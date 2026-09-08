@@ -1,8 +1,8 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type { OutputSetTarget } from "../../../application/ports/output-set-publisher.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
 import { TransactionalOutputSetPublisher } from "../../../infrastructure/filesystem/transactional-output-set-publisher.ts"
@@ -43,30 +43,30 @@ test("prepares and publishes the osu! skin and current user's CFG as one exact r
     skinWriter: {
       writeSkin: async (skin, workspace) => {
         calls.push("write skin")
-        assert.equal(skin, osuSkin)
-        assert.equal(workspace, "skin-staging")
+        expect(skin).toBe(osuSkin)
+        expect(workspace).toBe("skin-staging")
       },
     },
     configWriter: {
       prepareUpdate: async (actualGameRoot, username, maniaSpeed) => {
         calls.push("prepare config")
-        assert.equal(actualGameRoot, gameRoot)
-        assert.equal(username, "Stefany")
-        assert.equal(maniaSpeed, 29)
-        assert.equal(Number.isInteger(maniaSpeed), true)
+        expect(actualGameRoot).toBe(gameRoot)
+        expect(username).toBe("Stefany")
+        expect(maniaSpeed).toBe(29)
+        expect(Number.isInteger(maniaSpeed)).toBe(true)
         return preparedUpdate
       },
       writeUpdate: async (stagingFile, update) => {
         calls.push("write config")
-        assert.equal(stagingFile, "config-staging")
-        assert.equal(update, preparedUpdate)
+        expect(stagingFile).toBe("config-staging")
+        expect(update).toBe(preparedUpdate)
       },
     },
     publisher: {
       publish: async (targets) => {
         calls.push("publish")
         publishedTargets = targets
-        assert.equal(targets.length, 2)
+        expect(targets.length).toBe(2)
         await targets[0]?.build("skin-staging")
         await targets[1]?.build("config-staging")
       },
@@ -82,38 +82,37 @@ test("prepares and publishes the osu! skin and current user's CFG as one exact r
     },
     dependencies,
   )
-  assert.deepEqual(calls, [])
+  expect(calls).toStrictEqual([])
 
   await installer.installSkin(osuSkin)
 
-  assert.deepEqual(calls, ["prepare config", "publish", "write skin", "write config"])
-  assert.ok(publishedTargets)
-  assert.deepEqual(
+  expect(calls).toStrictEqual(["prepare config", "publish", "write skin", "write config"])
+  expectTruthy(publishedTargets)
+  expect(
     publishedTargets.map(({ kind, targetPath, allowedRoot, policy }) => ({
       kind,
       targetPath,
       allowedRoot,
       policy,
     })),
-    [
-      {
-        kind: "directory",
-        targetPath: skinTarget,
-        allowedRoot: path.join(gameRoot, "Skins"),
-        policy: "replace-existing",
-      },
-      {
-        kind: "file",
-        targetPath: preparedUpdate.targetPath,
-        allowedRoot: gameRoot,
-        policy: "replace-existing",
-      },
-    ],
-  )
+  ).toStrictEqual([
+    {
+      kind: "directory",
+      targetPath: skinTarget,
+      allowedRoot: path.join(gameRoot, "Skins"),
+      policy: "replace-existing",
+    },
+    {
+      kind: "file",
+      targetPath: preparedUpdate.targetPath,
+      allowedRoot: gameRoot,
+      policy: "replace-existing",
+    },
+  ])
   const configTarget = publishedTargets[1]
-  assert.equal(configTarget?.kind, "file")
+  expect(configTarget?.kind).toBe("file")
   if (configTarget?.kind === "file") {
-    assert.equal(configTarget.expectedContent, preparedUpdate.expectation)
+    expect(configTarget.expectedContent).toBe(preparedUpdate.expectation)
   }
 })
 
@@ -121,8 +120,8 @@ test("rejects the wrong game before preparing configuration or publishing", asyn
   const sideEffects: string[] = []
   const dependencies = dependenciesWith(sideEffects)
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       new OsuSkinInstaller(
         {
           gameRoot,
@@ -131,19 +130,18 @@ test("rejects the wrong game before preparing configuration or publishing", asyn
           skinTarget,
         },
         dependencies,
-      ).installSkin({ ...osuSkin, game: "etterna" }),
-    /osu! installer.*etterna/i,
-  )
+      ).installSkin({ ...osuSkin, game: "etterna" }))(),
+  ).rejects.toThrow(/osu! installer.*etterna/i)
 
-  assert.deepEqual(sideEffects, [])
+  expect(sideEffects).toStrictEqual([])
 })
 
 test("rejects a converted skin whose exact metadata name differs before side effects", async () => {
   const sideEffects: string[] = []
   const dependencies = dependenciesWith(sideEffects)
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       new OsuSkinInstaller(
         {
           gameRoot,
@@ -152,11 +150,10 @@ test("rejects a converted skin whose exact metadata name differs before side eff
           skinTarget,
         },
         dependencies,
-      ).installSkin({ ...osuSkin, metadata: { name: "pink" } }),
-    /does not match the expected skin name/i,
-  )
+      ).installSkin({ ...osuSkin, metadata: { name: "pink" } }))(),
+  ).rejects.toThrow(/does not match the expected skin name/i)
 
-  assert.deepEqual(sideEffects, [])
+  expect(sideEffects).toStrictEqual([])
 })
 
 test("does not publish when preparing the osu! CFG fails", async () => {
@@ -177,8 +174,8 @@ test("does not publish when preparing the osu! CFG fails", async () => {
     },
   }
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       new OsuSkinInstaller(
         {
           gameRoot,
@@ -187,10 +184,10 @@ test("does not publish when preparing the osu! CFG fails", async () => {
           skinTarget,
         },
         dependencies,
-      ).installSkin(osuSkin),
+      ).installSkin(osuSkin))(),
     (error) => error === failure,
   )
-  assert.equal(published, false)
+  expect(published).toBe(false)
 })
 
 test("restores the original skin and CFG when CFG promotion fails after skin promotion", async () => {
@@ -215,8 +212,8 @@ test("restores the original skin and CFG when CFG promotion fails after skin pro
     await writeFile(path.join(actualSkinTarget, "original.txt"), "original skin")
     await writeFile(configTarget, originalConfig)
 
-    await assert.rejects(
-      () =>
+    await expectRejectionSatisfies(
+      (() =>
         new OsuSkinInstaller(
           {
             gameRoot: actualGameRoot,
@@ -236,20 +233,21 @@ test("restores the original skin and CFG when CFG promotion fails after skin pro
             },
             publisher,
           },
-        ).installSkin(osuSkin),
+        ).installSkin(osuSkin))(),
       (error) => error instanceof Error && error.cause === promotionFailure,
     )
 
-    assert.equal(
-      await readFile(path.join(actualSkinTarget, "original.txt"), "utf8"),
+    expect(await readFile(path.join(actualSkinTarget, "original.txt"), "utf8")).toBe(
       "original skin",
     )
-    await assert.rejects(() => readFile(path.join(actualSkinTarget, "replacement.txt")), {
+    await expect(
+      (() => readFile(path.join(actualSkinTarget, "replacement.txt")))(),
+    ).rejects.toMatchObject({
       code: "ENOENT",
     })
-    assert.equal(await readFile(configTarget, "utf8"), originalConfig)
-    assert.deepEqual((await readdir(actualGameRoot)).sort(), ["Skins", "osu!.Stefany.cfg"])
-    assert.deepEqual(await readdir(skinsRoot), ["Pink"])
+    expect(await readFile(configTarget, "utf8")).toBe(originalConfig)
+    expect((await readdir(actualGameRoot)).sort()).toStrictEqual(["Skins", "osu!.Stefany.cfg"])
+    expect(await readdir(skinsRoot)).toStrictEqual(["Pink"])
   } finally {
     await rm(root, { recursive: true, force: true })
   }

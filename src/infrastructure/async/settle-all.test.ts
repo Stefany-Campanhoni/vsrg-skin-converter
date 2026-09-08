@@ -1,5 +1,5 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
+import { expectRejectionSatisfies } from "../../../tests/support/expectations.ts"
 import { invokeAsPromise, settleAll } from "./settle-all.ts"
 
 test("invokes a task immediately and converts a synchronous throw into a rejection", async () => {
@@ -11,8 +11,8 @@ test("invokes a task immediately and converts a synchronous throw into a rejecti
     throw failure
   })
 
-  assert.equal(invoked, true)
-  await assert.rejects(result, (error) => error === failure)
+  expect(invoked).toBe(true)
+  await expectRejectionSatisfies(result, (error) => error === failure)
 })
 
 test("waits for every promise and preserves successful result order", async () => {
@@ -28,10 +28,10 @@ test("waits for every promise and preserves successful result order", async () =
   third.resolve("third")
   second.resolve("second")
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   first.resolve("first")
-  assert.deepEqual(await settlement, ["first", "second", "third"])
+  expect(await settlement).toStrictEqual(["first", "second", "third"])
 })
 
 test("waits for successful siblings before rethrowing the exact error object", async () => {
@@ -44,10 +44,10 @@ test("waits for successful siblings before rethrowing the exact error object", a
   })
 
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve("finished")
-  await assert.rejects(settlement, (error) => error === failure)
+  await expectRejectionSatisfies(settlement, (error) => error === failure)
 })
 
 test("rethrows the first input-order failure after every failure settles", async () => {
@@ -58,7 +58,7 @@ test("rethrows the first input-order failure after every failure settles", async
 
   first.reject(firstFailure)
 
-  await assert.rejects(settlement, (error) => error === firstFailure)
+  await expectRejectionSatisfies(settlement, (error) => error === firstFailure)
 })
 
 interface Deferred<T> {

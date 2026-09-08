@@ -1,9 +1,7 @@
-import { spawn } from "node:child_process"
-import { randomUUID } from "node:crypto"
 import { cp, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import { runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import {
   assertControlledReleasePath,
   assertSafeTransactionToken,
@@ -32,29 +30,19 @@ export interface InstallRuntimeDependenciesOptions {
   readonly dependencies?: Partial<RuntimeDependencyInstallationDependencies>
 }
 
-export function runRuntimeCommand(command: CommandInvocation): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const executable =
-      process.platform === "win32" ? (process.env.ComSpec ?? "cmd.exe") : command.executable
-    const args =
-      process.platform === "win32"
-        ? ["/d", "/s", "/c", command.executable, ...command.args]
-        : [...command.args]
-    const child = spawn(executable, args, {
-      cwd: command.cwd,
-      stdio: "inherit",
-      windowsHide: true,
-    })
-    child.once("error", reject)
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve()
-      else reject(new Error(`${command.executable} exited with code ${code} and signal ${signal}`))
-    })
+export async function runRuntimeCommand(command: CommandInvocation): Promise<void> {
+  const result = await runInheritedSubprocess([command.executable, ...command.args], {
+    cwd: command.cwd,
   })
+  if (result.code !== 0) {
+    throw new Error(
+      `${command.executable} exited with code ${result.code} and signal ${result.signal}`,
+    )
+  }
 }
 
 const defaultDependencies: RuntimeDependencyInstallationDependencies = {
-  token: randomUUID,
+  token: () => crypto.randomUUID(),
   runCommand: runRuntimeCommand,
   renamePath: rename,
   delay: async (milliseconds) => {
@@ -83,7 +71,7 @@ export async function installRuntimeDependencies(
   }
   assertControlledReleasePath(controlledRoot, options.installationRoot, "runtime installation root")
   await assertRegularFile(path.join(sourcePackageDirectory, "package.json"))
-  await assertRegularFile(path.join(sourcePackageDirectory, "package-lock.json"))
+  await assertRegularFile(path.join(sourcePackageDirectory, "bun.lock"))
 
   const dependencies = { ...defaultDependencies, ...options.dependencies }
   const token = dependencies.token()
@@ -101,9 +89,11 @@ export async function installRuntimeDependencies(
       errorOnExist: true,
       force: false,
     })
+    const bunExecutable = Bun.argv[0]
+    if (!bunExecutable) throw new Error("Could not determine the Bun executable")
     const command = {
-      executable: process.platform === "win32" ? "npm.cmd" : "npm",
-      args: ["ci", "--omit=dev", "--os=win32", "--cpu=x64"],
+      executable: bunExecutable,
+      args: ["ci", "--production", "--os=win32", "--cpu=x64"],
       cwd: stagingRoot,
     } as const
     try {
@@ -171,7 +161,7 @@ export async function installRuntimeDependencies(
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await installRuntimeDependencies({
@@ -182,8 +172,8 @@ async function main(): Promise<void> {
   )
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })

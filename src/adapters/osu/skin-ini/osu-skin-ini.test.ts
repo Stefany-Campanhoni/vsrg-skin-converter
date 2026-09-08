@@ -1,5 +1,4 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import {
   parseOsuSkinIni,
   readOsuComboPrefix,
@@ -12,14 +11,16 @@ const filePath = "C:/osu!/Skins/Test/skin.ini"
 test("preserves ordered sections and projects the unique 4K Mania definition", () => {
   const sections = parseOsuSkinIni(fixture, filePath)
 
-  assert.deepEqual(
-    sections.map((section) => section.name),
-    ["General", "Mania", "Mania", "Mania"],
-  )
-  assert.equal(sections[0]?.properties.get("author"), "Fixture: Author")
-  assert.equal(sections[2]?.properties.get("columnwidth"), "68,68,70,70")
-  assert.equal(readOsuSkinName(sections), "Fixture Name")
-  assert.deepEqual(readOsuMania4kDefinition(sections, "skin.ini"), {
+  expect(sections.map((section) => section.name)).toStrictEqual([
+    "General",
+    "Mania",
+    "Mania",
+    "Mania",
+  ])
+  expect(sections[0]?.properties.get("author")).toBe("Fixture: Author")
+  expect(sections[2]?.properties.get("columnwidth")).toBe("68,68,70,70")
+  expect(readOsuSkinName(sections)).toBe("Fixture Name")
+  expect(readOsuMania4kDefinition(sections, "skin.ini")).toStrictEqual({
     isDownscroll: false,
     hitPosition: 432,
     comboPosition: 210,
@@ -50,82 +51,64 @@ test("expands a scalar ColumnWidth to every 4K column", () => {
     filePath,
   )
 
-  assert.deepEqual(definition.columnWidths, [64, 64, 64, 64])
+  expect(definition.columnWidths).toStrictEqual([64, 64, 64, 64])
 })
 
 test("reads UpsideDown as osu direction and defaults an absent value to upscroll", () => {
-  assert.equal(
+  expect(
     readOsuMania4kDefinition(parseOsuSkinIni(maniaSection("UpsideDown: 1"), "skin.ini"), "skin.ini")
       .isDownscroll,
-    true,
-  )
-  assert.equal(
+  ).toBe(true)
+  expect(
     readOsuMania4kDefinition(parseOsuSkinIni(maniaSection("UpsideDown: 0"), "skin.ini"), "skin.ini")
       .isDownscroll,
-    false,
-  )
-  assert.equal(
+  ).toBe(false)
+  expect(
     readOsuMania4kDefinition(parseOsuSkinIni(maniaSection(""), "skin.ini"), "skin.ini")
       .isDownscroll,
-    false,
-  )
+  ).toBe(false)
 })
 
 test("rejects unsupported UpsideDown values with the skin path", () => {
-  assert.throws(
-    () =>
-      readOsuMania4kDefinition(
-        parseOsuSkinIni(maniaSection("UpsideDown: 2"), "skin.ini"),
-        "skin.ini",
-      ),
-    /UpsideDown.*skin\.ini/i,
-  )
+  expect(() =>
+    readOsuMania4kDefinition(
+      parseOsuSkinIni(maniaSection("UpsideDown: 2"), "skin.ini"),
+      "skin.ini",
+    ),
+  ).toThrow(/UpsideDown.*skin\.ini/i)
 })
 
 test("rejects absent or ambiguous 4K Mania sections", () => {
-  assert.throws(
-    () => readOsuMania4kDefinition(parseOsuSkinIni("[Mania]\nKeys: 1", filePath), filePath),
-    /skin\.ini/,
-  )
-  assert.throws(
-    () =>
-      readOsuMania4kDefinition(
-        parseOsuSkinIni(`${maniaSection()}\n${maniaSection()}`, filePath),
-        filePath,
-      ),
-    /skin\.ini/,
-  )
+  expect(() =>
+    readOsuMania4kDefinition(parseOsuSkinIni("[Mania]\nKeys: 1", filePath), filePath),
+  ).toThrow(/skin\.ini/)
+  expect(() =>
+    readOsuMania4kDefinition(
+      parseOsuSkinIni(`${maniaSection()}\n${maniaSection()}`, filePath),
+      filePath,
+    ),
+  ).toThrow(/skin\.ini/)
 })
 
 test("rejects missing Mania properties and invalid numerical values", () => {
-  assert.throws(
-    () => readOsuMania4kDefinition(parseOsuSkinIni("[Mania]\nKeys: 4", filePath), filePath),
-    /skin\.ini/,
-  )
-  assert.throws(
-    () =>
-      readOsuMania4kDefinition(
-        parseOsuSkinIni(maniaSection("HitPosition: nope"), filePath),
-        filePath,
-      ),
-    /skin\.ini/,
-  )
-  assert.throws(
-    () =>
-      readOsuMania4kDefinition(
-        parseOsuSkinIni(maniaSection("ColumnWidth: 1,2"), filePath),
-        filePath,
-      ),
-    /skin\.ini/,
-  )
-  assert.throws(
-    () =>
-      readOsuMania4kDefinition(
-        parseOsuSkinIni(maniaSection("ColumnWidth: 64,0,64,64"), filePath),
-        filePath,
-      ),
-    /skin\.ini/,
-  )
+  expect(() =>
+    readOsuMania4kDefinition(parseOsuSkinIni("[Mania]\nKeys: 4", filePath), filePath),
+  ).toThrow(/skin\.ini/)
+  expect(() =>
+    readOsuMania4kDefinition(
+      parseOsuSkinIni(maniaSection("HitPosition: nope"), filePath),
+      filePath,
+    ),
+  ).toThrow(/skin\.ini/)
+  expect(() =>
+    readOsuMania4kDefinition(parseOsuSkinIni(maniaSection("ColumnWidth: 1,2"), filePath), filePath),
+  ).toThrow(/skin\.ini/)
+  expect(() =>
+    readOsuMania4kDefinition(
+      parseOsuSkinIni(maniaSection("ColumnWidth: 64,0,64,64"), filePath),
+      filePath,
+    ),
+  ).toThrow(/skin\.ini/)
 })
 
 test("allows missing 4K judgement references for osu default asset fallback", () => {
@@ -137,10 +120,9 @@ test("allows missing 4K judgement references for osu default asset fallback", ()
 
     const definition = readOsuMania4kDefinition(parseOsuSkinIni(source, filePath), filePath)
 
-    assert.equal(
+    expect(
       definition.judgements[propertyToGrade[property] as keyof typeof definition.judgements],
-      undefined,
-    )
+    ).toBe(undefined)
   }
 })
 
@@ -155,19 +137,19 @@ test("uses osu default 4K notes and receptors when their references are absent",
     filePath,
   )
 
-  assert.deepEqual(definition.normalReceptors, [
+  expect(definition.normalReceptors).toStrictEqual([
     "mania-key1",
     "mania-key2",
     "mania-key2",
     "mania-key1",
   ])
-  assert.deepEqual(definition.pressedReceptors, [
+  expect(definition.pressedReceptors).toStrictEqual([
     "mania-key1D",
     "mania-key2D",
     "mania-key2D",
     "mania-key1D",
   ])
-  assert.deepEqual(definition.tapNotes, [
+  expect(definition.tapNotes).toStrictEqual([
     "mania-note1",
     "mania-note2",
     "mania-note2",
@@ -186,42 +168,44 @@ test("uses osu default 4K assets for empty references without replacing explicit
     filePath,
   )
 
-  assert.deepEqual(definition.normalReceptors, ["mania-key1", "key-down", "key-up", "key-right"])
-  assert.deepEqual(definition.pressedReceptors, [
+  expect(definition.normalReceptors).toStrictEqual([
+    "mania-key1",
+    "key-down",
+    "key-up",
+    "key-right",
+  ])
+  expect(definition.pressedReceptors).toStrictEqual([
     "key-left-pressed",
     "mania-key2D",
     "key-up-pressed",
     "key-right-pressed",
   ])
-  assert.deepEqual(definition.tapNotes, ["note-left", "note-down", "note-up", "mania-note1"])
+  expect(definition.tapNotes).toStrictEqual(["note-left", "note-down", "note-up", "mania-note1"])
 })
 
 test("returns undefined when the General Name property is missing", () => {
   for (const source of ["[General]\nName-General: Fixture", "[General]\nName:", "[Fonts]"]) {
-    assert.equal(readOsuSkinName(parseOsuSkinIni(source, filePath)), undefined)
+    expect(readOsuSkinName(parseOsuSkinIni(source, filePath))).toBe(undefined)
   }
 })
 
 test("reads a mixed-case General Name property", () => {
   const sections = parseOsuSkinIni("[gEnErAl]\nnAmE: Mixed Case Name", filePath)
 
-  assert.equal(readOsuSkinName(sections), "Mixed Case Name")
+  expect(readOsuSkinName(sections)).toBe("Mixed Case Name")
 })
 
 test("reads the combo font prefix and uses the osu score default when it is absent", () => {
-  assert.equal(
+  expect(
     readOsuComboPrefix(
       parseOsuSkinIni("[Fonts]\nComboPrefix: custom/fonts/combo", filePath),
       filePath,
     ),
-    "custom/fonts/combo",
-  )
-  assert.equal(
-    readOsuComboPrefix(parseOsuSkinIni("[General]\nName: Fixture", filePath), filePath),
+  ).toBe("custom/fonts/combo")
+  expect(readOsuComboPrefix(parseOsuSkinIni("[General]\nName: Fixture", filePath), filePath)).toBe(
     "score",
   )
-  assert.equal(
-    readOsuComboPrefix(parseOsuSkinIni("[Fonts]\nComboPrefix:", filePath), filePath),
+  expect(readOsuComboPrefix(parseOsuSkinIni("[Fonts]\nComboPrefix:", filePath), filePath)).toBe(
     "score",
   )
 })
@@ -232,7 +216,7 @@ test("rejects ambiguous Fonts sections instead of selecting one combo prefix", (
     filePath,
   )
 
-  assert.throws(() => readOsuComboPrefix(sections, filePath), /Fonts section.*skin\.ini/i)
+  expect(() => readOsuComboPrefix(sections, filePath)).toThrow(/Fonts section.*skin\.ini/i)
 })
 
 test("reads the last Name from duplicate case-insensitive General sections", () => {
@@ -241,11 +225,13 @@ test("reads the last Name from duplicate case-insensitive General sections", () 
     filePath,
   )
 
-  assert.equal(readOsuSkinName(sections), "Second Name")
+  expect(readOsuSkinName(sections)).toBe("Second Name")
 })
 
 test("rejects an assignment outside a section with the file path", () => {
-  assert.throws(() => parseOsuSkinIni("Name: Orphan", filePath), /C:\/osu!\/Skins\/Test\/skin\.ini/)
+  expect(() => parseOsuSkinIni("Name: Orphan", filePath)).toThrow(
+    /C:\/osu!\/Skins\/Test\/skin\.ini/,
+  )
 })
 
 function maniaSection(extraProperty = ""): string {

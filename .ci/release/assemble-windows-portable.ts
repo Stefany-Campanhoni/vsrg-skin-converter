@@ -1,10 +1,8 @@
-import { randomUUID } from "node:crypto"
 import type { Stats } from "node:fs"
 import { cp, mkdir, readdir, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
-import { acquireNodeRuntime } from "./acquire-node-runtime.ts"
+import { acquireBunRuntime } from "./acquire-bun-runtime.ts"
 import { buildApplication } from "./build-application.ts"
 import {
   assertControlledReleasePath,
@@ -19,14 +17,14 @@ export interface PortablePackage {
   readonly root: string
   readonly launcher: string
   readonly bundle: string
-  readonly nodeExecutable: string
+  readonly bunExecutable: string
 }
 
 export interface AssembleWindowsPortableOptions {
   readonly controlledRoot: string
   readonly packageRoot: string
   readonly bundlePath: string
-  readonly nodeExecutablePath: string
+  readonly bunExecutablePath: string
   readonly runtimeNodeModulesPath: string
   readonly templatesRoot: string
   readonly launcherPath: string
@@ -73,7 +71,13 @@ async function removeDevelopmentArtifacts(nodeModulesRoot: string): Promise<void
       return (
         (entry.isDirectory() && lower === ".cache") ||
         (entry.isFile() &&
-          (lower.endsWith(".ts") || /\.test\.[^.]+$/.test(lower) || lower.endsWith(".map")))
+          (lower.endsWith(".ts") ||
+            lower.endsWith(".tsx") ||
+            lower.endsWith(".cts") ||
+            lower.endsWith(".mts") ||
+            lower.endsWith(".wasm") ||
+            /\.test\.[^.]+$/.test(lower) ||
+            lower.endsWith(".map")))
       )
     })
     .map((entry) => path.join(entry.parentPath, entry.name))
@@ -89,7 +93,7 @@ export async function assembleWindowsPortable(
   assertControlledReleasePath(controlledRoot, options.packageRoot, "portable package root")
   const sources = {
     bundle: path.resolve(options.bundlePath),
-    node: path.resolve(options.nodeExecutablePath),
+    bun: path.resolve(options.bunExecutablePath),
     nodeModules: path.resolve(options.runtimeNodeModulesPath),
     templates: path.resolve(options.templatesRoot),
     launcher: path.resolve(options.launcherPath),
@@ -99,7 +103,7 @@ export async function assembleWindowsPortable(
   }
   await Promise.all([
     assertRegularFile(sources.bundle),
-    assertRegularFile(sources.node),
+    assertRegularFile(sources.bun),
     assertRegularFile(sources.launcher),
     assertRegularFile(sources.readme),
     assertRegularFile(sources.notices),
@@ -113,7 +117,7 @@ export async function assembleWindowsPortable(
     assertDirectory(path.join(sources.templates, "etterna")),
   ])
 
-  const token = options.dependencies?.token?.() ?? randomUUID()
+  const token = options.dependencies?.token?.() ?? crypto.randomUUID()
   assertSafeTransactionToken(token)
   const renamePath = options.dependencies?.renamePath ?? rename
   const wait = options.dependencies?.delay ?? delay
@@ -135,7 +139,7 @@ export async function assembleWindowsPortable(
         force: false,
       }),
       cp(sources.bundle, path.join(stagingRoot, "app.mjs"), { errorOnExist: true, force: false }),
-      cp(sources.node, path.join(stagingRoot, "runtime", "node.exe"), {
+      cp(sources.bun, path.join(stagingRoot, "runtime", "bun.exe"), {
         errorOnExist: true,
         force: false,
       }),
@@ -230,21 +234,21 @@ export async function assembleWindowsPortable(
     root: packageRoot,
     launcher: path.join(packageRoot, "vsrg-skin-converter.cmd"),
     bundle: path.join(packageRoot, "app.mjs"),
-    nodeExecutable: path.join(packageRoot, "runtime", "node.exe"),
+    bunExecutable: path.join(packageRoot, "runtime", "bun.exe"),
   }
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   await buildApplication({
     entryPoint: path.join(projectRoot, "src", "cli.ts"),
     outputFile: paths.bundlePath,
   })
-  const nodeExecutablePath = await acquireNodeRuntime({
+  const bunExecutablePath = await acquireBunRuntime({
     controlledRoot: paths.cacheRoot,
-    archivePath: paths.nodeArchivePath,
-    extractionRoot: paths.nodeRuntimeRoot,
+    archivePath: paths.bunArchivePath,
+    extractionRoot: paths.bunRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
     controlledRoot: paths.cacheRoot,
@@ -255,7 +259,7 @@ async function main(): Promise<void> {
     controlledRoot: paths.windowsBuildRoot,
     packageRoot: paths.unpackedPackageRoot,
     bundlePath: paths.bundlePath,
-    nodeExecutablePath,
+    bunExecutablePath,
     runtimeNodeModulesPath,
     templatesRoot: path.join(projectRoot, "src", "templates"),
     launcherPath: path.join(projectRoot, "distribution", "vsrg-skin-converter.cmd"),
@@ -266,8 +270,8 @@ async function main(): Promise<void> {
   console.log(paths.unpackedPackageRoot)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })

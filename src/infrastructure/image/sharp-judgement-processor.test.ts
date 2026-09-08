@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectTruthy } from "../../../tests/support/expectations.ts"
 import type { ImageAsset } from "../../domain/image.ts"
 import { renderJudgementImageVariants } from "./sharp-judgement-processor.ts"
 
@@ -13,7 +13,7 @@ async function writeTwoColumnSheet(
   frameHeight: number,
 ): Promise<ImageAsset> {
   const width = frameWidth * 2
-  const data = Buffer.alloc(width * frameHeight * 4)
+  const data = new Uint8Array(width * frameHeight * 4)
   for (let y = 0; y < frameHeight; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const offset = (y * width + x) * 4
@@ -34,50 +34,50 @@ async function writeTwoColumnSheet(
   }
 }
 
-async function dimensions(buffer: Buffer): Promise<{ width: number; height: number }> {
+async function dimensions(buffer: Uint8Array): Promise<{ width: number; height: number }> {
   const metadata = await sharp(buffer).metadata()
-  assert.ok(metadata.width)
-  assert.ok(metadata.height)
+  expectTruthy(metadata.width)
+  expectTruthy(metadata.height)
   return { width: metadata.width, height: metadata.height }
 }
 
-async function alphaAt(buffer: Buffer, x: number, y: number): Promise<number> {
+async function alphaAt(buffer: Uint8Array, x: number, y: number): Promise<number> {
   const { data, info } = await sharp(buffer).raw().toBuffer({ resolveWithObject: true })
   const alpha = data[(y * info.width + x) * 4 + 3]
-  assert.ok(alpha !== undefined)
+  expectTruthy(alpha !== undefined)
   return alpha
 }
 
-test("renders scaled standard-density judgement images at SD and HD sizes", async (t) => {
+test("renders scaled standard-density judgement images at SD and HD sizes", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "standard.png"), 6, 4)
   const variants = await renderJudgementImageVariants(asset, 1, 0.675)
 
-  assert.deepEqual(await dimensions(variants.standardResolution), { width: 4, height: 3 })
-  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 8, height: 5 })
+  expect(await dimensions(variants.standardResolution)).toStrictEqual({ width: 4, height: 3 })
+  expect(await dimensions(variants.doubleResolution)).toStrictEqual({ width: 8, height: 5 })
 })
 
-test("renders scaled double-density judgement images with rounded dimensions", async (t) => {
+test("renders scaled double-density judgement images with rounded dimensions", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "double.png"), 9, 7)
   const variants = await renderJudgementImageVariants(asset, 2, 0.675)
 
-  assert.deepEqual(await dimensions(variants.standardResolution), { width: 3, height: 2 })
-  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 6, height: 5 })
+  expect(await dimensions(variants.standardResolution)).toStrictEqual({ width: 3, height: 2 })
+  expect(await dimensions(variants.doubleResolution)).toStrictEqual({ width: 6, height: 5 })
 })
 
-test("preserves unscaled standard-density judgement output", async (t) => {
+test("preserves unscaled standard-density judgement output", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-"))
-  t.after(() => rm(directory, { recursive: true, force: true }))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
 
   const asset = await writeTwoColumnSheet(path.join(directory, "standard.png"), 6, 4)
   const variants = await renderJudgementImageVariants(asset, 1, 1)
 
-  assert.deepEqual(await dimensions(variants.standardResolution), { width: 6, height: 4 })
-  assert.deepEqual(await dimensions(variants.doubleResolution), { width: 12, height: 8 })
-  assert.equal(await alphaAt(variants.standardResolution, 0, 0), 0)
+  expect(await dimensions(variants.standardResolution)).toStrictEqual({ width: 6, height: 4 })
+  expect(await dimensions(variants.doubleResolution)).toStrictEqual({ width: 12, height: 8 })
+  expect(await alphaAt(variants.standardResolution, 0, 0)).toBe(0)
 })

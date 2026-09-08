@@ -1,8 +1,8 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import {
   type JudgementGrade,
   type JudgementSet,
@@ -18,9 +18,9 @@ const judgements: JudgementSet = {
   ) as JudgementSet["images"],
 }
 
-test("writes exact osu judgement filenames", async (t) => {
+test("writes exact osu judgement filenames", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
 
   const observedScales: number[] = []
   await writeOsuJudgements({
@@ -31,13 +31,13 @@ test("writes exact osu judgement filenames", async (t) => {
       observedScales.push(scale)
       const grade = definition.filePath as JudgementGrade
       return {
-        standardResolution: Buffer.from(`sd-${grade}`),
-        doubleResolution: Buffer.from(`hd-${grade}`),
+        standardResolution: new TextEncoder().encode(`sd-${grade}`),
+        doubleResolution: new TextEncoder().encode(`hd-${grade}`),
       }
     },
   })
 
-  assert.deepEqual((await readdir(path.join(outputDirectory, "mania", "judgements"))).sort(), [
+  expect((await readdir(path.join(outputDirectory, "mania", "judgements"))).sort()).toStrictEqual([
     "bad.png",
     "bad@2x.png",
     "good.png",
@@ -51,12 +51,12 @@ test("writes exact osu judgement filenames", async (t) => {
     "perfect.png",
     "perfect@2x.png",
   ])
-  assert.deepEqual(observedScales, [0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
+  expect(observedScales).toStrictEqual([0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
 })
 
-test("rejects an incomplete judgement set before rendering output", async (t) => {
+test("rejects an incomplete judgement set before rendering output", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const incomplete: JudgementSet = {
     sourceDensity: 1,
     images: Object.fromEntries(
@@ -67,8 +67,8 @@ test("rejects an incomplete judgement set before rendering output", async (t) =>
   }
   let renders = 0
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       writeOsuJudgements({
         judgements: incomplete,
         outputDirectory,
@@ -76,20 +76,19 @@ test("rejects an incomplete judgement set before rendering output", async (t) =>
         render: async () => {
           renders += 1
           return {
-            standardResolution: Buffer.from("sd"),
-            doubleResolution: Buffer.from("hd"),
+            standardResolution: new TextEncoder().encode("sd"),
+            doubleResolution: new TextEncoder().encode("hd"),
           }
         },
-      }),
-    /missing.*miss.*judgement/i,
-  )
-  assert.equal(renders, 0)
-  assert.deepEqual(await readdir(outputDirectory), [])
+      }))(),
+  ).rejects.toThrow(/missing.*miss.*judgement/i)
+  expect(renders).toBe(0)
+  expect(await readdir(outputDirectory)).toStrictEqual([])
 })
 
-test("waits for all renders and writes nothing when rendering fails", async (t) => {
+test("waits for all renders and writes nothing when rendering fails", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<JudgementImageVariants>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact judgement render failure")
@@ -109,8 +108,8 @@ test("waits for all renders and writes nothing when rendering fails", async (t) 
         throw failure
       }
       return {
-        standardResolution: Buffer.from("sd"),
-        doubleResolution: Buffer.from("hd"),
+        standardResolution: new TextEncoder().encode("sd"),
+        doubleResolution: new TextEncoder().encode("hd"),
       }
     },
   })
@@ -121,19 +120,19 @@ test("waits for all renders and writes nothing when rendering fails", async (t) 
 
   await failureStarted.promise
   await new Promise<void>((resolve) => setImmediate(resolve))
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve({
-    standardResolution: Buffer.from("sd"),
-    doubleResolution: Buffer.from("hd"),
+    standardResolution: new TextEncoder().encode("sd"),
+    doubleResolution: new TextEncoder().encode("hd"),
   })
-  await assert.rejects(writing, (error) => error === failure)
-  assert.deepEqual(await readdir(outputDirectory), [])
+  await expectRejectionSatisfies(writing, (error) => error === failure)
+  expect(await readdir(outputDirectory)).toStrictEqual([])
 })
 
-test("waits for all writes before rejecting with the first write failure", async (t) => {
+test("waits for all writes before rejecting with the first write failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<void>()
   const writesStarted = deferred<void>()
   const failure = new Error("exact judgement write failure")
@@ -144,8 +143,8 @@ test("waits for all writes before rejecting with the first write failure", async
     outputDirectory,
     scale: 1,
     render: async () => ({
-      standardResolution: Buffer.from("sd"),
-      doubleResolution: Buffer.from("hd"),
+      standardResolution: new TextEncoder().encode("sd"),
+      doubleResolution: new TextEncoder().encode("hd"),
     }),
     write: async () => {
       calls += 1
@@ -168,22 +167,22 @@ test("waits for all writes before rejecting with the first write failure", async
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
+  expect(phase).toBe("started")
 
   let settled = false
   void writing.catch(() => {
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => error === failure)
+  await expectRejectionSatisfies(writing, (error) => error === failure)
 })
 
-test("starts all writes and waits for siblings when a writer throws synchronously", async (t) => {
+test("starts all writes and waits for siblings when a writer throws synchronously", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
-  t.after(() => rm(outputDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(outputDirectory, { recursive: true, force: true }))
   const sibling = deferred<void>()
   const writesStarted = deferred<void>()
   const failure = new Error("exact synchronous judgement write failure")
@@ -194,8 +193,8 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
     outputDirectory,
     scale: 1,
     render: async () => ({
-      standardResolution: Buffer.from("sd"),
-      doubleResolution: Buffer.from("hd"),
+      standardResolution: new TextEncoder().encode("sd"),
+      doubleResolution: new TextEncoder().encode("hd"),
     }),
     write: () => {
       calls += 1
@@ -219,8 +218,8 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
       () => "rejected",
     ),
   ])
-  assert.equal(phase, "started")
-  assert.equal(calls, 12)
+  expect(phase).toBe("started")
+  expect(calls).toBe(12)
 
   let settled = false
   void writing.then(
@@ -232,10 +231,10 @@ test("starts all writes and waits for siblings when a writer throws synchronousl
     },
   )
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
   sibling.resolve()
-  await assert.rejects(writing, (error) => error === failure)
+  await expectRejectionSatisfies(writing, (error) => error === failure)
 })
 
 interface Deferred<T> {

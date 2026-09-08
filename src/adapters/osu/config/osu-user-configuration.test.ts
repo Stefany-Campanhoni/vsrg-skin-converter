@@ -1,8 +1,7 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { listOsuUserConfigurations, parseOsuUserConfiguration } from "./osu-user-configuration.ts"
 
 test("uses the active fullscreen resolution and marks larger displays as double resolution", () => {
@@ -17,10 +16,10 @@ ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.username, "Alice")
-  assert.equal(result.width, 1920)
-  assert.equal(result.height, 1080)
-  assert.equal(result.useDoubleResolutionAssets, true)
+  expect(result.username).toBe("Alice")
+  expect(result.width).toBe(1920)
+  expect(result.height).toBe(1080)
+  expect(result.useDoubleResolutionAssets).toBe(true)
 })
 
 test("uses the windowed resolution when fullscreen is disabled", () => {
@@ -34,10 +33,10 @@ ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.username, "Alice=Player")
-  assert.equal(result.width, 1280)
-  assert.equal(result.height, 768)
-  assert.equal(result.useDoubleResolutionAssets, true)
+  expect(result.username).toBe("Alice=Player")
+  expect(result.width).toBe(1280)
+  expect(result.height).toBe(768)
+  expect(result.useDoubleResolutionAssets).toBe(true)
 })
 
 test("keeps exactly 1280x720 at standard resolution", () => {
@@ -50,7 +49,7 @@ ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.useDoubleResolutionAssets, false)
+  expect(result.useDoubleResolutionAssets).toBe(false)
 })
 
 test("reads the positive integer ManiaSpeed from the selected osu configuration", () => {
@@ -59,19 +58,17 @@ test("reads the positive integer ManiaSpeed from the selected osu configuration"
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.maniaSpeed, 29)
+  expect(result.maniaSpeed).toBe(29)
 })
 
 test("rejects missing and non-positive or non-integer ManiaSpeed values with the configuration path", () => {
   for (const invalid of ["", "0", "29.5", "fast"]) {
-    assert.throws(
-      () =>
-        parseOsuUserConfiguration(
-          `Username = Alice\nFullscreen = 0\nWidth = 1280\nHeight = 720\nManiaSpeed = ${invalid}`,
-          "C:/osu!/osu!.Alice.cfg",
-        ),
-      /ManiaSpeed.*osu!\.Alice\.cfg/i,
-    )
+    expect(() =>
+      parseOsuUserConfiguration(
+        `Username = Alice\nFullscreen = 0\nWidth = 1280\nHeight = 720\nManiaSpeed = ${invalid}`,
+        "C:/osu!/osu!.Alice.cfg",
+      ),
+    ).toThrow(/ManiaSpeed.*osu!\.Alice\.cfg/i)
   }
 })
 
@@ -85,7 +82,7 @@ ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.useDoubleResolutionAssets, true)
+  expect(result.useDoubleResolutionAssets).toBe(true)
 })
 
 test("marks a height-only high resolution display as double resolution", () => {
@@ -98,71 +95,61 @@ ManiaSpeed = 29`,
     "C:/osu!/osu!.Alice.cfg",
   )
 
-  assert.equal(result.useDoubleResolutionAssets, true)
+  expect(result.useDoubleResolutionAssets).toBe(true)
 })
 
 test("rejects missing required properties with the configuration path", () => {
-  assert.throws(
-    () =>
-      parseOsuUserConfiguration(
-        "Username = Alice\nFullscreen = 0\nWidth = 1280",
-        "C:/osu!/missing.cfg",
-      ),
-    /C:\/osu!\/missing\.cfg/,
-  )
+  expect(() =>
+    parseOsuUserConfiguration(
+      "Username = Alice\nFullscreen = 0\nWidth = 1280",
+      "C:/osu!/missing.cfg",
+    ),
+  ).toThrow(/C:\/osu!\/missing\.cfg/)
 })
 
 test("rejects an invalid fullscreen value with the configuration path", () => {
-  assert.throws(
-    () =>
-      parseOsuUserConfiguration(
-        "Username = Alice\nFullscreen = yes\nWidth = 1280\nHeight = 720",
-        "C:/osu!/invalid-fullscreen.cfg",
-      ),
-    /C:\/osu!\/invalid-fullscreen\.cfg/,
-  )
+  expect(() =>
+    parseOsuUserConfiguration(
+      "Username = Alice\nFullscreen = yes\nWidth = 1280\nHeight = 720",
+      "C:/osu!/invalid-fullscreen.cfg",
+    ),
+  ).toThrow(/C:\/osu!\/invalid-fullscreen\.cfg/)
 })
 
 test("rejects non-positive active dimensions with the configuration path", () => {
-  assert.throws(
-    () =>
-      parseOsuUserConfiguration(
-        "Username = Alice\nFullscreen = 0\nWidth = 0\nHeight = -1",
-        "C:/osu!/invalid-dimensions.cfg",
-      ),
-    /C:\/osu!\/invalid-dimensions\.cfg/,
-  )
+  expect(() =>
+    parseOsuUserConfiguration(
+      "Username = Alice\nFullscreen = 0\nWidth = 0\nHeight = -1",
+      "C:/osu!/invalid-dimensions.cfg",
+    ),
+  ).toThrow(/C:\/osu!\/invalid-dimensions\.cfg/)
 })
 
 test("rejects empty and multiline usernames with the configuration path", () => {
-  assert.throws(
-    () =>
-      parseOsuUserConfiguration(
-        "Username =   \nFullscreen = 0\nWidth = 1280\nHeight = 720",
-        "C:/osu!/empty-username.cfg",
-      ),
-    /C:\/osu!\/empty-username\.cfg/,
-  )
-  assert.throws(
-    () =>
-      parseOsuUserConfiguration(
-        "Username = Alice\u2028Bob\nFullscreen = 0\nWidth = 1280\nHeight = 720",
-        "C:/osu!/multiline-username.cfg",
-      ),
-    /C:\/osu!\/multiline-username\.cfg/,
-  )
+  expect(() =>
+    parseOsuUserConfiguration(
+      "Username =   \nFullscreen = 0\nWidth = 1280\nHeight = 720",
+      "C:/osu!/empty-username.cfg",
+    ),
+  ).toThrow(/C:\/osu!\/empty-username\.cfg/)
+  expect(() =>
+    parseOsuUserConfiguration(
+      "Username = Alice\u2028Bob\nFullscreen = 0\nWidth = 1280\nHeight = 720",
+      "C:/osu!/multiline-username.cfg",
+    ),
+  ).toThrow(/C:\/osu!\/multiline-username\.cfg/)
 })
 
-test("lists immediate osu user configurations by username", async (context) => {
+test("lists immediate osu user configurations by username", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "osu-configurations-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
   await writeConfiguration(osuRoot, "osu!.Alice.cfg", "Alice")
   await writeConfiguration(osuRoot, "osu!.Bob.CFG", "Bob")
   await writeConfiguration(osuRoot, "osu!.cfg", "Ignored")
   await writeConfiguration(osuRoot, "unrelated.txt", "Ignored")
   await mkdir(path.join(osuRoot, "osu!.Directory.cfg"))
 
-  assert.deepEqual(await listOsuUserConfigurations(osuRoot), [
+  expect(await listOsuUserConfigurations(osuRoot)).toStrictEqual([
     {
       filePath: path.join(osuRoot, "osu!.Alice.cfg"),
       username: "Alice",
@@ -182,12 +169,11 @@ test("lists immediate osu user configurations by username", async (context) => {
   ])
 })
 
-test("rejects an osu root that contains no user configurations", async (context) => {
+test("rejects an osu root that contains no user configurations", async () => {
   const osuRoot = await mkdtemp(path.join(os.tmpdir(), "empty-osu-configurations-"))
-  context.after(() => rm(osuRoot, { recursive: true, force: true }))
+  onTestFinished(() => rm(osuRoot, { recursive: true, force: true }))
 
-  await assert.rejects(
-    () => listOsuUserConfigurations(osuRoot),
+  await expect((() => listOsuUserConfigurations(osuRoot))()).rejects.toThrow(
     new RegExp(osuRoot.replace(/\\/g, "\\\\")),
   )
 })

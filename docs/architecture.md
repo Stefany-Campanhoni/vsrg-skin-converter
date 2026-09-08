@@ -211,21 +211,22 @@ of `23`. These empirical values belong to the osu! target calibration module.
 ## Windows Portable Distribution
 
 The maintained distribution pipeline is owned by `.ci/release`; it does not belong to a
-conversion adapter. esbuild bundles `src/cli.ts` as Node-targeted ESM while keeping `sharp`
+conversion adapter. `Bun.build` bundles `src/cli.ts` as Bun-targeted ESM while keeping `sharp`
 external. `src/application-root.ts` derives resources from `import.meta.url`, so the same
 invariant resolves `src/templates` during source execution and sibling `templates` beside
 `app.mjs` after packaging. No runtime resource depends on `process.cwd()`.
 
-The Windows x64 package includes pinned Node.js 22.23.2 and only the proven Sharp runtime
+The Windows x64 package includes the pinned Bun 1.4.0 baseline runtime and only the proven Sharp runtime
 closure: `sharp`, `detect-libc`, `semver`, `@img/colour`, and `@img/sharp-win32-x64`.
-Typings, tests, source maps, caches, npm command shims, and wasm fallbacks are excluded. The
+Typings, tests, source maps, caches, package-manager command shims, and wasm fallbacks are
+excluded. The
 assembler copies external templates byte-for-byte into a unique staging sibling and promotes
 the completed package transactionally. Only transient Windows `EPERM`/`EBUSY` rename failures
 receive bounded backoff; validation and content errors never retry.
 
-The Node cache is reusable only while the archive still matches its pinned SHA-256 and the
-extracted runtime has a matching verification stamp, pinned `node.exe` SHA-256, and reported
-`node --version`. A missing, stale, or tampered extraction is rebuilt from the verified
+The Bun cache is reusable only while the official archive still matches its pinned SHA-256 and
+the extracted runtime has a matching verification stamp, pinned `bun.exe` SHA-256, reported
+`bun --version`, and reported `bun --revision`. A missing, stale, or tampered extraction is rebuilt from the verified
 archive. Acquisition, runtime installation, and package assembly receive an explicit
 controlled root and validate every staging, backup, cache, and output path before mutation.
 Runtime installation retains its recovery backup when rollback cannot restore it.
@@ -234,21 +235,21 @@ The verifier rejects unexpected entries and links, compares every packaged templ
 runs the launcher from an external working directory, exercises paths containing spaces,
 performs a real Sharp resize with the included runtime, and reads both template roots. ZIP
 publication uses a temporary archive and checksum, validates SHA-256, extracts independently,
-repeats the full verifier, and only then replaces the previous release pair. The experimental
-Node SEA workstream remains unmerged and is not part of this architecture.
+repeats the full verifier, and only then replaces the previous release pair. Standalone Bun
+executables remain an isolated manual experiment and are not release assets.
 
 ## Version and Public Release Flow
 
 Changesets is repository infrastructure rather than application or conversion code. Feature
 branches add release-intent documents under `.changeset`; the pinned Changesets Action
 combines them into one protected Release PR that updates the package manifests and
-`CHANGELOG.md`. The application is private to npm, so Changesets versions it without tagging
-or publishing it.
+`CHANGELOG.md`. The application is private, so Changesets versions it without tagging or
+publishing it to a package registry.
 
 Merging the Release PR produces a `main` push with a coherent version change. The
-draft-release workflow compares that commit with the previous `main` SHA, requires matching
-package and lockfile versions plus an exact changelog heading, and treats all other pushes as
-no-ops. A verified release runs the existing Windows distribution pipeline, then creates the
+draft-release workflow compares that commit with the previous `main` SHA, requires a coherent
+frozen Bun lockfile plus an exact changelog heading, and treats all other pushes as no-ops. A
+verified release runs the existing Windows distribution pipeline, then creates the
 `v<version>` tag and a GitHub draft containing the ZIP and SHA-256. Prerelease SemVer values
 are marked as prereleases, but no draft is publicly published without a second human action.
 
@@ -259,7 +260,7 @@ the Windows release job broader credentials; only that job receives `contents: w
 
 Repository validation, build, and release programs live under `.ci`, grouped into `quality`
 and `release` responsibilities. Contributors invoke the supported release programs through
-npm scripts; placing them under `.ci` makes their repository-automation ownership explicit.
+Bun scripts; placing them under `.ci` makes their repository-automation ownership explicit.
 
 ## Dependency Rules
 
@@ -276,7 +277,12 @@ config -> no other project layer
 ```
 
 Dependencies within the same layer are allowed. Production dependency cycles are forbidden.
-`npm run test:architecture` enforces the matrix and cycle rule from relative imports.
+`bun run test:architecture` enforces the matrix and cycle rule from relative imports. It also
+parses every first-party TypeScript module to enforce the Bun-first runtime contract:
+`node:path` remains the path API, test-only temporary locations may use `node:os`, and
+production `node:fs` users must appear in an explicit file allowlist. Any other `node:*`
+module, any bare Node built-in import, unapproved `process` property, or first-party `Buffer`
+use fails the gate.
 
 ## Domain Boundary
 

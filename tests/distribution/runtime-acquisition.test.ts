@@ -1,33 +1,33 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
-import { acquireNodeRuntime } from "../../.ci/release/acquire-node-runtime.ts"
+import { acquireBunRuntime } from "../../.ci/release/acquire-bun-runtime.ts"
 import {
   installRuntimeDependencies,
   runRuntimeCommand,
 } from "../../.ci/release/install-runtime-dependencies.ts"
-import { nodeRuntime } from "../../.ci/release/release-config.ts"
+import { bunRuntime } from "../../.ci/release/release-config.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function runtimeFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-test-"))
   return {
     root,
     controlledRoot: root,
-    archivePath: path.join(root, nodeRuntime.archiveName),
-    extractionRoot: path.join(root, `node-v${nodeRuntime.version}-win-x64`),
+    archivePath: path.join(root, bunRuntime.archiveName),
+    extractionRoot: path.join(root, `bun-v${bunRuntime.version}-windows-x64-baseline`),
   }
 }
 
-test("downloads once, verifies the pinned hash, and returns node.exe", async (context) => {
+test("downloads once, verifies the pinned hash, and returns bun.exe", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   const events: unknown[] = []
 
-  const result = await acquireNodeRuntime({
+  const result = await acquireBunRuntime({
     controlledRoot: fixture.controlledRoot,
     archivePath: fixture.archivePath,
     extractionRoot: fixture.extractionRoot,
@@ -38,95 +38,117 @@ test("downloads once, verifies the pinned hash, and returns node.exe", async (co
         await writeFile(destination, "archive")
       },
       hashFile: async (file) => {
-        const digest = file.endsWith("node.exe") ? nodeRuntime.executableSha256 : nodeRuntime.sha256
+        const digest = file.endsWith("bun.exe") ? bunRuntime.executableSha256 : bunRuntime.sha256
         events.push(["hash", file, digest])
         return digest
       },
-      readNodeVersion: async (file) => {
-        events.push(["version", file, `v${nodeRuntime.version}`])
-        return `v${nodeRuntime.version}`
+      readBunVersion: async (file) => {
+        events.push(["version", file, bunRuntime.version])
+        return bunRuntime.version
+      },
+      readBunRevision: async (file) => {
+        const revision = `${bunRuntime.version}+${bunRuntime.revision}`
+        events.push(["revision", file, revision])
+        return revision
       },
       extractArchive: async (archive, destination) => {
         events.push(["extract", archive, destination])
-        const runtime = path.join(destination, path.basename(fixture.extractionRoot))
+        const runtime = path.join(destination, bunRuntime.archiveDirectoryName)
         await mkdir(runtime, { recursive: true })
-        await writeFile(path.join(runtime, "node.exe"), "node")
+        await writeFile(path.join(runtime, "bun.exe"), "bun")
       },
     },
   })
 
-  assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-  assert.deepEqual(events, [
-    ["download", nodeRuntime.url, `${fixture.archivePath}.test.tmp`],
-    ["hash", `${fixture.archivePath}.test.tmp`, nodeRuntime.sha256],
+  expect(result).toBe(path.join(fixture.extractionRoot, "bun.exe"))
+  expect(events).toStrictEqual([
+    ["download", bunRuntime.url, `${fixture.archivePath}.test.tmp`],
+    ["hash", `${fixture.archivePath}.test.tmp`, bunRuntime.sha256],
     ["extract", fixture.archivePath, `${fixture.extractionRoot}.test.extract`],
     [
       "hash",
       path.join(
         `${fixture.extractionRoot}.test.extract`,
-        path.basename(fixture.extractionRoot),
-        "node.exe",
+        bunRuntime.archiveDirectoryName,
+        "bun.exe",
       ),
-      nodeRuntime.executableSha256,
+      bunRuntime.executableSha256,
     ],
     [
       "version",
       path.join(
         `${fixture.extractionRoot}.test.extract`,
-        path.basename(fixture.extractionRoot),
-        "node.exe",
+        bunRuntime.archiveDirectoryName,
+        "bun.exe",
       ),
-      `v${nodeRuntime.version}`,
+      bunRuntime.version,
+    ],
+    [
+      "revision",
+      path.join(
+        `${fixture.extractionRoot}.test.extract`,
+        bunRuntime.archiveDirectoryName,
+        "bun.exe",
+      ),
+      `${bunRuntime.version}+${bunRuntime.revision}`,
     ],
   ])
 })
 
-test("reuses a cached archive only after verifying its hash", async (context) => {
+test("reuses a cached archive only after verifying its hash", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   await writeFile(fixture.archivePath, "cached")
   await mkdir(fixture.extractionRoot)
-  await writeFile(path.join(fixture.extractionRoot, "node.exe"), "node")
+  await writeFile(path.join(fixture.extractionRoot, "bun.exe"), "bun")
   await writeFile(
     path.join(fixture.extractionRoot, ".vsrg-runtime-verification.json"),
     `${JSON.stringify({
-      archiveSha256: nodeRuntime.sha256,
-      nodeExecutableSha256: nodeRuntime.executableSha256,
-      nodeVersion: nodeRuntime.version,
+      archiveSha256: bunRuntime.sha256,
+      bunExecutableSha256: bunRuntime.executableSha256,
+      bunVersion: bunRuntime.version,
+      bunRevision: bunRuntime.revision,
     })}\n`,
   )
   const hashed: string[] = []
 
-  const result = await acquireNodeRuntime({
+  const result = await acquireBunRuntime({
     controlledRoot: fixture.controlledRoot,
     archivePath: fixture.archivePath,
     extractionRoot: fixture.extractionRoot,
     dependencies: {
       hashFile: async (file) => {
         hashed.push(file)
-        return file.endsWith("node.exe") ? nodeRuntime.executableSha256 : nodeRuntime.sha256
+        return file.endsWith("bun.exe") ? bunRuntime.executableSha256 : bunRuntime.sha256
       },
-      readNodeVersion: async () => `v${nodeRuntime.version}`,
-      downloadFile: async () => assert.fail("cached archive must not be downloaded again"),
-      extractArchive: async () => assert.fail("valid extraction must be reused"),
+      readBunVersion: async () => bunRuntime.version,
+      readBunRevision: async () => `${bunRuntime.version}+${bunRuntime.revision}`,
+      downloadFile: async () =>
+        (() => {
+          throw new Error("cached archive must not be downloaded again")
+        })(),
+      extractArchive: async () =>
+        (() => {
+          throw new Error("valid extraction must be reused")
+        })(),
     },
   })
 
-  assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-  assert.deepEqual(hashed, [fixture.archivePath, path.join(fixture.extractionRoot, "node.exe")])
+  expect(result).toBe(path.join(fixture.extractionRoot, "bun.exe"))
+  expect(hashed).toStrictEqual([fixture.archivePath, path.join(fixture.extractionRoot, "bun.exe")])
 })
 
-test("rejects a mismatched archive without extracting it", async (context) => {
+test("rejects a mismatched archive without extracting it", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   let extracted = false
 
-  await assert.rejects(
-    acquireNodeRuntime({
+  await expect(
+    acquireBunRuntime({
       controlledRoot: fixture.controlledRoot,
       archivePath: fixture.archivePath,
       extractionRoot: fixture.extractionRoot,
@@ -139,36 +161,37 @@ test("rejects a mismatched archive without extracting it", async (context) => {
         },
       },
     }),
-    new RegExp(`${nodeRuntime.sha256}.*${"0".repeat(64)}`, "i"),
-  )
-  assert.equal(extracted, false)
+  ).rejects.toThrow(new RegExp(`${bunRuntime.sha256}.*${"0".repeat(64)}`, "i"))
+  expect(extracted).toBe(false)
 })
 
-test("rejects an extracted runtime without the regular node.exe file", async (context) => {
+test("rejects an extracted runtime without the regular bun.exe file", async () => {
   const fixture = await runtimeFixture()
-  context.after(async () =>
+  onTestFinished(async () =>
     (await import("node:fs/promises")).rm(fixture.root, { recursive: true }),
   )
   await writeFile(fixture.archivePath, "cached")
 
-  await assert.rejects(
-    acquireNodeRuntime({
+  await expect(
+    acquireBunRuntime({
       controlledRoot: fixture.controlledRoot,
       archivePath: fixture.archivePath,
       extractionRoot: fixture.extractionRoot,
       dependencies: {
         token: () => "missing",
-        hashFile: async () => nodeRuntime.sha256,
-        readNodeVersion: async () => `v${nodeRuntime.version}`,
+        hashFile: async () => bunRuntime.sha256,
+        readBunVersion: async () => bunRuntime.version,
+        readBunRevision: async () => `${bunRuntime.version}+${bunRuntime.revision}`,
         extractArchive: async () => undefined,
       },
     }),
+  ).rejects.toThrow(
     new RegExp(
       path
         .join(
           `${fixture.extractionRoot}.missing.extract`,
-          path.basename(fixture.extractionRoot),
-          "node.exe",
+          bunRuntime.archiveDirectoryName,
+          "bun.exe",
         )
         .replaceAll("\\", "\\\\"),
     ),
@@ -179,71 +202,88 @@ for (const staleCase of [
   "missing stamp",
   "stale archive stamp",
   "stale version stamp",
-  "tampered node.exe",
-  "wrong node version",
+  "stale revision stamp",
+  "tampered bun.exe",
+  "wrong bun version",
+  "wrong bun revision",
 ] as const) {
-  test(`reextracts a cached runtime with ${staleCase}`, async (context) => {
+  test(`reextracts a cached runtime with ${staleCase}`, async () => {
     const fixture = await runtimeFixture()
-    context.after(() => rm(fixture.root, { recursive: true }))
+    onTestFinished(() => rm(fixture.root, { recursive: true }))
     await writeFile(fixture.archivePath, "cached archive")
     await mkdir(fixture.extractionRoot)
-    await writeFile(path.join(fixture.extractionRoot, "node.exe"), "cached node")
+    await writeFile(path.join(fixture.extractionRoot, "bun.exe"), "cached bun")
     if (staleCase !== "missing stamp") {
       await writeFile(
         path.join(fixture.extractionRoot, ".vsrg-runtime-verification.json"),
         `${JSON.stringify({
-          archiveSha256: staleCase === "stale archive stamp" ? "0".repeat(64) : nodeRuntime.sha256,
-          nodeExecutableSha256: nodeRuntime.executableSha256,
-          nodeVersion: staleCase === "stale version stamp" ? "0.0.0" : nodeRuntime.version,
+          archiveSha256: staleCase === "stale archive stamp" ? "0".repeat(64) : bunRuntime.sha256,
+          bunExecutableSha256: bunRuntime.executableSha256,
+          bunVersion: staleCase === "stale version stamp" ? "0.0.0" : bunRuntime.version,
+          bunRevision: staleCase === "stale revision stamp" ? "000000000" : bunRuntime.revision,
         })}\n`,
       )
     }
     let extractionCount = 0
 
-    const result = await acquireNodeRuntime({
+    const result = await acquireBunRuntime({
       ...fixture,
       dependencies: {
         token: () => "refresh",
-        downloadFile: async () => assert.fail("verified cached archive must be reused"),
+        downloadFile: async () =>
+          (() => {
+            throw new Error("verified cached archive must be reused")
+          })(),
         hashFile: async (file) => {
-          if (file === fixture.archivePath) return nodeRuntime.sha256
+          if (file === fixture.archivePath) return bunRuntime.sha256
           const contents = await readFile(file, "utf8")
-          if (contents === "fresh node" || staleCase !== "tampered node.exe") {
-            return nodeRuntime.executableSha256
+          if (contents === "fresh bun" || staleCase !== "tampered bun.exe") {
+            return bunRuntime.executableSha256
           }
           return "1".repeat(64)
         },
-        readNodeVersion: async (file) => {
+        readBunVersion: async (file) => {
           const contents = await readFile(file, "utf8")
-          if (contents === "cached node" && staleCase === "wrong node version") return "v0.0.0"
-          return `v${nodeRuntime.version}`
+          if (contents === "cached bun" && staleCase === "wrong bun version") return "0.0.0"
+          return bunRuntime.version
+        },
+        readBunRevision: async (file) => {
+          const contents = await readFile(file, "utf8")
+          if (contents === "cached bun" && staleCase === "wrong bun revision") {
+            return `${bunRuntime.version}+000000000`
+          }
+          return `${bunRuntime.version}+${bunRuntime.revision}`
         },
         extractArchive: async (_archive, destination) => {
           extractionCount += 1
-          const extractedRoot = path.join(destination, path.basename(fixture.extractionRoot))
+          const extractedRoot = path.join(destination, bunRuntime.archiveDirectoryName)
           await mkdir(extractedRoot, { recursive: true })
-          await writeFile(path.join(extractedRoot, "node.exe"), "fresh node")
+          await writeFile(path.join(extractedRoot, "bun.exe"), "fresh bun")
         },
       },
     })
 
-    assert.equal(result, path.join(fixture.extractionRoot, "node.exe"))
-    assert.equal(extractionCount, 1)
-    assert.equal(await readFile(result, "utf8"), "fresh node")
+    expect(result).toBe(path.join(fixture.extractionRoot, "bun.exe"))
+    expect(extractionCount).toBe(1)
+    expect(await readFile(result, "utf8")).toBe("fresh bun")
   })
 }
 
-test("rejects acquire paths outside the explicit controlled root before mutation", async (context) => {
+test("rejects acquire paths outside the explicit controlled root before mutation", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-ownership-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const controlledRoot = path.join(root, "controlled")
-  const archivePath = path.join(root, "outside", nodeRuntime.archiveName)
-  const extractionRoot = path.join(root, "outside", `node-v${nodeRuntime.version}-win-x64`)
+  const archivePath = path.join(root, "outside", bunRuntime.archiveName)
+  const extractionRoot = path.join(
+    root,
+    "outside",
+    `bun-v${bunRuntime.version}-windows-x64-baseline`,
+  )
   let mutated = false
   let callbackInvoked = false
 
-  await assert.rejects(
-    acquireNodeRuntime({
+  await expect(
+    acquireBunRuntime({
       controlledRoot,
       archivePath,
       extractionRoot,
@@ -257,28 +297,27 @@ test("rejects acquire paths outside the explicit controlled root before mutation
         },
         hashFile: async () => {
           mutated = true
-          return nodeRuntime.sha256
+          return bunRuntime.sha256
         },
         extractArchive: async () => {
           mutated = true
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(mutated, false)
-  assert.equal(callbackInvoked, false)
+  expect(mutated).toBe(false)
+  expect(callbackInvoked).toBe(false)
 })
 
-test("installs the isolated Windows x64 Sharp dependency tree", async (context) => {
+test("installs the isolated Windows x64 Sharp dependency tree", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-sharp-test-"))
-  context.after(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
+  onTestFinished(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   const installationRoot = path.join(root, "installed")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   let command: unknown
 
   const result = await installRuntimeDependencies({
@@ -295,25 +334,25 @@ test("installs the isolated Windows x64 Sharp dependency tree", async (context) 
     },
   })
 
-  assert.deepEqual(command, {
-    executable: process.platform === "win32" ? "npm.cmd" : "npm",
-    args: ["ci", "--omit=dev", "--os=win32", "--cpu=x64"],
+  expect(command).toStrictEqual({
+    executable: Bun.argv[0],
+    args: ["ci", "--production", "--os=win32", "--cpu=x64"],
     cwd: `${installationRoot}.test.staging`,
   })
-  assert.equal(result, path.join(installationRoot, "node_modules"))
+  expect(result).toBe(path.join(installationRoot, "node_modules"))
 })
 
-test("rejects missing Sharp runtime trees and retains the command failure cause", async (context) => {
+test("rejects missing Sharp runtime trees and retains the command failure cause", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-sharp-failure-test-"))
-  context.after(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
+  onTestFinished(async () => (await import("node:fs/promises")).rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
 
   for (const missing of ["sharp", "@img"] as const) {
     const installationRoot = path.join(root, `missing-${missing.replace("@", "")}`)
-    await assert.rejects(
+    await expect(
       installRuntimeDependencies({
         controlledRoot: root,
         sourcePackageDirectory,
@@ -326,12 +365,11 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
           },
         },
       }),
-      new RegExp(`node_modules[\\\\/]${missing}`),
-    )
+    ).rejects.toThrow(new RegExp(`node_modules[\\\\/]${missing}`))
   }
 
-  const cause = new Error("npm exploded")
-  await assert.rejects(
+  const cause = new Error("Bun install exploded")
+  await expectRejectionSatisfies(
     installRuntimeDependencies({
       controlledRoot: root,
       sourcePackageDirectory,
@@ -348,9 +386,9 @@ test("rejects missing Sharp runtime trees and retains the command failure cause"
 })
 
 for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
-  test(`restores the previous runtime installation when ${failedBoundary} rename fails`, async (context) => {
+  test(`restores the previous runtime installation when ${failedBoundary} rename fails`, async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-rollback-test-"))
-    context.after(() => rm(root, { recursive: true }))
+    onTestFinished(() => rm(root, { recursive: true }))
     const sourcePackageDirectory = path.join(root, "source")
     const controlledRoot = path.join(root, "controlled")
     const installationRoot = path.join(controlledRoot, "installed")
@@ -359,12 +397,12 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
     const backupRoot = `${installationRoot}.${token}.backup`
     await mkdir(sourcePackageDirectory)
     await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-    await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+    await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
     await mkdir(installationRoot, { recursive: true })
     await writeFile(path.join(installationRoot, "previous.txt"), "verified")
     const cause = new Error(`failed ${failedBoundary}`)
 
-    await assert.rejects(
+    await expectRejectionSatisfies(
       installRuntimeDependencies({
         controlledRoot,
         sourcePackageDirectory,
@@ -391,13 +429,13 @@ for (const failedBoundary of ["backup runtime", "publish runtime"] as const) {
       (error: unknown) => error === cause,
     )
 
-    assert.equal(await readFile(path.join(installationRoot, "previous.txt"), "utf8"), "verified")
+    expect(await readFile(path.join(installationRoot, "previous.txt"), "utf8")).toBe("verified")
   })
 }
 
-test("retains the runtime recovery backup when restoration fails", async (context) => {
+test("retains the runtime recovery backup when restoration fails", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-recovery-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   const controlledRoot = path.join(root, "controlled")
   const installationRoot = path.join(controlledRoot, "installed")
@@ -406,13 +444,13 @@ test("retains the runtime recovery backup when restoration fails", async (contex
   const backupRoot = `${installationRoot}.${token}.backup`
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   await mkdir(installationRoot, { recursive: true })
   await writeFile(path.join(installationRoot, "previous.txt"), "verified")
   const promotionCause = new Error("runtime promotion failed")
   const restorationCause = new Error("runtime restoration failed")
 
-  await assert.rejects(
+  await expectRejectionSatisfies(
     installRuntimeDependencies({
       controlledRoot,
       sourcePackageDirectory,
@@ -432,27 +470,27 @@ test("retains the runtime recovery backup when restoration fails", async (contex
       },
     }),
     (error: unknown) => {
-      assert.ok(error instanceof AggregateError)
-      assert.equal(error.cause, promotionCause)
-      assert.deepEqual(error.errors, [promotionCause, restorationCause])
+      expectTruthy(error instanceof AggregateError)
+      expect(error.cause).toBe(promotionCause)
+      expect(error.errors).toStrictEqual([promotionCause, restorationCause])
       return true
     },
   )
 
-  assert.equal(await readFile(path.join(backupRoot, "previous.txt"), "utf8"), "verified")
+  expect(await readFile(path.join(backupRoot, "previous.txt"), "utf8")).toBe("verified")
 })
 
-test("rejects runtime installation outside the explicit controlled root before mutation", async (context) => {
+test("rejects runtime installation outside the explicit controlled root before mutation", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-install-ownership-test-"))
-  context.after(() => rm(root, { recursive: true }))
+  onTestFinished(() => rm(root, { recursive: true }))
   const sourcePackageDirectory = path.join(root, "source")
   await mkdir(sourcePackageDirectory)
   await writeFile(path.join(sourcePackageDirectory, "package.json"), "{}")
-  await writeFile(path.join(sourcePackageDirectory, "package-lock.json"), "{}")
+  await writeFile(path.join(sourcePackageDirectory, "bun.lock"), "{}")
   let commandRan = false
   let callbackInvoked = false
 
-  await assert.rejects(
+  await expect(
     installRuntimeDependencies({
       controlledRoot: path.join(root, "controlled"),
       sourcePackageDirectory,
@@ -467,18 +505,17 @@ test("rejects runtime installation outside the explicit controlled root before m
         },
       },
     }),
-    /controlled root/i,
-  )
+  ).rejects.toThrow(/controlled root/i)
 
-  assert.equal(commandRan, false)
-  assert.equal(callbackInvoked, false)
+  expect(commandRan).toBe(false)
+  expect(callbackInvoked).toBe(false)
 })
 
-test("executes the npm command wrapper on Windows without spawn EINVAL", {
-  skip: process.platform !== "win32",
-}, async () => {
+test("executes the Bun runtime command directly", async () => {
+  const bunExecutable = Bun.argv[0]
+  if (!bunExecutable) throw new Error("Could not determine the Bun executable")
   await runRuntimeCommand({
-    executable: "npm.cmd",
+    executable: bunExecutable,
     args: ["--version"],
     cwd: process.cwd(),
   })

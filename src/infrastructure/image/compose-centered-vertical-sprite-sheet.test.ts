@@ -1,6 +1,6 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../tests/support/expectations.ts"
 import {
   composeCenteredVerticalSpriteSheet,
   type DecodedSpriteSheetFrame,
@@ -42,7 +42,7 @@ test("centers unequal RGBA images in transparent cells and preserves row order",
     .raw()
     .toBuffer({ resolveWithObject: true })
 
-  assert.deepEqual({ width: info.width, height: info.height }, { width: 4, height: 24 })
+  expect({ width: info.width, height: info.height }).toStrictEqual({ width: 4, height: 24 })
   for (const [row, fixture] of fixtures.entries()) {
     const left = Math.floor((4 - fixture.width) / 2)
     const top = row * 4 + Math.floor((4 - fixture.height) / 2)
@@ -53,8 +53,7 @@ test("centers unequal RGBA images in transparent cells and preserves row order",
           x < left + fixture.width &&
           y >= top - row * 4 &&
           y < top - row * 4 + fixture.height
-        assert.deepEqual(
-          pixelAt(data, info.width, x, row * 4 + y),
+        expect(pixelAt(data, info.width, x, row * 4 + y)).toStrictEqual<unknown>(
           inside ? fixture.color : [0, 0, 0, 0],
         )
       }
@@ -63,7 +62,7 @@ test("centers unequal RGBA images in transparent cells and preserves row order",
 })
 
 test("rejects an empty sprite sheet", async () => {
-  await assert.rejects(() => composeCenteredVerticalSpriteSheet([]), /at least one/i)
+  await expect((() => composeCenteredVerticalSpriteSheet([]))()).rejects.toThrow(/at least one/i)
 })
 
 test("settles every frame decode before rethrowing the first contextual cause", async () => {
@@ -71,8 +70,8 @@ test("settles every frame decode before rethrowing the first contextual cause", 
   const pending = [deferred<DecodedSpriteSheetFrame>(), deferred<DecodedSpriteSheetFrame>()]
   const composing = composeCenteredVerticalSpriteSheet(
     [
-      { label: "marvelous from first.png", image: Buffer.from("first") },
-      { label: "perfect from second.png", image: Buffer.from("second") },
+      { label: "marvelous from first.png", image: new TextEncoder().encode("first") },
+      { label: "perfect from second.png", image: new TextEncoder().encode("second") },
     ],
     {
       decode: (_image, index) => pending[index]?.promise ?? Promise.reject(new Error("bad index")),
@@ -85,18 +84,18 @@ test("settles every frame decode before rethrowing the first contextual cause", 
     settled = true
   })
   await Promise.resolve()
-  assert.equal(settled, false)
+  expect(settled).toBe(false)
 
-  pending[1]?.resolve({ data: Buffer.from([0, 0, 0, 0]), width: 1, height: 1 })
-  await assert.rejects(composing, (error) => {
-    assert(error instanceof Error)
-    assert.match(error.message, /marvelous.*first\.png/i)
-    assert.equal(error.cause, firstFailure)
+  pending[1]?.resolve({ data: new Uint8Array([0, 0, 0, 0]), width: 1, height: 1 })
+  await expectRejectionSatisfies(composing, (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/marvelous.*first\.png/i)
+    expect(error.cause).toBe(firstFailure)
     return true
   })
 })
 
-function pixelAt(data: Buffer, width: number, x: number, y: number): number[] {
+function pixelAt(data: Uint8Array, width: number, x: number, y: number): number[] {
   const offset = (y * width + x) * 4
   return [
     data[offset] ?? -1,

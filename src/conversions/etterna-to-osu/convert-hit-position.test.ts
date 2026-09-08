@@ -1,12 +1,11 @@
-import assert from "node:assert/strict"
-import { test } from "node:test"
+import { expect, test } from "bun:test"
 import { getHitPosition } from "./convert-hit-position.ts"
 
 test("converts an Etterna hit position with the osu calibration offset", () => {
-  assert.equal(getHitPosition(0), 439)
-  assert.equal(getHitPosition(-6), 433)
+  expect(getHitPosition(0)).toBe(439)
+  expect(getHitPosition(-6)).toBe(433)
 })
 
 test("rounds before applying the hit-position calibration offset", () => {
-  assert.equal(getHitPosition(-6.6), 432)
+  expect(getHitPosition(-6.6)).toBe(432)
 })

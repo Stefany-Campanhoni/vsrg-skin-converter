@@ -1,9 +1,8 @@
-import assert from "node:assert/strict"
-import { createHash } from "node:crypto"
+import { expect, test } from "bun:test"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import { parseLuaSource } from "../../../infrastructure/lua/parse-lua-source.ts"
 import {
   prepareEtternaAssetsConfigUpdate,
@@ -27,25 +26,24 @@ test("creates a minimal configuration and missing expectation when the file does
     },
   )
 
-  assert.deepEqual(update.expectation, { state: "missing" })
-  assert.equal(
-    update.content,
+  expect(update.expectation).toStrictEqual({ state: "missing" })
+  expect(update.content).toBe(
     'return { judgment = { ["a0e735211f55dfcd"] = "Assets/Judgments/Skin - a0e735211f55dfcd 1x6.png" } }\n',
   )
-  assert.equal(parseLuaSource(update.content).type, "Chunk")
+  expect(parseLuaSource(update.content).type).toBe("Chunk")
 })
 
 test("inserts into an existing judgment table while preserving every original byte", async () => {
   const source = `-- keep this comment\nreturn {\n  avatar = { default = "avatar.png" },\n  judgment = {\n    -- keep judgment comment\n    default = "Assets/Judgments/default.png",\n  },\n  toasty = { default = "toast.png" },\n}\n`
   const update = await prepareFromSource(source)
 
-  assert.deepEqual(update.expectation, {
+  expect(update.expectation).toStrictEqual({
     state: "sha256",
-    sha256: createHash("sha256").update(Buffer.from(source)).digest("hex"),
+    sha256: "c2ece179d8207ae98382be14451d3fbf8788ebaf544edc259efdae263876c1aa",
   })
-  assert.equal(removeInsertedMapping(update.content), source)
-  assert.match(update.content, /judgment = \{\n {4}\["a0e735211f55dfcd"\] = ".*",/)
-  assert.equal(parseLuaSource(update.content, { ranges: true }).type, "Chunk")
+  expect(removeInsertedMapping(update.content)).toBe(source)
+  expect(update.content).toMatch(/judgment = \{\n {4}\["a0e735211f55dfcd"\] = ".*",/)
+  expect(parseLuaSource(update.content, { ranges: true }).type).toBe("Chunk")
 })
 
 test("inserts a judgment table into the returned root without rewriting existing fields", async () => {
@@ -56,9 +54,17 @@ test("inserts a judgment table into the returned root without rewriting existing
   ]) {
     const update = await prepareFromSource(source)
 
-    assert.equal(removeInsertedJudgementTable(update.content), source)
-    assert.equal(parseLuaSource(update.content, { ranges: true }).type, "Chunk")
+    expect(removeInsertedJudgementTable(update.content)).toBe(source)
+    expect(parseLuaSource(update.content, { ranges: true }).type).toBe("Chunk")
   }
+})
+
+test("preserves a UTF-8 byte order mark while updating an existing configuration", async () => {
+  const source = "\uFEFFreturn {}"
+
+  const update = await prepareFromSource(source)
+
+  expect(removeInsertedJudgementTable(update.content)).toBe(source)
 })
 
 test("encodes Lua string literals without emitting raw control characters", async () => {
@@ -71,10 +77,10 @@ test("encodes Lua string literals without emitting raw control characters", asyn
     },
   })
 
-  assert.match(update.content, /a\\"b\\\\c\\nd\\re\\tf\\000\\001\.png/)
-  assert.equal(update.content.includes("\u0000"), false)
-  assert.equal(update.content.includes("\u0001"), false)
-  assert.equal(parseLuaSource(update.content).type, "Chunk")
+  expect(update.content).toMatch(/a\\"b\\\\c\\nd\\re\\tf\\000\\001\.png/)
+  expect(update.content.includes("\u0000")).toBe(false)
+  expect(update.content.includes("\u0001")).toBe(false)
+  expect(parseLuaSource(update.content).type).toBe("Chunk")
 })
 
 test("rejects malformed or structurally incompatible configurations with file context", async () => {
@@ -87,10 +93,8 @@ test("rejects malformed or structurally incompatible configurations with file co
   ]
 
   for (const source of cases) {
-    await assert.rejects(
-      () => prepareFromSource(source),
+    await expect((() => prepareFromSource(source))(), source).rejects.toThrow(
       /assetsConfig\.lua.*(?:parse|return|table|judgment)|(?:parse|return|table|judgment).*assetsConfig\.lua/i,
-      source,
     )
   }
 })
@@ -98,8 +102,7 @@ test("rejects malformed or structurally incompatible configurations with file co
 test("rejects an existing mapping for the allocated GUID", async () => {
   const source = `return { judgment = { ["${guid}"] = "old.png" } }`
 
-  await assert.rejects(
-    () => prepareFromSource(source),
+  await expect((() => prepareFromSource(source))()).rejects.toThrow(
     new RegExp(`${guid}.*assetsConfig\\.lua`, "i"),
   )
 })
@@ -107,16 +110,17 @@ test("rejects an existing mapping for the allocated GUID", async () => {
 test("retains non-ENOENT read failures as their exact cause", async () => {
   const failure = new Error("access denied")
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       prepareEtternaAssetsConfigUpdate("assetsConfig.lua", guid, judgementPath, {
         readFile: async () => {
           throw failure
         },
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /read.*assetsConfig\.lua/i)
-      assert.equal(error.cause, failure)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/read.*assetsConfig\.lua/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
@@ -128,22 +132,23 @@ test("writes the exact prepared UTF-8 content and retains write failures", async
   const update = { content: "return {}\n", expectation: { state: "missing" } as const }
   try {
     await writeEtternaAssetsConfigUpdate(output, update)
-    assert.equal(await readFile(output, "utf8"), update.content)
+    expect(await readFile(output, "utf8")).toBe(update.content)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
 
   const failure = new Error("disk full")
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       writeEtternaAssetsConfigUpdate("output.lua", update, {
         writeFile: async () => {
           throw failure
         },
-      }),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /write.*output\.lua/i)
-      assert.equal(error.cause, failure)
+      }))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/write.*output\.lua/i)
+      expect(error.cause).toBe(failure)
       return true
     },
   )
@@ -155,7 +160,7 @@ async function prepareFromSource(source: string) {
     guid,
     judgementPath,
     {
-      readFile: async () => Buffer.from(source),
+      readFile: async () => new TextEncoder().encode(source),
     },
   )
 }

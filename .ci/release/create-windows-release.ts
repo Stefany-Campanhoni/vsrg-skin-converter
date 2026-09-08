@@ -1,11 +1,7 @@
-import { spawn } from "node:child_process"
-import { createHash, randomUUID } from "node:crypto"
-import { createReadStream } from "node:fs"
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
+import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
-import { pipeline } from "node:stream/promises"
-import { fileURLToPath, pathToFileURL } from "node:url"
 import packageJson from "../../package.json" with { type: "json" }
+import { runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import { getReleasePaths } from "./release-config.ts"
 import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 import { verifyWindowsPortable } from "./verify-windows-portable.ts"
@@ -36,22 +32,20 @@ export interface CreateWindowsReleaseOptions {
   readonly dependencies?: Partial<WindowsReleaseDependencies>
 }
 
-function runPowerShell(script: string, args: readonly string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(
-      "powershell.exe",
-      ["-NoProfile", "-NonInteractive", "-Command", script, ...args],
-      { windowsHide: true, stdio: "inherit" },
+async function runPowerShell(script: string, args: readonly string[]): Promise<void> {
+  const result = await runInheritedSubprocess([
+    "powershell.exe",
+    "-NoProfile",
+    "-NonInteractive",
+    "-Command",
+    script,
+    ...args,
+  ])
+  if (result.code !== 0) {
+    throw new Error(
+      `PowerShell archive command exited with code ${result.code} and signal ${result.signal}`,
     )
-    child.once("error", reject)
-    child.once("exit", (code, signal) => {
-      if (code === 0) resolve()
-      else
-        reject(
-          new Error(`PowerShell archive command exited with code ${code} and signal ${signal}`),
-        )
-    })
-  })
+  }
 }
 
 async function compress(source: string, destination: string): Promise<void> {
@@ -69,8 +63,17 @@ async function extract(archive: string, destination: string): Promise<void> {
 }
 
 async function hashFile(file: string): Promise<string> {
-  const hash = createHash("sha256")
-  await pipeline(createReadStream(file), hash)
+  const hash = new Bun.CryptoHasher("sha256")
+  const reader = Bun.file(file).stream().getReader()
+  try {
+    while (true) {
+      const result = await reader.read()
+      if (result.done) break
+      hash.update(result.value)
+    }
+  } finally {
+    reader.releaseLock()
+  }
   return hash.digest("hex")
 }
 
@@ -121,7 +124,7 @@ export async function createWindowsRelease(
   const checksumPath = path.resolve(options.checksumPath)
   const sourceTemplatesRoot = path.resolve(options.sourceTemplatesRoot)
   const defaultDependencies: WindowsReleaseDependencies = {
-    token: randomUUID,
+    token: () => crypto.randomUUID(),
     compress,
     extract,
     hashFile,
@@ -169,7 +172,7 @@ export async function createWindowsRelease(
     if (confirmedHash !== sha256) {
       throw new Error(`ZIP checksum changed before extraction: ${temporaryZip}`)
     }
-    const checksumText = await readFile(temporaryChecksum, "utf8")
+    const checksumText = await Bun.file(temporaryChecksum).text()
     if (checksumText !== `${sha256}  ${path.basename(zipPath)}\n`) {
       throw new Error(`Checksum file format mismatch: ${temporaryChecksum}`)
     }
@@ -275,7 +278,7 @@ export async function createWindowsRelease(
 }
 
 async function main(): Promise<void> {
-  const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
+  const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   const artifact = await createWindowsRelease({
     packageRoot: paths.unpackedPackageRoot,
@@ -288,8 +291,8 @@ async function main(): Promise<void> {
   console.log(`${artifact.zipPath}\n${artifact.checksumPath}\n${artifact.sha256}`)
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  main().catch((error: unknown) => {
+if (import.meta.main) {
+  await main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error))
     process.exitCode = 1
   })
