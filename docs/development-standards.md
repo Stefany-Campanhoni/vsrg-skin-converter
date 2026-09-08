@@ -69,12 +69,22 @@ replacement:
 - exclusive `wx` file creation in release transactions, because overwriting an existing
   checksum or verification stamp must remain impossible;
 - `process.platform`, `process.cwd()`, and `process.exitCode`, which have no complete Bun
-  replacement for these contracts.
+  replacement for these contracts;
+- `process.stdin` only at the CLI key-wait boundary, where raw TTY mode requires the
+  Node-compatible `isTTY` and `setRawMode` interface; output at that boundary still uses
+  `Bun.write(Bun.stdout, ...)`;
+- `process.chdir` only in the resource-resolution test that proves behavior is independent
+  from the working directory.
 
 Do not add `node:child_process`, `node:url`, `node:util`, `node:stream`, `process.argv`,
 `process.env`, or `process.execPath`. The architecture suite enforces this boundary across
 `src`, `.ci`, and `tests`. The Windows portable bundle targets Bun directly and must not inject
-a Node startup shim.
+a Node startup shim. Its runtime-contract test parses imports with `Bun.Transpiler`, rejects
+first-party `Buffer`, and keeps exact production-file allowlists for `node:fs` operations.
+Bare Node built-in specifiers are prohibited; every approved fallback must use its explicit
+`node:` specifier.
+Adding a new fallback requires a reviewed allowlist and documentation change that explains
+why no stable Bun or Web API preserves the contract.
 
 ## Errors and Diagnostics
 
