@@ -277,7 +277,12 @@ config -> no other project layer
 ```
 
 Dependencies within the same layer are allowed. Production dependency cycles are forbidden.
-`bun run test:architecture` enforces the matrix and cycle rule from relative imports.
+`bun run test:architecture` enforces the matrix and cycle rule from relative imports. It also
+parses every first-party TypeScript module to enforce the Bun-first runtime contract:
+`node:path` remains the path API, test-only temporary locations may use `node:os`, and
+production `node:fs` users must appear in an explicit file allowlist. Any other `node:*`
+module, any bare Node built-in import, unapproved `process` property, or first-party `Buffer`
+use fails the gate.
 
 ## Domain Boundary
 

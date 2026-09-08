@@ -14,6 +14,24 @@ export interface ConfirmPromptDependencies {
 
 const confirmPromptDependencies: ConfirmPromptDependencies = { confirm, isCancel, cancel }
 
+export interface WaitForAnyKeyDependencies {
+  write(message: string): Promise<void>
+  input: {
+    readonly isTTY?: boolean
+    setRawMode(enabled: boolean): void
+    resume(): void
+    once(event: "data", listener: () => void): void
+    pause(): void
+  }
+}
+
+const waitForAnyKeyDependencies: WaitForAnyKeyDependencies = {
+  write: async (message) => {
+    await Bun.write(Bun.stdout, message)
+  },
+  input: process.stdin,
+}
+
 export async function askConfirm(
   message: string,
   dependencies: ConfirmPromptDependencies = confirmPromptDependencies,
@@ -38,17 +56,20 @@ export async function askSelect(
   return result
 }
 
-export async function waitForAnyKey(message: string): Promise<void> {
-  process.stdout.write(`${message}\n`)
-  if (!process.stdin.isTTY) {
+export async function waitForAnyKey(
+  message: string,
+  dependencies: WaitForAnyKeyDependencies = waitForAnyKeyDependencies,
+): Promise<void> {
+  await dependencies.write(`${message}\n`)
+  if (!dependencies.input.isTTY) {
     return
   }
   await new Promise<void>((resolve) => {
-    process.stdin.setRawMode(true)
-    process.stdin.resume()
-    process.stdin.once("data", () => {
-      process.stdin.setRawMode(false)
-      process.stdin.pause()
+    dependencies.input.setRawMode(true)
+    dependencies.input.resume()
+    dependencies.input.once("data", () => {
+      dependencies.input.setRawMode(false)
+      dependencies.input.pause()
       resolve()
     })
   })

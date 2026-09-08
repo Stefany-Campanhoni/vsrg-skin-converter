@@ -30,11 +30,16 @@ particular:
 - keep CLI interaction separate from conversion and installation behavior;
 - keep repository quality and release automation under the applicable `.ci` subdirectory;
 - preserve contextual errors, async quiescence, path validation, and transactional output;
+- prefer stable Bun or Web APIs and keep Node compatibility calls inside the documented
+  allowlist;
 - write technical identifiers, diagnostics, comments, and documentation in English.
 
 Use test-driven development for behavior changes: write a focused failing test, confirm it
 fails for the intended reason, implement the smallest change, and confirm the complete suite
 remains green.
+
+An intentional new Node fallback must update both the runtime allowlist and its rationale in
+[the development standards](docs/development-standards.md) in the same pull request.
 
 ## Required Verification
 
