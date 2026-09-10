@@ -1,7 +1,14 @@
 import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises"
 import path from "node:path"
 import packageJson from "../../package.json" with { type: "json" }
+import { hashFileSha256 } from "../runtime/hash-file.ts"
 import { runInheritedSubprocess } from "../runtime/run-subprocess.ts"
+import {
+  assertControlledReleasePath,
+  assertPhysicallyControlledReleasePath,
+  assertSafeTransactionToken,
+  resolveControlledRoot,
+} from "./controlled-release-path.ts"
 import { getReleasePaths } from "./release-config.ts"
 import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 import { verifyWindowsPortable } from "./verify-windows-portable.ts"
@@ -23,6 +30,7 @@ export interface WindowsReleaseDependencies {
 }
 
 export interface CreateWindowsReleaseOptions {
+  readonly controlledRoot: string
   readonly packageRoot: string
   readonly packageDirectoryName: string
   readonly zipPath: string
@@ -62,26 +70,12 @@ async function extract(archive: string, destination: string): Promise<void> {
   )
 }
 
-async function hashFile(file: string): Promise<string> {
-  const hash = new Bun.CryptoHasher("sha256")
-  const reader = Bun.file(file).stream().getReader()
-  try {
-    while (true) {
-      const result = await reader.read()
-      if (result.done) break
-      hash.update(result.value)
-    }
-  } finally {
-    reader.releaseLock()
-  }
-  return hash.digest("hex")
-}
-
 async function delay(milliseconds: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
 function assertReleasePaths(options: CreateWindowsReleaseOptions): void {
+  const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const packageRoot = path.resolve(options.packageRoot)
   const zipPath = path.resolve(options.zipPath)
   const checksumPath = path.resolve(options.checksumPath)
@@ -104,6 +98,13 @@ function assertReleasePaths(options: CreateWindowsReleaseOptions): void {
   if (!path.isAbsolute(options.sourceTemplatesRoot)) {
     throw new Error(`Expected an absolute source templates root: ${options.sourceTemplatesRoot}`)
   }
+  for (const [candidate, label] of [
+    [packageRoot, "portable package root"],
+    [zipPath, "Windows release ZIP path"],
+    [checksumPath, "Windows release checksum path"],
+  ] as const) {
+    assertControlledReleasePath(controlledRoot, candidate, label)
+  }
 }
 
 async function pathExists(target: string): Promise<boolean> {
@@ -119,15 +120,25 @@ export async function createWindowsRelease(
   options: CreateWindowsReleaseOptions,
 ): Promise<ReleaseArtifact> {
   assertReleasePaths(options)
+  const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const packageRoot = path.resolve(options.packageRoot)
   const zipPath = path.resolve(options.zipPath)
   const checksumPath = path.resolve(options.checksumPath)
   const sourceTemplatesRoot = path.resolve(options.sourceTemplatesRoot)
+  await Promise.all([
+    assertPhysicallyControlledReleasePath(controlledRoot, packageRoot, "portable package root"),
+    assertPhysicallyControlledReleasePath(controlledRoot, zipPath, "Windows release ZIP path"),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      checksumPath,
+      "Windows release checksum path",
+    ),
+  ])
   const defaultDependencies: WindowsReleaseDependencies = {
     token: () => crypto.randomUUID(),
     compress,
     extract,
-    hashFile,
+    hashFile: hashFileSha256,
     renamePath: rename,
     delay,
     verifyPackage: async (root) =>
@@ -139,7 +150,7 @@ export async function createWindowsRelease(
   }
   const dependencies = { ...defaultDependencies, ...options.dependencies }
   const token = dependencies.token()
-  if (!/^[0-9A-Za-z-]+$/.test(token)) throw new Error(`Unsafe release transaction token: ${token}`)
+  assertSafeTransactionToken(token)
 
   const temporaryZip = path.join(
     path.dirname(zipPath),
@@ -150,6 +161,16 @@ export async function createWindowsRelease(
   const extractedPackageRoot = path.join(extractionRoot, options.packageDirectoryName)
   const zipBackup = `${zipPath}.${token}.backup`
   const checksumBackup = `${checksumPath}.${token}.backup`
+  for (const [candidate, label] of [
+    [temporaryZip, "temporary Windows release ZIP path"],
+    [temporaryChecksum, "temporary Windows release checksum path"],
+    [extractionRoot, "temporary Windows release extraction path"],
+    [zipBackup, "Windows release ZIP backup path"],
+    [checksumBackup, "Windows release checksum backup path"],
+  ] as const) {
+    assertControlledReleasePath(controlledRoot, candidate, label)
+    await assertPhysicallyControlledReleasePath(controlledRoot, candidate, label)
+  }
   await mkdir(path.dirname(zipPath), { recursive: true })
   for (const temporaryPath of [temporaryZip, temporaryChecksum, extractionRoot]) {
     await rm(temporaryPath, { recursive: true, force: true })
@@ -281,6 +302,7 @@ async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
   const artifact = await createWindowsRelease({
+    controlledRoot: projectRoot,
     packageRoot: paths.unpackedPackageRoot,
     packageDirectoryName: paths.packageDirectoryName,
     zipPath: paths.zipPath,

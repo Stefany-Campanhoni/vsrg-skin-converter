@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-test("prints the complete error stack when started through the dev script", async () => {
+test("does not infer verbose output from a package-manager lifecycle variable", async () => {
   const cliPath = Bun.fileURLToPath(new URL("cli.ts", import.meta.url))
   const result = await runCli([cliPath, "--unknown"], {
     ...Bun.env,
@@ -8,7 +8,7 @@ test("prints the complete error stack when started through the dev script", asyn
   })
 
   expect(result.exitCode).toBe(1)
-  expect(result.stderr).toMatch(/error: Unknown argument: --unknown[\s\S]+\s+at /i)
+  expect(result.stderr).toBe("Unknown argument: --unknown\n")
 })
 
 test("prints the complete error stack when started with --verbose", async () => {

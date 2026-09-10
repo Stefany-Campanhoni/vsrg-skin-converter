@@ -6,10 +6,12 @@ import { acquireBunRuntime } from "./acquire-bun-runtime.ts"
 import { buildApplication } from "./build-application.ts"
 import {
   assertControlledReleasePath,
+  assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
 import { installRuntimeDependencies } from "./install-runtime-dependencies.ts"
+import { portableDependencies } from "./portable-manifest.ts"
 import { getReleasePaths } from "./release-config.ts"
 import { renameWithTransientRetry } from "./rename-with-transient-retry.ts"
 
@@ -91,6 +93,7 @@ export async function assembleWindowsPortable(
   const controlledRoot = resolveControlledRoot(options.controlledRoot)
   const packageRoot = path.resolve(options.packageRoot)
   assertControlledReleasePath(controlledRoot, options.packageRoot, "portable package root")
+  await assertPhysicallyControlledReleasePath(controlledRoot, packageRoot, "portable package root")
   const sources = {
     bundle: path.resolve(options.bundlePath),
     bun: path.resolve(options.bunExecutablePath),
@@ -108,11 +111,9 @@ export async function assembleWindowsPortable(
     assertRegularFile(sources.readme),
     assertRegularFile(sources.notices),
     assertRegularFile(sources.license),
-    assertDirectory(path.join(sources.nodeModules, "sharp")),
-    assertDirectory(path.join(sources.nodeModules, "detect-libc")),
-    assertDirectory(path.join(sources.nodeModules, "semver")),
-    assertDirectory(path.join(sources.nodeModules, "@img", "colour")),
-    assertDirectory(path.join(sources.nodeModules, "@img", "sharp-win32-x64")),
+    ...portableDependencies.map(({ packagePath }) =>
+      assertDirectory(path.join(sources.nodeModules, ...packagePath.split("/"))),
+    ),
     assertDirectory(path.join(sources.templates, "osu")),
     assertDirectory(path.join(sources.templates, "etterna")),
   ])
@@ -125,6 +126,18 @@ export async function assembleWindowsPortable(
   const backupRoot = `${packageRoot}.${token}.backup`
   assertControlledReleasePath(controlledRoot, stagingRoot, "portable package staging root")
   assertControlledReleasePath(controlledRoot, backupRoot, "portable package backup root")
+  await Promise.all([
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      stagingRoot,
+      "portable package staging root",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      backupRoot,
+      "portable package backup root",
+    ),
+  ])
   let backupCreated = false
   let backupNeedsRecovery = false
   await mkdir(path.dirname(packageRoot), { recursive: true })
@@ -143,30 +156,12 @@ export async function assembleWindowsPortable(
         errorOnExist: true,
         force: false,
       }),
-      cp(path.join(sources.nodeModules, "sharp"), path.join(stagingRoot, "node_modules", "sharp"), {
-        recursive: true,
-        errorOnExist: true,
-        force: false,
-      }),
-      cp(
-        path.join(sources.nodeModules, "@img", "colour"),
-        path.join(stagingRoot, "node_modules", "@img", "colour"),
-        { recursive: true, errorOnExist: true, force: false },
-      ),
-      cp(
-        path.join(sources.nodeModules, "@img", "sharp-win32-x64"),
-        path.join(stagingRoot, "node_modules", "@img", "sharp-win32-x64"),
-        { recursive: true, errorOnExist: true, force: false },
-      ),
-      cp(
-        path.join(sources.nodeModules, "detect-libc"),
-        path.join(stagingRoot, "node_modules", "detect-libc"),
-        { recursive: true, errorOnExist: true, force: false },
-      ),
-      cp(
-        path.join(sources.nodeModules, "semver"),
-        path.join(stagingRoot, "node_modules", "semver"),
-        { recursive: true, errorOnExist: true, force: false },
+      ...portableDependencies.map(({ packagePath }) =>
+        cp(
+          path.join(sources.nodeModules, ...packagePath.split("/")),
+          path.join(stagingRoot, "node_modules", ...packagePath.split("/")),
+          { recursive: true, errorOnExist: true, force: false },
+        ),
       ),
       cp(path.join(sources.templates, "osu"), path.join(stagingRoot, "templates", "osu"), {
         recursive: true,
@@ -246,17 +241,17 @@ async function main(): Promise<void> {
     outputFile: paths.bundlePath,
   })
   const bunExecutablePath = await acquireBunRuntime({
-    controlledRoot: paths.cacheRoot,
+    controlledRoot: projectRoot,
     archivePath: paths.bunArchivePath,
     extractionRoot: paths.bunRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
-    controlledRoot: paths.cacheRoot,
+    controlledRoot: projectRoot,
     sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
     installationRoot: paths.runtimeDependenciesRoot,
   })
   await assembleWindowsPortable({
-    controlledRoot: paths.windowsBuildRoot,
+    controlledRoot: projectRoot,
     packageRoot: paths.unpackedPackageRoot,
     bundlePath: paths.bundlePath,
     bunExecutablePath,

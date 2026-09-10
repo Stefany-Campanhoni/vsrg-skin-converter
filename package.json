@@ -9,7 +9,7 @@
     "build:windows": "bun .ci/release/assemble-windows-portable.ts",
     "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && bun .ci/release/create-windows-release.ts",
     "release:windows": "bun run test && bun run typecheck && bun run lint && bun run test:architecture && bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters && bun run build:windows && bun .ci/release/create-windows-release.ts",
-    "dev": "bun --watch src/cli.ts",
+    "dev": "bun --watch src/cli.ts --verbose",
     "start": "bun src/cli.ts",
     "changeset": "bunx --bun --no-install changeset",
     "changeset:status": "bunx --bun --no-install changeset status",

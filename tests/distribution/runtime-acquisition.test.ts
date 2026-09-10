@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
 import { acquireBunRuntime } from "../../.ci/release/acquire-bun-runtime.ts"
@@ -307,6 +307,99 @@ test("rejects acquire paths outside the explicit controlled root before mutation
   ).rejects.toThrow(/controlled root/i)
 
   expect(mutated).toBe(false)
+  expect(callbackInvoked).toBe(false)
+})
+
+test("reuses the winning archive and never removes a concurrently published runtime", async () => {
+  const fixture = await runtimeFixture()
+  onTestFinished(() => rm(fixture.root, { recursive: true }))
+  const publishedPaths: string[] = []
+  const removedPaths: string[] = []
+  let downloadedCount = 0
+  let extractedCount = 0
+  let releaseDownloads = () => {}
+  const downloadsReady = new Promise<void>((resolve) => {
+    releaseDownloads = resolve
+  })
+
+  const acquire = (token: string) =>
+    acquireBunRuntime({
+      ...fixture,
+      dependencies: {
+        token: () => token,
+        downloadFile: async (_url, destination) => {
+          downloadedCount += 1
+          await writeFile(destination, "archive")
+          if (downloadedCount === 2) releaseDownloads()
+          await downloadsReady
+        },
+        hashFile: async (file) =>
+          file.endsWith("bun.exe") ? bunRuntime.executableSha256 : bunRuntime.sha256,
+        readBunVersion: async () => bunRuntime.version,
+        readBunRevision: async () => `${bunRuntime.version}+${bunRuntime.revision}`,
+        extractArchive: async (_archive, destination) => {
+          extractedCount += 1
+          const runtime = path.join(destination, bunRuntime.archiveDirectoryName)
+          await mkdir(runtime, { recursive: true })
+          await writeFile(path.join(runtime, "bun.exe"), "bun")
+        },
+        renamePath: async (source, destination) => {
+          await rename(source, destination)
+          publishedPaths.push(destination)
+        },
+        removePath: async (target, options) => {
+          removedPaths.push(target)
+          await rm(target, options)
+        },
+      },
+    })
+
+  const [first, second] = await Promise.all([acquire("first"), acquire("second")])
+
+  expect(first).toBe(path.join(fixture.extractionRoot, "bun.exe"))
+  expect(second).toBe(first)
+  expect(downloadedCount).toBe(2)
+  expect(extractedCount).toBeGreaterThanOrEqual(1)
+  expect(publishedPaths).toContain(fixture.archivePath)
+  expect(publishedPaths).toContain(fixture.extractionRoot)
+  expect(removedPaths).not.toContain(fixture.extractionRoot)
+  expect(await readFile(first, "utf8")).toBe("bun")
+})
+
+test("rejects a junction used as the controlled root before invoking dependencies", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-runtime-junction-test-"))
+  onTestFinished(() => rm(root, { recursive: true }))
+  const physicalRoot = path.join(root, "physical")
+  const controlledRoot = path.join(root, "controlled")
+  await mkdir(physicalRoot)
+  try {
+    await symlink(physicalRoot, controlledRoot, "junction")
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "EPERM" || error.code === "EACCES" || error.code === "ENOSYS")
+    ) {
+      return
+    }
+    throw error
+  }
+  let callbackInvoked = false
+
+  await expect(
+    acquireBunRuntime({
+      controlledRoot,
+      archivePath: path.join(controlledRoot, bunRuntime.archiveName),
+      extractionRoot: path.join(controlledRoot, `bun-v${bunRuntime.version}-windows-x64-baseline`),
+      dependencies: {
+        token: () => {
+          callbackInvoked = true
+          return "junction"
+        },
+      },
+    }),
+  ).rejects.toThrow(/symbolic link|junction|physical controlled root/i)
+
   expect(callbackInvoked).toBe(false)
 })
 

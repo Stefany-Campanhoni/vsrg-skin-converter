@@ -11,12 +11,6 @@ runCliCommand(commandArgs, {
   writeLine: console.log,
   runInteractiveCli: runCli,
 }).catch((error: unknown) => {
-  console.error(
-    verbose || Bun.env.npm_lifecycle_event === "dev"
-      ? error
-      : error instanceof Error
-        ? error.message
-        : String(error),
-  )
+  console.error(verbose ? error : error instanceof Error ? error.message : String(error))
   process.exitCode = 1
 })

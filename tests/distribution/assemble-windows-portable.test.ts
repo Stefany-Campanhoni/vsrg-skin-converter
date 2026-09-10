@@ -15,6 +15,7 @@ async function packageFixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-assembly-test-"))
   const source = path.join(root, "source")
   const packageRoot = path.join(root, "output", "vsrg-skin-converter-v1.0.0-win-x64")
+  await mkdir(path.dirname(packageRoot))
   const bundlePath = await writeFixture(path.join(source, "app.mjs"), "bundle")
   const bunExecutablePath = await writeFixture(path.join(source, "bun.exe"), "bun")
   const runtimeNodeModulesPath = path.join(source, "node_modules")

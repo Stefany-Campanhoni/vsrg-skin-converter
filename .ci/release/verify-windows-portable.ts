@@ -1,7 +1,14 @@
 import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import packageJson from "../../package.json" with { type: "json" }
+import { hashFileSha256 } from "../runtime/hash-file.ts"
 import { runCapturedSubprocess, type SubprocessResult } from "../runtime/run-subprocess.ts"
+import {
+  isPortableDependencyEntry,
+  portableDependencies,
+  portableFixedDirectories,
+  portableRequiredFiles,
+} from "./portable-manifest.ts"
 import { getReleasePaths } from "./release-config.ts"
 
 export interface VerifyWindowsPortableOptions {
@@ -17,19 +24,6 @@ interface PackageEntry {
   readonly kind: "file" | "directory" | "symlink" | "other"
 }
 
-const requiredFiles = [
-  "vsrg-skin-converter.cmd",
-  "app.mjs",
-  "runtime/bun.exe",
-  "README.txt",
-  "LICENSE",
-  "THIRD-PARTY-NOTICES.txt",
-  "node_modules/sharp/LICENSE",
-  "node_modules/detect-libc/LICENSE",
-  "node_modules/semver/LICENSE",
-  "node_modules/@img/colour/LICENSE.md",
-  "node_modules/@img/sharp-win32-x64/LICENSE",
-] as const
 const forbiddenNodeExecutableName = "node" + ".exe"
 
 function normalizedRelative(root: string, parentPath: string, name: string): string {
@@ -68,20 +62,6 @@ function isForbidden(relative: string): boolean {
   )
 }
 
-function isDependencyEntry(relative: string): boolean {
-  return (
-    relative.startsWith("node_modules/sharp/") ||
-    relative.startsWith("node_modules/detect-libc/") ||
-    relative.startsWith("node_modules/semver/") ||
-    relative.startsWith("node_modules/@img/colour/") ||
-    relative.startsWith("node_modules/@img/sharp-win32-x64/")
-  )
-}
-
-async function hashFile(file: string): Promise<string> {
-  return new Bun.CryptoHasher("sha256").update(await Bun.file(file).bytes()).digest("hex")
-}
-
 async function verifyTemplates(
   packageRoot: string,
   sourceTemplatesRoot: string,
@@ -100,8 +80,8 @@ async function verifyTemplates(
       fail(packageRoot, packageEntry, "missing or mismatched template entry")
     }
     if (sourceEntry.kind === "file") {
-      const sourceHash = await hashFile(path.join(sourceTemplatesRoot, sourceEntry.relative))
-      const packageHash = await hashFile(path.join(packageRoot, packageEntry))
+      const sourceHash = await hashFileSha256(path.join(sourceTemplatesRoot, sourceEntry.relative))
+      const packageHash = await hashFileSha256(path.join(packageRoot, packageEntry))
       if (sourceHash !== packageHash) fail(packageRoot, packageEntry, "template checksum mismatch")
     }
   }
@@ -117,9 +97,21 @@ function runProcess(
 ): Promise<SubprocessResult> {
   return runCapturedSubprocess([executable, ...args], {
     cwd,
+    env: portableRuntimeEnvironment(Bun.env),
     timeoutMs,
     windowsVerbatimArguments,
   })
+}
+
+export function portableRuntimeEnvironment(
+  environment: Readonly<Record<string, string | undefined>>,
+): Record<string, string | undefined> {
+  return {
+    ...Object.fromEntries(
+      Object.entries(environment).filter(([name]) => name.toLowerCase() !== "path"),
+    ),
+    PATH: "",
+  }
 }
 
 function assertSuccessfulProcess(
@@ -240,21 +232,12 @@ export async function verifyWindowsPortable(options: VerifyWindowsPortableOption
   }
 
   const byRelative = new Map(entries.map((entry) => [entry.relative, entry]))
-  for (const required of requiredFiles) {
+  for (const required of portableRequiredFiles) {
     if (byRelative.get(required)?.kind !== "file")
       fail(packageRoot, required, "missing required file")
   }
-  const sharpFiles = entries.filter(
-    (entry) => entry.kind === "file" && entry.relative.startsWith("node_modules/sharp/"),
-  )
-  if (sharpFiles.length === 0) fail(packageRoot, "node_modules/sharp", "empty Sharp tree")
-  const requiredDependencyTrees = [
-    "node_modules/detect-libc",
-    "node_modules/semver",
-    "node_modules/@img/colour",
-    "node_modules/@img/sharp-win32-x64",
-  ]
-  for (const dependencyRoot of requiredDependencyTrees) {
+  for (const { packagePath } of portableDependencies) {
+    const dependencyRoot = `node_modules/${packagePath}`
     if (
       !entries.some(
         (entry) => entry.kind === "file" && entry.relative.startsWith(`${dependencyRoot}/`),
@@ -265,22 +248,13 @@ export async function verifyWindowsPortable(options: VerifyWindowsPortableOption
   }
 
   const templateEntries = await verifyTemplates(packageRoot, sourceTemplatesRoot, entries)
-  const fixedDirectories = new Set([
-    "runtime",
-    "node_modules",
-    "node_modules/sharp",
-    "node_modules/detect-libc",
-    "node_modules/semver",
-    "node_modules/@img",
-    "node_modules/@img/colour",
-    "node_modules/@img/sharp-win32-x64",
-  ])
-  const fixedFiles = new Set<string>(requiredFiles)
+  const fixedDirectories = new Set<string>(portableFixedDirectories)
+  const fixedFiles = new Set<string>(portableRequiredFiles)
   for (const entry of entries) {
     if (
       !fixedFiles.has(entry.relative) &&
       !fixedDirectories.has(entry.relative) &&
-      !isDependencyEntry(entry.relative) &&
+      !isPortableDependencyEntry(entry.relative) &&
       !templateEntries.has(entry.relative)
     ) {
       fail(packageRoot, entry.relative, "unexpected package entry")

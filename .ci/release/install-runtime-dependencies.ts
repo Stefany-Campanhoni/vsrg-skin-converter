@@ -4,6 +4,7 @@ import packageJson from "../../package.json" with { type: "json" }
 import { runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import {
   assertControlledReleasePath,
+  assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
@@ -70,6 +71,11 @@ export async function installRuntimeDependencies(
     )
   }
   assertControlledReleasePath(controlledRoot, options.installationRoot, "runtime installation root")
+  await assertPhysicallyControlledReleasePath(
+    controlledRoot,
+    installationRoot,
+    "runtime installation root",
+  )
   await assertRegularFile(path.join(sourcePackageDirectory, "package.json"))
   await assertRegularFile(path.join(sourcePackageDirectory, "bun.lock"))
 
@@ -80,6 +86,18 @@ export async function installRuntimeDependencies(
   const backupRoot = `${installationRoot}.${token}.backup`
   assertControlledReleasePath(controlledRoot, stagingRoot, "runtime installation staging root")
   assertControlledReleasePath(controlledRoot, backupRoot, "runtime installation backup root")
+  await Promise.all([
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      stagingRoot,
+      "runtime installation staging root",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      backupRoot,
+      "runtime installation backup root",
+    ),
+  ])
   let backupCreated = false
   let backupNeedsRecovery = false
   await rm(stagingRoot, { recursive: true, force: true })
@@ -165,7 +183,7 @@ async function main(): Promise<void> {
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await installRuntimeDependencies({
-      controlledRoot: paths.cacheRoot,
+      controlledRoot: projectRoot,
       sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
       installationRoot: paths.runtimeDependenciesRoot,
     }),

@@ -57,3 +57,21 @@ test("repository-owned tooling is Bun-only", async () => {
 
   expect(violations).toEqual([])
 })
+
+test("portable assembly and verification share one dependency manifest", async () => {
+  const implementationFiles = [
+    ".ci/release/assemble-windows-portable.ts",
+    ".ci/release/verify-windows-portable.ts",
+  ] as const
+
+  for (const file of implementationFiles) {
+    const source = await Bun.file(file).text()
+    expect(source).toContain('from "./portable-manifest.ts"')
+    expect(source).not.toContain('"node_modules/@img/sharp-win32-x64"')
+  }
+})
+
+test("the development command requests verbose CLI failures explicitly", async () => {
+  const packageJson: unknown = await Bun.file("package.json").json()
+  expect(packageJson).toMatchObject({ scripts: { dev: expect.stringContaining("--verbose") } })
+})

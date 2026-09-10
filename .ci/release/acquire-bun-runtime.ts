@@ -1,15 +1,20 @@
-import { access, mkdir, open, rename, rm, stat, writeFile } from "node:fs/promises"
+import { access, lstat, mkdir, open, realpath, rename, rm, writeFile } from "node:fs/promises"
 import path from "node:path"
 import packageJson from "../../package.json" with { type: "json" }
+import { hashFileSha256 } from "../runtime/hash-file.ts"
 import { runCapturedSubprocess, runInheritedSubprocess } from "../runtime/run-subprocess.ts"
 import {
   assertControlledReleasePath,
+  assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
 import { bunRuntime, getReleasePaths } from "./release-config.ts"
 
 const verificationStampName = ".vsrg-runtime-verification.json"
+const publicationLockPollIntervalMs = 50
+const publicationLockTimeoutMs = 30_000
+const stalePublicationLockAgeMs = 5 * 60_000
 
 export interface BunRuntimeDependencies {
   readonly token: () => string
@@ -18,6 +23,13 @@ export interface BunRuntimeDependencies {
   readonly extractArchive: (archive: string, destination: string) => Promise<void>
   readonly readBunVersion: (bunExecutable: string) => Promise<string>
   readonly readBunRevision: (bunExecutable: string) => Promise<string>
+  readonly renamePath: (source: string, destination: string) => Promise<void>
+  readonly removePath: (
+    target: string,
+    options: { readonly recursive?: boolean; readonly force?: boolean },
+  ) => Promise<void>
+  readonly delay: (milliseconds: number) => Promise<void>
+  readonly now: () => number
 }
 
 export interface AcquireBunRuntimeOptions {
@@ -50,9 +62,14 @@ function assertOwnedPaths(
   }
 }
 
-async function isRegularFile(file: string): Promise<boolean> {
+async function isOwnedRegularFile(root: string, file: string): Promise<boolean> {
   try {
-    return (await stat(file)).isFile()
+    const details = await lstat(file)
+    if (details.isSymbolicLink() || !details.isFile() || details.nlink !== 1) return false
+    const physicalRoot = await realpath(root)
+    const physicalFile = await realpath(file)
+    const relative = path.relative(physicalRoot, physicalFile)
+    return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`)
   } catch {
     return false
   }
@@ -86,21 +103,6 @@ async function defaultDownloadFile(url: string, destination: string): Promise<vo
   } finally {
     await destinationHandle.close()
   }
-}
-
-async function defaultHashFile(file: string): Promise<string> {
-  const hash = new Bun.CryptoHasher("sha256")
-  const reader = Bun.file(file).stream().getReader()
-  try {
-    while (true) {
-      const result = await reader.read()
-      if (result.done) break
-      hash.update(result.value)
-    }
-  } finally {
-    reader.releaseLock()
-  }
-  return hash.digest("hex")
 }
 
 async function readBunVersion(bunExecutable: string): Promise<string> {
@@ -144,10 +146,49 @@ async function defaultExtractArchive(archive: string, destination: string): Prom
 const defaultDependencies: BunRuntimeDependencies = {
   token: () => crypto.randomUUID(),
   downloadFile: defaultDownloadFile,
-  hashFile: defaultHashFile,
+  hashFile: hashFileSha256,
   extractArchive: defaultExtractArchive,
   readBunVersion,
   readBunRevision,
+  renamePath: rename,
+  removePath: rm,
+  delay: async (milliseconds) => {
+    await new Promise((resolve) => setTimeout(resolve, milliseconds))
+  },
+  now: Date.now,
+}
+
+function hasErrorCode(error: unknown, code: string): boolean {
+  return error instanceof Error && "code" in error && error.code === code
+}
+
+async function acquirePublicationLock(
+  lockPath: string,
+  dependencies: BunRuntimeDependencies,
+): Promise<() => Promise<void>> {
+  const startedAt = dependencies.now()
+  while (true) {
+    try {
+      await mkdir(lockPath)
+      return () => dependencies.removePath(lockPath, { recursive: true, force: true })
+    } catch (error) {
+      if (!hasErrorCode(error, "EEXIST")) throw error
+    }
+
+    const details = await lstat(lockPath)
+    if (details.isSymbolicLink() || !details.isDirectory()) {
+      throw new Error(`Bun runtime publication lock is not a real directory: ${lockPath}`)
+    }
+    const now = dependencies.now()
+    if (now - details.mtimeMs >= stalePublicationLockAgeMs) {
+      await dependencies.removePath(lockPath, { recursive: true, force: true })
+      continue
+    }
+    if (now - startedAt >= publicationLockTimeoutMs) {
+      throw new Error(`Timed out waiting for Bun runtime publication lock: ${lockPath}`)
+    }
+    await dependencies.delay(publicationLockPollIntervalMs)
+  }
 }
 
 function expectedVerificationStamp(): string {
@@ -164,9 +205,15 @@ async function isVerifiedExtraction(
   dependencies: BunRuntimeDependencies,
 ): Promise<boolean> {
   const bunExecutable = path.join(extractionRoot, "bun.exe")
-  if (!(await isRegularFile(bunExecutable))) return false
+  const stampPath = path.join(extractionRoot, verificationStampName)
+  if (
+    !(await isOwnedRegularFile(extractionRoot, bunExecutable)) ||
+    !(await isOwnedRegularFile(extractionRoot, stampPath))
+  ) {
+    return false
+  }
   try {
-    const stamp = await Bun.file(path.join(extractionRoot, verificationStampName)).text()
+    const stamp = await Bun.file(stampPath).text()
     if (stamp !== expectedVerificationStamp()) return false
     const executableHash = (await dependencies.hashFile(bunExecutable)).toLowerCase()
     if (executableHash !== bunRuntime.executableSha256) return false
@@ -185,7 +232,7 @@ async function verifyFreshExtraction(
   dependencies: BunRuntimeDependencies,
 ): Promise<void> {
   const bunExecutable = path.join(extractedRuntime, "bun.exe")
-  if (!(await isRegularFile(bunExecutable))) {
+  if (!(await isOwnedRegularFile(extractedRuntime, bunExecutable))) {
     throw new Error(`Extracted Bun runtime is missing a regular file: ${bunExecutable}`)
   }
   const executableHash = (await dependencies.hashFile(bunExecutable)).toLowerCase()
@@ -217,21 +264,59 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
   const archivePath = path.resolve(options.archivePath)
   const extractionRoot = path.resolve(options.extractionRoot)
   assertOwnedPaths(controlledRoot, options.archivePath, options.extractionRoot)
+  await Promise.all([
+    assertPhysicallyControlledReleasePath(controlledRoot, archivePath, "Bun runtime archive path"),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      extractionRoot,
+      "Bun runtime extraction path",
+    ),
+  ])
   const dependencies = { ...defaultDependencies, ...options.dependencies }
   const token = dependencies.token()
   assertSafeTransactionToken(token)
   const temporaryArchive = `${archivePath}.${token}.tmp`
   const extractionContainer = `${extractionRoot}.${token}.extract`
+  const staleExtractionRoot = `${extractionRoot}.${token}.stale`
+  const publicationLock = `${extractionRoot}.publish.lock`
   assertControlledReleasePath(
     controlledRoot,
     temporaryArchive,
     "temporary Bun runtime archive path",
   )
+  assertControlledReleasePath(controlledRoot, publicationLock, "Bun runtime publication lock path")
   assertControlledReleasePath(
     controlledRoot,
     extractionContainer,
     "temporary Bun runtime extraction path",
   )
+  assertControlledReleasePath(
+    controlledRoot,
+    staleExtractionRoot,
+    "stale Bun runtime extraction path",
+  )
+  await Promise.all([
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      temporaryArchive,
+      "temporary Bun runtime archive path",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      extractionContainer,
+      "temporary Bun runtime extraction path",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      staleExtractionRoot,
+      "stale Bun runtime extraction path",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      publicationLock,
+      "Bun runtime publication lock path",
+    ),
+  ])
   await mkdir(path.dirname(archivePath), { recursive: true })
 
   let archiveExists = true
@@ -244,7 +329,7 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
   if (archiveExists) {
     const cachedHash = (await dependencies.hashFile(archivePath)).toLowerCase()
     if (cachedHash !== bunRuntime.sha256) {
-      await rm(archivePath)
+      await dependencies.removePath(archivePath, { force: true })
       throw new Error(
         `Bun runtime checksum mismatch for ${archivePath}: expected ${bunRuntime.sha256}, received ${cachedHash}`,
       )
@@ -258,9 +343,18 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
           `Bun runtime checksum mismatch for ${temporaryArchive}: expected ${bunRuntime.sha256}, received ${downloadedHash}`,
         )
       }
-      await rename(temporaryArchive, archivePath)
+      try {
+        await dependencies.renamePath(temporaryArchive, archivePath)
+      } catch (publicationError) {
+        try {
+          const winningHash = (await dependencies.hashFile(archivePath)).toLowerCase()
+          if (winningHash !== bunRuntime.sha256) throw publicationError
+        } catch {
+          throw publicationError
+        }
+      }
     } finally {
-      await rm(temporaryArchive, { force: true })
+      await dependencies.removePath(temporaryArchive, { force: true })
     }
   }
 
@@ -268,15 +362,49 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
   if (await isVerifiedExtraction(extractionRoot, dependencies)) return bunExecutable
 
   const extractedRuntime = path.join(extractionContainer, bunRuntime.archiveDirectoryName)
-  await rm(extractionContainer, { recursive: true, force: true })
+  await dependencies.removePath(extractionContainer, { recursive: true, force: true })
   try {
     await mkdir(extractionContainer, { recursive: true })
     await dependencies.extractArchive(archivePath, extractionContainer)
     await verifyFreshExtraction(extractedRuntime, dependencies)
-    await rm(extractionRoot, { recursive: true, force: true })
-    await rename(extractedRuntime, extractionRoot)
+    const releasePublicationLock = await acquirePublicationLock(publicationLock, dependencies)
+    try {
+      if (await isVerifiedExtraction(extractionRoot, dependencies)) return bunExecutable
+
+      let staleExtractionMoved = false
+      try {
+        await dependencies.renamePath(extractionRoot, staleExtractionRoot)
+        staleExtractionMoved = true
+      } catch {
+        if (await isVerifiedExtraction(extractionRoot, dependencies)) return bunExecutable
+      }
+      try {
+        await dependencies.renamePath(extractedRuntime, extractionRoot)
+      } catch (publicationError) {
+        if (!(await isVerifiedExtraction(extractionRoot, dependencies))) {
+          if (staleExtractionMoved) {
+            try {
+              await dependencies.renamePath(staleExtractionRoot, extractionRoot)
+              staleExtractionMoved = false
+            } catch (restorationError) {
+              throw new AggregateError(
+                [publicationError, restorationError],
+                "Bun runtime publication failed and the stale runtime could not be restored",
+                { cause: publicationError },
+              )
+            }
+          }
+          throw publicationError
+        }
+      }
+      if (staleExtractionMoved) {
+        await dependencies.removePath(staleExtractionRoot, { recursive: true, force: true })
+      }
+    } finally {
+      await releasePublicationLock()
+    }
   } finally {
-    await rm(extractionContainer, { recursive: true, force: true })
+    await dependencies.removePath(extractionContainer, { recursive: true, force: true })
   }
   return bunExecutable
 }
@@ -286,7 +414,7 @@ async function main(): Promise<void> {
   const paths = getReleasePaths(projectRoot, packageJson.version)
   console.log(
     await acquireBunRuntime({
-      controlledRoot: paths.cacheRoot,
+      controlledRoot: projectRoot,
       archivePath: paths.bunArchivePath,
       extractionRoot: paths.bunRuntimeRoot,
     }),

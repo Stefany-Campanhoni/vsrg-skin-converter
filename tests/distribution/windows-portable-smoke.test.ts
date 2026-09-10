@@ -46,7 +46,7 @@ test("runs the real portable package from an external cwd and a path containing 
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
   const bundlePath = path.join(temporaryRoot, "bundle", "app.mjs")
   const bunExecutablePath = await acquireBunRuntime({
-    controlledRoot: releasePaths.cacheRoot,
+    controlledRoot: projectRoot,
     archivePath: releasePaths.bunArchivePath,
     extractionRoot: releasePaths.bunRuntimeRoot,
   })

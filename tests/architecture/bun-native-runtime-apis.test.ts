@@ -80,6 +80,7 @@ const allowedProductionFsPromiseFiles = new Set([
   ".ci/release/acquire-bun-runtime.ts",
   ".ci/release/assemble-windows-portable.ts",
   ".ci/release/build-application.ts",
+  ".ci/release/controlled-release-path.ts",
   ".ci/release/create-windows-release.ts",
   ".ci/release/install-runtime-dependencies.ts",
   ".ci/release/verify-windows-portable.ts",

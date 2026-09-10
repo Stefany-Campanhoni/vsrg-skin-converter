@@ -3,7 +3,10 @@ import { mkdir, mkdtemp, readFile, rename, rm, symlink, writeFile } from "node:f
 import os from "node:os"
 import path from "node:path"
 import { createWindowsRelease } from "../../.ci/release/create-windows-release.ts"
-import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
+import {
+  portableRuntimeEnvironment,
+  verifyWindowsPortable,
+} from "../../.ci/release/verify-windows-portable.ts"
 import { expectRejectionSatisfies, expectTruthy } from "../support/expectations.ts"
 
 async function writeFixture(file: string, value = file): Promise<void> {
@@ -96,6 +99,20 @@ test("accepts the exact supported package manifest and matching templates", asyn
   await verifyWindowsPortable({ ...fixture, runRuntimeChecks: false })
 })
 
+test("removes PATH from the portable runtime verification environment", () => {
+  const environment = portableRuntimeEnvironment({
+    PATH: "C:\\global-node-and-bun",
+    Path: "C:\\mixed-case-global-node-and-bun",
+    SystemRoot: "C:\\Windows",
+    TEMP: "C:\\Temp",
+  })
+
+  expect(environment.PATH).toBe("")
+  expect(environment.Path).toBeUndefined()
+  expect(environment.SystemRoot).toBe("C:\\Windows")
+  expect(environment.TEMP).toBe("C:\\Temp")
+})
+
 test("names a missing required entry and the package root", async () => {
   const fixture = await verificationFixture()
   onTestFinished(() => rm(fixture.root, { recursive: true }))
@@ -184,6 +201,7 @@ test("publishes a versioned ZIP and checksum only after independent extraction v
   const sha256 = "a".repeat(64)
 
   const artifact = await createWindowsRelease({
+    controlledRoot: root,
     packageRoot,
     packageDirectoryName,
     zipPath,
@@ -235,6 +253,7 @@ test("preserves the previous ZIP and checksum when extracted verification fails"
 
   await expectRejectionSatisfies(
     createWindowsRelease({
+      controlledRoot: root,
       packageRoot,
       packageDirectoryName,
       zipPath,
@@ -285,6 +304,7 @@ for (const failedBoundary of [
 
     await expectRejectionSatisfies(
       createWindowsRelease({
+        controlledRoot: root,
         packageRoot,
         packageDirectoryName,
         zipPath,
@@ -343,6 +363,7 @@ test("retains both recovery backups when rollback cannot restore the previous pa
 
   await expectRejectionSatisfies(
     createWindowsRelease({
+      controlledRoot: root,
       packageRoot,
       packageDirectoryName,
       zipPath,
@@ -377,4 +398,37 @@ test("retains both recovery backups when rollback cannot restore the previous pa
 
   expect(await readFile(zipBackup, "utf8")).toBe("previous zip")
   expect(await readFile(checksumBackup, "utf8")).toBe("previous checksum")
+})
+
+test("rejects release outputs outside the controlled root before mutation", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-release-ownership-test-"))
+  onTestFinished(() => rm(root, { recursive: true }))
+  const controlledRoot = path.join(root, "controlled")
+  const packageDirectoryName = "vsrg-skin-converter-v1.0.0-win-x64"
+  const packageRoot = path.join(controlledRoot, "build", packageDirectoryName)
+  const zipPath = path.join(root, "outside", `${packageDirectoryName}.zip`)
+  let callbackInvoked = false
+
+  await expect(
+    createWindowsRelease({
+      controlledRoot,
+      packageRoot,
+      packageDirectoryName,
+      zipPath,
+      checksumPath: `${zipPath}.sha256`,
+      sourceTemplatesRoot: path.join(controlledRoot, "templates"),
+      expectedVersion: "1.0.0",
+      dependencies: {
+        token: () => {
+          callbackInvoked = true
+          return "outside"
+        },
+        verifyPackage: async () => {
+          callbackInvoked = true
+        },
+      },
+    }),
+  ).rejects.toThrow(/controlled root/i)
+
+  expect(callbackInvoked).toBe(false)
 })
