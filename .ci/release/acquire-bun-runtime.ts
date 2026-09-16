@@ -7,8 +7,10 @@ import {
   assertControlledReleasePath,
   assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
+  prepareControlledReleaseRoot,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
+import { acquireDirectoryPublicationLock } from "./directory-publication-lock.ts"
 import { bunRuntime, getReleasePaths } from "./release-config.ts"
 
 const verificationStampName = ".vsrg-runtime-verification.json"
@@ -28,8 +30,6 @@ export interface BunRuntimeDependencies {
     target: string,
     options: { readonly recursive?: boolean; readonly force?: boolean },
   ) => Promise<void>
-  readonly delay: (milliseconds: number) => Promise<void>
-  readonly now: () => number
 }
 
 export interface AcquireBunRuntimeOptions {
@@ -152,43 +152,6 @@ const defaultDependencies: BunRuntimeDependencies = {
   readBunRevision,
   renamePath: rename,
   removePath: rm,
-  delay: async (milliseconds) => {
-    await new Promise((resolve) => setTimeout(resolve, milliseconds))
-  },
-  now: Date.now,
-}
-
-function hasErrorCode(error: unknown, code: string): boolean {
-  return error instanceof Error && "code" in error && error.code === code
-}
-
-async function acquirePublicationLock(
-  lockPath: string,
-  dependencies: BunRuntimeDependencies,
-): Promise<() => Promise<void>> {
-  const startedAt = dependencies.now()
-  while (true) {
-    try {
-      await mkdir(lockPath)
-      return () => dependencies.removePath(lockPath, { recursive: true, force: true })
-    } catch (error) {
-      if (!hasErrorCode(error, "EEXIST")) throw error
-    }
-
-    const details = await lstat(lockPath)
-    if (details.isSymbolicLink() || !details.isDirectory()) {
-      throw new Error(`Bun runtime publication lock is not a real directory: ${lockPath}`)
-    }
-    const now = dependencies.now()
-    if (now - details.mtimeMs >= stalePublicationLockAgeMs) {
-      await dependencies.removePath(lockPath, { recursive: true, force: true })
-      continue
-    }
-    if (now - startedAt >= publicationLockTimeoutMs) {
-      throw new Error(`Timed out waiting for Bun runtime publication lock: ${lockPath}`)
-    }
-    await dependencies.delay(publicationLockPollIntervalMs)
-  }
 }
 
 function expectedVerificationStamp(): string {
@@ -279,12 +242,18 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
   const extractionContainer = `${extractionRoot}.${token}.extract`
   const staleExtractionRoot = `${extractionRoot}.${token}.stale`
   const publicationLock = `${extractionRoot}.publish.lock`
+  const stalePublicationLock = `${publicationLock}.${token}.stale`
   assertControlledReleasePath(
     controlledRoot,
     temporaryArchive,
     "temporary Bun runtime archive path",
   )
   assertControlledReleasePath(controlledRoot, publicationLock, "Bun runtime publication lock path")
+  assertControlledReleasePath(
+    controlledRoot,
+    stalePublicationLock,
+    "stale Bun runtime publication lock path",
+  )
   assertControlledReleasePath(
     controlledRoot,
     extractionContainer,
@@ -315,6 +284,11 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
       controlledRoot,
       publicationLock,
       "Bun runtime publication lock path",
+    ),
+    assertPhysicallyControlledReleasePath(
+      controlledRoot,
+      stalePublicationLock,
+      "stale Bun runtime publication lock path",
     ),
   ])
   await mkdir(path.dirname(archivePath), { recursive: true })
@@ -367,7 +341,13 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
     await mkdir(extractionContainer, { recursive: true })
     await dependencies.extractArchive(archivePath, extractionContainer)
     await verifyFreshExtraction(extractedRuntime, dependencies)
-    const releasePublicationLock = await acquirePublicationLock(publicationLock, dependencies)
+    const releasePublicationLock = await acquireDirectoryPublicationLock({
+      lockPath: publicationLock,
+      staleLockPath: stalePublicationLock,
+      pollIntervalMs: publicationLockPollIntervalMs,
+      timeoutMs: publicationLockTimeoutMs,
+      staleAfterMs: stalePublicationLockAgeMs,
+    })
     try {
       if (await isVerifiedExtraction(extractionRoot, dependencies)) return bunExecutable
 
@@ -412,9 +392,10 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
 async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
+  await prepareControlledReleaseRoot(projectRoot, paths.cacheRoot, "Bun runtime cache root")
   console.log(
     await acquireBunRuntime({
-      controlledRoot: projectRoot,
+      controlledRoot: paths.cacheRoot,
       archivePath: paths.bunArchivePath,
       extractionRoot: paths.bunRuntimeRoot,
     }),

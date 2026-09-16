@@ -82,6 +82,7 @@ const allowedProductionFsPromiseFiles = new Set([
   ".ci/release/build-application.ts",
   ".ci/release/controlled-release-path.ts",
   ".ci/release/create-windows-release.ts",
+  ".ci/release/directory-publication-lock.ts",
   ".ci/release/install-runtime-dependencies.ts",
   ".ci/release/verify-windows-portable.ts",
   "src/adapters/etterna/assets/read-etterna-judgement-selection.ts",

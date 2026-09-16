@@ -6,6 +6,7 @@ import {
   assertControlledReleasePath,
   assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
+  prepareControlledReleaseRoot,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
 import { getReleasePaths } from "./release-config.ts"
@@ -181,9 +182,10 @@ export async function installRuntimeDependencies(
 async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
+  await prepareControlledReleaseRoot(projectRoot, paths.cacheRoot, "runtime dependency cache root")
   console.log(
     await installRuntimeDependencies({
-      controlledRoot: projectRoot,
+      controlledRoot: paths.cacheRoot,
       sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
       installationRoot: paths.runtimeDependenciesRoot,
     }),

@@ -5,9 +5,13 @@ import path from "node:path"
 import { acquireBunRuntime } from "../../.ci/release/acquire-bun-runtime.ts"
 import { assembleWindowsPortable } from "../../.ci/release/assemble-windows-portable.ts"
 import { buildApplication } from "../../.ci/release/build-application.ts"
+import { prepareControlledReleaseRoot } from "../../.ci/release/controlled-release-path.ts"
 import { installRuntimeDependencies } from "../../.ci/release/install-runtime-dependencies.ts"
 import { getReleasePaths } from "../../.ci/release/release-config.ts"
-import { verifyWindowsPortable } from "../../.ci/release/verify-windows-portable.ts"
+import {
+  portableRuntimeEnvironment,
+  verifyWindowsPortable,
+} from "../../.ci/release/verify-windows-portable.ts"
 import { runCapturedSubprocess } from "../../.ci/runtime/run-subprocess.ts"
 import packageJson from "../../package.json" with { type: "json" }
 import { expectTruthy } from "../support/expectations.ts"
@@ -28,7 +32,12 @@ async function runLauncher(
   const command = `""${launcher.replaceAll("%", "%%")}" ${args.join(" ")}"`
   const result = await runCapturedSubprocess(
     [Bun.env.ComSpec ?? "cmd.exe", "/d", "/s", "/c", command],
-    { cwd, timeoutMs, windowsVerbatimArguments: true },
+    {
+      cwd,
+      env: portableRuntimeEnvironment(Bun.env),
+      timeoutMs,
+      windowsVerbatimArguments: true,
+    },
   )
   return {
     stdout: result.stdout,
@@ -45,8 +54,13 @@ test("runs the real portable package from an external cwd and a path containing 
   onTestFinished(() => rm(temporaryRoot, { recursive: true }))
   const packageRoot = path.join(temporaryRoot, releasePaths.packageDirectoryName)
   const bundlePath = path.join(temporaryRoot, "bundle", "app.mjs")
+  await prepareControlledReleaseRoot(
+    projectRoot,
+    releasePaths.cacheRoot,
+    "portable smoke cache root",
+  )
   const bunExecutablePath = await acquireBunRuntime({
-    controlledRoot: projectRoot,
+    controlledRoot: releasePaths.cacheRoot,
     archivePath: releasePaths.bunArchivePath,
     extractionRoot: releasePaths.bunRuntimeRoot,
   })

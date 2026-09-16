@@ -165,6 +165,19 @@ async function verifyRuntime(
     )
   }
 
+  const invalid = await runLauncher(packageRoot, ["--unknown"], externalCwd, timeoutMs)
+  if (
+    invalid.code !== 1 ||
+    invalid.timedOut ||
+    invalid.stdout !== "" ||
+    !invalid.stderr.includes("Unknown argument: --unknown") ||
+    !invalid.stderr.includes("exited with code 1")
+  ) {
+    throw new Error(
+      `launcher failure propagation returned unexpected output for ${packageRoot}: exit=${invalid.code}, timedOut=${invalid.timedOut}, stdout=${JSON.stringify(invalid.stdout)}, stderr=${JSON.stringify(invalid.stderr)}`,
+    )
+  }
+
   const sharpProbe = [
     "import sharp from 'sharp';",
     "const input = await sharp({create:{width:2,height:2,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer();",

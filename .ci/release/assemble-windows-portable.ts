@@ -8,6 +8,7 @@ import {
   assertControlledReleasePath,
   assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
+  prepareControlledReleaseRoot,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
 import { installRuntimeDependencies } from "./install-runtime-dependencies.ts"
@@ -236,22 +237,24 @@ export async function assembleWindowsPortable(
 async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
+  await prepareControlledReleaseRoot(projectRoot, paths.cacheRoot, "portable cache root")
+  await prepareControlledReleaseRoot(projectRoot, paths.windowsBuildRoot, "portable build root")
   await buildApplication({
     entryPoint: path.join(projectRoot, "src", "cli.ts"),
     outputFile: paths.bundlePath,
   })
   const bunExecutablePath = await acquireBunRuntime({
-    controlledRoot: projectRoot,
+    controlledRoot: paths.cacheRoot,
     archivePath: paths.bunArchivePath,
     extractionRoot: paths.bunRuntimeRoot,
   })
   const runtimeNodeModulesPath = await installRuntimeDependencies({
-    controlledRoot: projectRoot,
+    controlledRoot: paths.cacheRoot,
     sourcePackageDirectory: path.join(projectRoot, ".ci", "release", "runtime-package"),
     installationRoot: paths.runtimeDependenciesRoot,
   })
   await assembleWindowsPortable({
-    controlledRoot: projectRoot,
+    controlledRoot: paths.windowsBuildRoot,
     packageRoot: paths.unpackedPackageRoot,
     bundlePath: paths.bundlePath,
     bunExecutablePath,

@@ -75,3 +75,14 @@ test("the development command requests verbose CLI failures explicitly", async (
   const packageJson: unknown = await Bun.file("package.json").json()
   expect(packageJson).toMatchObject({ scripts: { dev: expect.stringContaining("--verbose") } })
 })
+
+test("release entrypoints retain dedicated destructive roots", async () => {
+  for (const file of [
+    ".ci/release/acquire-bun-runtime.ts",
+    ".ci/release/assemble-windows-portable.ts",
+    ".ci/release/create-windows-release.ts",
+    ".ci/release/install-runtime-dependencies.ts",
+  ]) {
+    expect(await Bun.file(file).text()).not.toContain("controlledRoot: projectRoot")
+  }
+})

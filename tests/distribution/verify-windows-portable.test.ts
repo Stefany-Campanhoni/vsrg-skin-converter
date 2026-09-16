@@ -197,11 +197,12 @@ test("publishes a versioned ZIP and checksum only after independent extraction v
   const zipPath = path.join(releaseRoot, `${packageDirectoryName}.zip`)
   const checksumPath = `${zipPath}.sha256`
   await writeFixture(path.join(packageRoot, "marker"), "package")
+  await mkdir(releaseRoot)
   const calls: string[] = []
   const sha256 = "a".repeat(64)
 
   const artifact = await createWindowsRelease({
-    controlledRoot: root,
+    controlledRoot: releaseRoot,
     packageRoot,
     packageDirectoryName,
     zipPath,
@@ -253,7 +254,7 @@ test("preserves the previous ZIP and checksum when extracted verification fails"
 
   await expectRejectionSatisfies(
     createWindowsRelease({
-      controlledRoot: root,
+      controlledRoot: releaseRoot,
       packageRoot,
       packageDirectoryName,
       zipPath,
@@ -304,7 +305,7 @@ for (const failedBoundary of [
 
     await expectRejectionSatisfies(
       createWindowsRelease({
-        controlledRoot: root,
+        controlledRoot: releaseRoot,
         packageRoot,
         packageDirectoryName,
         zipPath,
@@ -363,7 +364,7 @@ test("retains both recovery backups when rollback cannot restore the previous pa
 
   await expectRejectionSatisfies(
     createWindowsRelease({
-      controlledRoot: root,
+      controlledRoot: releaseRoot,
       packageRoot,
       packageDirectoryName,
       zipPath,

@@ -7,6 +7,7 @@ import {
   assertControlledReleasePath,
   assertPhysicallyControlledReleasePath,
   assertSafeTransactionToken,
+  prepareControlledReleaseRoot,
   resolveControlledRoot,
 } from "./controlled-release-path.ts"
 import { getReleasePaths } from "./release-config.ts"
@@ -99,7 +100,6 @@ function assertReleasePaths(options: CreateWindowsReleaseOptions): void {
     throw new Error(`Expected an absolute source templates root: ${options.sourceTemplatesRoot}`)
   }
   for (const [candidate, label] of [
-    [packageRoot, "portable package root"],
     [zipPath, "Windows release ZIP path"],
     [checksumPath, "Windows release checksum path"],
   ] as const) {
@@ -126,7 +126,6 @@ export async function createWindowsRelease(
   const checksumPath = path.resolve(options.checksumPath)
   const sourceTemplatesRoot = path.resolve(options.sourceTemplatesRoot)
   await Promise.all([
-    assertPhysicallyControlledReleasePath(controlledRoot, packageRoot, "portable package root"),
     assertPhysicallyControlledReleasePath(controlledRoot, zipPath, "Windows release ZIP path"),
     assertPhysicallyControlledReleasePath(
       controlledRoot,
@@ -301,8 +300,9 @@ export async function createWindowsRelease(
 async function main(): Promise<void> {
   const projectRoot = path.resolve(import.meta.dir, "..", "..")
   const paths = getReleasePaths(projectRoot, packageJson.version)
+  await prepareControlledReleaseRoot(projectRoot, paths.releaseRoot, "Windows release root")
   const artifact = await createWindowsRelease({
-    controlledRoot: projectRoot,
+    controlledRoot: paths.releaseRoot,
     packageRoot: paths.unpackedPackageRoot,
     packageDirectoryName: paths.packageDirectoryName,
     zipPath: paths.zipPath,

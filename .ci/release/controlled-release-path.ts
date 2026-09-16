@@ -1,5 +1,5 @@
 import type { Stats } from "node:fs"
-import { lstat, realpath } from "node:fs/promises"
+import { lstat, mkdir, realpath } from "node:fs/promises"
 import path from "node:path"
 
 function isOutsideRoot(root: string, candidate: string): boolean {
@@ -80,6 +80,19 @@ export async function assertPhysicallyControlledReleasePath(
       throw new Error(`${label} contains a multiply-linked file: ${current}`)
     }
   }
+}
+
+export async function prepareControlledReleaseRoot(
+  parentRoot: string,
+  controlledRoot: string,
+  label: string,
+): Promise<string> {
+  const resolvedParent = resolveControlledRoot(parentRoot)
+  const resolvedControlledRoot = path.resolve(controlledRoot)
+  await assertPhysicallyControlledReleasePath(resolvedParent, resolvedControlledRoot, label)
+  await mkdir(resolvedControlledRoot, { recursive: true })
+  await assertPhysicallyControlledReleasePath(resolvedParent, resolvedControlledRoot, label)
+  return resolvedControlledRoot
 }
 
 export function assertSafeTransactionToken(token: string): void {

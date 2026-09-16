@@ -1,8 +1,22 @@
 import { expect, onTestFinished, test } from "bun:test"
-import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises"
+import { lstat, mkdir, mkdtemp, rm, symlink } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { assertPhysicallyControlledReleasePath } from "../../.ci/release/controlled-release-path.ts"
+import {
+  assertPhysicallyControlledReleasePath,
+  prepareControlledReleaseRoot,
+} from "../../.ci/release/controlled-release-path.ts"
+
+test("creates and verifies a dedicated controlled root below a physical parent", async () => {
+  const parentRoot = await mkdtemp(path.join(os.tmpdir(), "vsrg-controlled-root-test-"))
+  onTestFinished(() => rm(parentRoot, { recursive: true }))
+  const controlledRoot = path.join(parentRoot, "cache", "release")
+
+  expect(
+    await prepareControlledReleaseRoot(parentRoot, controlledRoot, "test controlled root"),
+  ).toBe(controlledRoot)
+  expect((await lstat(controlledRoot)).isDirectory()).toBe(true)
+})
 
 test("rejects a junction ancestor that redirects a mutation outside the controlled root", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "vsrg-controlled-path-test-"))
