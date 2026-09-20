@@ -1,19 +1,19 @@
-import sharp from "sharp"
+import sharp, { type OverlayOptions } from "sharp"
 import { invokeAsPromise, settleAll } from "../async/settle-all.ts"
 
 export interface CenteredSpriteSheetFrame {
   readonly label: string
-  readonly image: Buffer
+  readonly image: Uint8Array
 }
 
 export interface DecodedSpriteSheetFrame {
-  readonly data: Buffer
+  readonly data: Uint8Array
   readonly width: number
   readonly height: number
 }
 
 export interface ComposeCenteredVerticalSpriteSheetDependencies {
-  decode(image: Buffer, index: number): Promise<DecodedSpriteSheetFrame>
+  decode(image: Uint8Array, index: number): Promise<DecodedSpriteSheetFrame>
 }
 
 const defaultDependencies: ComposeCenteredVerticalSpriteSheetDependencies = {
@@ -29,7 +29,7 @@ const defaultDependencies: ComposeCenteredVerticalSpriteSheetDependencies = {
 export async function composeCenteredVerticalSpriteSheet(
   frames: readonly CenteredSpriteSheetFrame[],
   dependencies: ComposeCenteredVerticalSpriteSheetDependencies = defaultDependencies,
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   if (frames.length === 0) {
     throw new Error("A centered vertical sprite sheet requires at least one frame")
   }
@@ -63,7 +63,7 @@ export async function composeCenteredVerticalSpriteSheet(
     })
       .composite(
         decoded.map((frame, index) => ({
-          input: frame.data,
+          input: asSharpOverlayInput(frame.data),
           raw: { width: frame.width, height: frame.height, channels: 4 },
           left: Math.floor((cellWidth - frame.width) / 2),
           top: index * cellHeight + Math.floor((cellHeight - frame.height) / 2),
@@ -74,6 +74,11 @@ export async function composeCenteredVerticalSpriteSheet(
   } catch (cause) {
     throw new Error("Could not compose centered vertical sprite sheet", { cause })
   }
+}
+
+function asSharpOverlayInput(image: Uint8Array): NonNullable<OverlayOptions["input"]> {
+  // Sharp accepts typed arrays here at runtime, but its composite declaration still narrows input.
+  return image as NonNullable<OverlayOptions["input"]>
 }
 
 function assertDecodedFrame(frame: DecodedSpriteSheetFrame, label: string): void {

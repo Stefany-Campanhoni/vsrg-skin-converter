@@ -1,9 +1,9 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset, ReceptorSet } from "../../../domain/image.ts"
 import type { RenderReceptorOptions } from "../../../infrastructure/image/sharp-image-processor.ts"
 import { writeOsuReceptors } from "./write-osu-receptors.ts"
@@ -35,7 +35,7 @@ test("writes every receptor using the names referenced by the osu template", asy
     })
 
     const names = await readdir(path.join(outputDirectory, "mania", "receptors"))
-    assert.deepEqual(names.sort(), [
+    expect(names.sort()).toStrictEqual([
       "down@2x.png",
       "down_tap@2x.png",
       "left@2x.png",
@@ -45,13 +45,13 @@ test("writes every receptor using the names referenced by the osu template", asy
       "up@2x.png",
       "up_tap@2x.png",
     ])
-    assert.equal(receivedOptions.length, 8)
-    assert.ok(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
-    assert.ok(receivedOptions.every((options) => options.verticalScale === 196 / 146))
-    assert.ok(receivedOptions.every((options) => options.logicalCanvasHeight === 480))
-    assert.ok(receivedOptions.every((options) => options.renderedWidth === 62))
-    assert.ok(receivedOptions.every((options) => options.logicalBottomOffset === 23))
-    assert.ok(receivedOptions.every((options) => options.normalizationSize === 150))
+    expect(receivedOptions.length).toBe(8)
+    expectTruthy(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
+    expectTruthy(receivedOptions.every((options) => options.verticalScale === 196 / 146))
+    expectTruthy(receivedOptions.every((options) => options.logicalCanvasHeight === 480))
+    expectTruthy(receivedOptions.every((options) => options.renderedWidth === 62))
+    expectTruthy(receivedOptions.every((options) => options.logicalBottomOffset === 23))
+    expectTruthy(receivedOptions.every((options) => options.normalizationSize === 150))
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -79,8 +79,7 @@ test("uses the normal receptor when the pressed receptor is transparent", async 
     })
 
     const receptorDirectory = path.join(outputDirectory, "mania", "receptors")
-    assert.deepEqual(
-      await readFile(path.join(receptorDirectory, "left_tap@2x.png")),
+    expect(await readFile(path.join(receptorDirectory, "left_tap@2x.png"))).toStrictEqual(
       await readFile(path.join(receptorDirectory, "left@2x.png")),
     )
   } finally {
@@ -111,8 +110,12 @@ test("preserves a transparent normal receptor when the pressed receptor is visib
     })
 
     const receptorDirectory = path.join(outputDirectory, "mania", "receptors")
-    assert.deepEqual(await readFile(path.join(receptorDirectory, "left@2x.png")), transparentPng)
-    assert.deepEqual(await readFile(path.join(receptorDirectory, "left_tap@2x.png")), visiblePng)
+    expect(await readFile(path.join(receptorDirectory, "left@2x.png"))).toStrictEqual(
+      transparentPng,
+    )
+    expect(await readFile(path.join(receptorDirectory, "left_tap@2x.png"))).toStrictEqual(
+      visiblePng,
+    )
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -122,8 +125,8 @@ test("does not create receptor output when any render fails", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-writer-"))
   let calls = 0
   try {
-    await assert.rejects(
-      () =>
+    await expect(
+      (() =>
         writeOsuReceptors({
           receptors,
           outputDirectory,
@@ -137,11 +140,10 @@ test("does not create receptor output when any render fails", async () => {
             }
             return visiblePng
           },
-        }),
-      /render failed/,
-    )
+        }))(),
+    ).rejects.toThrow(/render failed/)
 
-    assert.deepEqual(await readdir(outputDirectory), [])
+    expect(await readdir(outputDirectory)).toStrictEqual([])
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -149,7 +151,7 @@ test("does not create receptor output when any render fails", async () => {
 
 test("waits for every receptor render before rethrowing the exact render failure", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-writer-"))
-  const sibling = deferred<Buffer>()
+  const sibling = deferred<Uint8Array>()
   const failureStarted = deferred<void>()
   const failure = new Error("exact render failure")
   let calls = 0
@@ -180,10 +182,10 @@ test("waits for every receptor render before rethrowing the exact render failure
 
     await failureStarted.promise
     await new Promise<void>((resolve) => setImmediate(resolve))
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve(visiblePng)
-    await assert.rejects(writing, (error) => error === failure)
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -225,17 +227,17 @@ test("waits for every receptor write before rethrowing the exact write failure",
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
+    expect(phase).toBe("started")
 
     let settled = false
     void writing.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(writing, (error) => error === failure)
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -279,8 +281,8 @@ test("starts every receptor write and waits for siblings when a writer throws sy
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
-    assert.equal(calls, 8)
+    expect(phase).toBe("started")
+    expect(calls).toBe(8)
 
     let settled = false
     void writing.then(
@@ -292,10 +294,10 @@ test("starts every receptor write and waits for siblings when a writer throws sy
       },
     )
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(writing, (error) => error === failure)
+    await expectRejectionSatisfies(writing, (error) => error === failure)
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }
@@ -306,8 +308,8 @@ test("adds receptor context when transparency inspection fails", async () => {
   const failure = new Error("invalid image data")
 
   try {
-    await assert.rejects(
-      () =>
+    await expectRejectionSatisfies(
+      (() =>
         writeOsuReceptors({
           receptors,
           outputDirectory,
@@ -318,14 +320,14 @@ test("adds receptor context when transparency inspection fails", async () => {
           inspectTransparency: async () => {
             throw failure
           },
-        }),
+        }))(),
       (error) =>
         error instanceof Error &&
         error.message === "Could not inspect pressed receptor for left" &&
         error.cause === failure,
     )
 
-    assert.deepEqual(await readdir(outputDirectory), [])
+    expect(await readdir(outputDirectory)).toStrictEqual([])
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
   }

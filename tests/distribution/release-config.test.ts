@@ -1,23 +1,21 @@
-import assert from "node:assert/strict"
-import { execFile } from "node:child_process"
+import { expect, test } from "bun:test"
 import { mkdtemp, readFile, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
-import { promisify } from "node:util"
 import { buildApplication } from "../../.ci/release/build-application.ts"
-import { getReleasePaths, nodeRuntime } from "../../.ci/release/release-config.ts"
+import { bunRuntime, getReleasePaths } from "../../.ci/release/release-config.ts"
+import { runCapturedSubprocess } from "../../.ci/runtime/run-subprocess.ts"
 import packageJson from "../../package.json" with { type: "json" }
 
-const execFileAsync = promisify(execFile)
-
-test("pins the supported Node Windows x64 runtime", () => {
-  assert.deepEqual(nodeRuntime, {
-    version: "22.23.2",
-    archiveName: "node-v22.23.2-win-x64.zip",
-    sha256: "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97",
-    executableSha256: "0d0f5e39f9f3d9587bc19f73eab3c2c9c4903fd02d6dbf9c853dd81b3d95fad4",
-    url: "https://nodejs.org/dist/v22.23.2/node-v22.23.2-win-x64.zip",
+test("pins the official Bun 1.4.0 Windows x64 baseline runtime", () => {
+  expect(bunRuntime).toStrictEqual({
+    version: "1.4.0",
+    revision: "34cbb9a40",
+    archiveName: "bun-windows-x64-baseline.zip",
+    archiveDirectoryName: "bun-windows-x64-baseline",
+    sha256: "b929c54a9badb104a16dedd23aab6152c86793ae653d4e6b13983ffd0c882a66",
+    executableSha256: "627d2e4775c24bdedee2cd7ccc18dcadae061e5345274ab6e3c4c797927bfb8f",
+    url: "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-windows-x64-baseline.zip",
   })
 })
 
@@ -25,50 +23,45 @@ test("derives controlled build and release paths from an absolute project root",
   const projectRoot = path.resolve("C:/repo")
   const paths = getReleasePaths(projectRoot, "1.0.0")
 
-  assert.equal(paths.projectRoot, projectRoot)
-  assert.equal(paths.packageDirectoryName, "vsrg-skin-converter-v1.0.0-win-x64")
-  assert.equal(paths.bundlePath, path.join(projectRoot, "build", "app.mjs"))
-  assert.equal(
-    paths.nodeArchivePath,
-    path.join(projectRoot, ".cache", "release", nodeRuntime.archiveName),
+  expect(paths.projectRoot).toBe(projectRoot)
+  expect(paths.packageDirectoryName).toBe("vsrg-skin-converter-v1.0.0-win-x64")
+  expect(paths.bundlePath).toBe(path.join(projectRoot, "build", "app.mjs"))
+  expect(paths.bunArchivePath).toBe(
+    path.join(projectRoot, ".cache", "release", bunRuntime.archiveName),
   )
-  assert.equal(
-    paths.unpackedPackageRoot,
+  expect(paths.unpackedPackageRoot).toBe(
     path.join(projectRoot, "build", "windows-portable", paths.packageDirectoryName),
   )
-  assert.equal(
-    paths.zipPath,
-    path.join(projectRoot, "release", `${paths.packageDirectoryName}.zip`),
-  )
-  assert.equal(paths.checksumPath, `${paths.zipPath}.sha256`)
+  expect(paths.zipPath).toBe(path.join(projectRoot, "release", `${paths.packageDirectoryName}.zip`))
+  expect(paths.checksumPath).toBe(`${paths.zipPath}.sha256`)
 
   for (const controlledPath of [
     paths.buildRoot,
     paths.cacheRoot,
     paths.releaseRoot,
     paths.bundlePath,
-    paths.nodeArchivePath,
-    paths.nodeRuntimeRoot,
+    paths.bunArchivePath,
+    paths.bunRuntimeRoot,
     paths.runtimeDependenciesRoot,
     paths.windowsBuildRoot,
     paths.unpackedPackageRoot,
     paths.zipPath,
     paths.checksumPath,
   ]) {
-    assert.equal(path.relative(projectRoot, controlledPath).startsWith(".."), false)
-    assert.notEqual(controlledPath, projectRoot)
+    expect(path.relative(projectRoot, controlledPath).startsWith("..")).toBe(false)
+    expect(controlledPath).not.toBe(projectRoot)
   }
-  assert.equal(path.relative(paths.windowsBuildRoot, paths.zipPath).startsWith(".."), true)
+  expect(path.relative(paths.windowsBuildRoot, paths.zipPath).startsWith("..")).toBe(true)
 })
 
 test("rejects unsafe roots and versions", () => {
-  assert.throws(() => getReleasePaths("relative", "1.0.0"), /absolute project root/i)
-  assert.throws(() => getReleasePaths(path.parse(process.cwd()).root, "1.0.0"), /filesystem root/i)
-  assert.throws(() => getReleasePaths(process.cwd(), ""), /version/i)
-  assert.throws(() => getReleasePaths(process.cwd(), "../escape"), /version/i)
+  expect(() => getReleasePaths("relative", "1.0.0")).toThrow(/absolute project root/i)
+  expect(() => getReleasePaths(path.parse(process.cwd()).root, "1.0.0")).toThrow(/filesystem root/i)
+  expect(() => getReleasePaths(process.cwd(), "")).toThrow(/version/i)
+  expect(() => getReleasePaths(process.cwd(), "../escape")).toThrow(/version/i)
 })
 
-test("builds an ESM application bundle with Sharp external and cwd-independent metadata", async () => {
+test("builds a Bun-targeted ESM application with Sharp external and no Node startup shim", async () => {
   const projectRoot = process.cwd()
   const temporaryRoot = await mkdtemp(path.join(projectRoot, ".tmp-bundle-"))
   const outputFile = path.join(temporaryRoot, "app.mjs")
@@ -79,12 +72,17 @@ test("builds an ESM application bundle with Sharp external and cwd-independent m
     })
 
     const bundle = await readFile(outputFile, "utf8")
-    assert.match(bundle, /from\s+["']sharp["']/)
-    const { stdout, stderr } = await execFileAsync(process.execPath, [outputFile, "--version"], {
+    expect(bundle).toStartWith("// @bun")
+    expect(bundle).toMatch(/from\s+["']sharp["']/)
+    expect(bundle).not.toContain("globalThis.Bun ??=")
+    const executable = Bun.argv[0]
+    if (!executable) throw new Error("Could not determine the Bun executable")
+    const result = await runCapturedSubprocess([executable, outputFile, "--version"], {
       cwd: os.tmpdir(),
     })
-    assert.equal(stdout, `${packageJson.version}\n`)
-    assert.equal(stderr, "")
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe(`${packageJson.version}\n`)
+    expect(result.stderr).toBe("")
   } finally {
     await rm(temporaryRoot, { recursive: true, force: true })
   }

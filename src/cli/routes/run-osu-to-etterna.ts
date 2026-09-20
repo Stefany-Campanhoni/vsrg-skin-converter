@@ -79,7 +79,7 @@ const installationDirectoryDependencies: InstallationDirectoryDependencies = {
 }
 
 const defaultDependencies: OsuToEtternaRouteDependencies = {
-  localAppData: process.env.LOCALAPPDATA,
+  localAppData: Bun.env.LOCALAPPDATA,
   resolveDefaultOsuInstallationDirectory,
   etternaDefaultLocation: gameDefaults.etterna.location,
   resolveInstallationDirectory: (defaultDirectory, prompt) =>

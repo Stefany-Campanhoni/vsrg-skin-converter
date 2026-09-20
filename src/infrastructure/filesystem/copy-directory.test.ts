@@ -1,8 +1,8 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies } from "../../../tests/support/expectations.ts"
 import { copyDirectory } from "./copy-directory.ts"
 
 test("waits for every entry copy before rethrowing the exact copy failure", async () => {
@@ -38,17 +38,17 @@ test("waits for every entry copy before rethrowing the exact copy failure", asyn
         () => "rejected",
       ),
     ])
-    assert.equal(phase, "started")
+    expect(phase).toBe("started")
 
     let settled = false
     void copying.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(copying, (error) => error === failure)
+    await expectRejectionSatisfies(copying, (error) => error === failure)
   } finally {
     await rm(root, { recursive: true, force: true })
   }
@@ -79,16 +79,16 @@ test("starts every entry copy when an injected copier throws synchronously", asy
     })
 
     await copiesStarted.promise
-    assert.equal(calls, 2)
+    expect(calls).toBe(2)
     let settled = false
     void copying.catch(() => {
       settled = true
     })
     await Promise.resolve()
-    assert.equal(settled, false)
+    expect(settled).toBe(false)
 
     sibling.resolve()
-    await assert.rejects(copying, (error) => error === failure)
+    await expectRejectionSatisfies(copying, (error) => error === failure)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

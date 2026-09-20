@@ -12,7 +12,7 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
-    "types": ["node"]
+    "types": ["bun"]
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*"]
 }

@@ -1,8 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { gameDefaults } from "../../../config/game-defaults.ts"
 import { columnDirections, type ImageAsset, type ReceptorSet } from "../../../domain/image.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { isImageFullyTransparent } from "../../../infrastructure/image/is-image-fully-transparent.ts"
 import {
   type RenderReceptorOptions,
@@ -14,9 +15,12 @@ import {
   getOsuReceptorVerticalScale,
 } from "./osu-receptor-calibration.ts"
 
-type ReceptorRenderer = (definition: ImageAsset, options: RenderReceptorOptions) => Promise<Buffer>
-type ReceptorWriter = (filePath: string, buffer: Buffer) => Promise<void>
-type ReceptorTransparencyInspector = (image: Buffer) => Promise<boolean>
+type ReceptorRenderer = (
+  definition: ImageAsset,
+  options: RenderReceptorOptions,
+) => Promise<Uint8Array>
+type ReceptorWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
+type ReceptorTransparencyInspector = (image: Uint8Array) => Promise<boolean>
 
 const osuReceptorCanvasPixelsPerHitPositionPoint = 2
 const osuLogicalCanvasHeight = 480
@@ -34,7 +38,7 @@ export interface WriteOsuReceptorsOptions {
 
 export async function writeOsuReceptors(options: WriteOsuReceptorsOptions): Promise<void> {
   const render = options.render ?? renderReceptorImage
-  const write = options.write ?? writeFile
+  const write = options.write ?? writeFileContents
   const inspectTransparency = options.inspectTransparency ?? isImageFullyTransparent
   const renderOptions: RenderReceptorOptions = {
     hitPosition: options.hitPosition,

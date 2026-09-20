@@ -1,18 +1,24 @@
-import assert from "node:assert/strict"
+import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
+import { expectRejectionSatisfies, expectTruthy } from "../../tests/support/expectations.ts"
 import { directoryExists, resolveInstallationDirectory } from "./installation-directory.ts"
 
 test("uses the default installation without prompting when it exists", async () => {
   const selected = await resolveInstallationDirectory("C:/Games/Etterna", "missing", {
     directoryExists: async () => true,
-    waitForAnyKey: async () => assert.fail("must not wait"),
-    pickDirectory: async () => assert.fail("must not pick"),
+    waitForAnyKey: async () =>
+      (() => {
+        throw new Error("must not wait")
+      })(),
+    pickDirectory: async () =>
+      (() => {
+        throw new Error("must not pick")
+      })(),
   })
 
-  assert.equal(selected, "C:/Games/Etterna")
+  expect(selected).toBe("C:/Games/Etterna")
 })
 
 test("returns the selected installation after the default is missing", async () => {
@@ -29,9 +35,9 @@ test("returns the selected installation after the default is missing", async () 
     pickDirectory: async () => "D:/Etterna",
   })
 
-  assert.equal(selected, "D:/Etterna")
-  assert.deepEqual(checkedDirectories, ["C:/Games/Etterna", "D:/Etterna"])
-  assert.deepEqual(prompts, ["missing"])
+  expect(selected).toBe("D:/Etterna")
+  expect(checkedDirectories).toStrictEqual(["C:/Games/Etterna", "D:/Etterna"])
+  expect(prompts).toStrictEqual(["missing"])
 })
 
 test("returns undefined when the replacement picker is cancelled", async () => {
@@ -41,7 +47,7 @@ test("returns undefined when the replacement picker is cancelled", async () => {
     pickDirectory: async () => undefined,
   })
 
-  assert.equal(selected, undefined)
+  expect(selected).toBe(undefined)
 })
 
 test("opens the picker without inspecting an unavailable default", async () => {
@@ -55,29 +61,26 @@ test("opens the picker without inspecting an unavailable default", async () => {
     pickDirectory: async () => "D:/Games/osu!",
   })
 
-  assert.equal(selected, "D:/Games/osu!")
-  assert.deepEqual(checkedDirectories, ["D:/Games/osu!"])
+  expect(selected).toBe("D:/Games/osu!")
+  expect(checkedDirectories).toStrictEqual(["D:/Games/osu!"])
 })
 
-test("accepts directories but rejects files and missing paths", async (context) => {
+test("accepts directories but rejects files and missing paths", async () => {
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "installation-directory-"))
-  context.after(() => rm(temporaryDirectory, { recursive: true, force: true }))
+  onTestFinished(() => rm(temporaryDirectory, { recursive: true, force: true }))
   const filePath = path.join(temporaryDirectory, "file.txt")
   await writeFile(filePath, "fixture")
 
-  assert.equal(await directoryExists(temporaryDirectory), true)
-  assert.equal(await directoryExists(filePath), false)
-  assert.equal(await directoryExists(path.join(temporaryDirectory, "missing")), false)
+  expect(await directoryExists(temporaryDirectory)).toBe(true)
+  expect(await directoryExists(filePath)).toBe(false)
+  expect(await directoryExists(path.join(temporaryDirectory, "missing"))).toBe(false)
 })
 
 test("preserves unexpected filesystem failures with installation context", async () => {
-  await assert.rejects(
-    () => directoryExists("\0"),
-    (error: unknown) => {
-      assert(error instanceof Error)
-      assert.match(error.message, /could not inspect installation directory/i)
-      assert(error.cause instanceof Error)
-      return true
-    },
-  )
+  await expectRejectionSatisfies((() => directoryExists("\0"))(), (error) => {
+    expectTruthy(error instanceof Error)
+    expect(error.message).toMatch(/could not inspect installation directory/i)
+    expectTruthy(error.cause instanceof Error)
+    return true
+  })
 })

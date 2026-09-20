@@ -1,8 +1,3 @@
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
-
-const execFileAsync = promisify(execFile)
-
 const folderPickerCommand = [
   "Add-Type -AssemblyName System.Windows.Forms",
   "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog",
@@ -29,12 +24,23 @@ export function createDirectoryPicker(
 }
 
 async function runPowerShellFolderPicker(): Promise<string> {
-  const { stdout } = await execFileAsync("powershell.exe", [
-    "-NoProfile",
-    "-STA",
-    "-Command",
-    folderPickerCommand,
+  const subprocess = Bun.spawn({
+    cmd: ["powershell.exe", "-NoProfile", "-STA", "-Command", folderPickerCommand],
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+    windowsHide: true,
+  })
+  const [, stdout, stderr] = await Promise.all([
+    subprocess.exited,
+    new Response(subprocess.stdout).text(),
+    new Response(subprocess.stderr).text(),
   ])
+  if (subprocess.exitCode !== 0) {
+    throw new Error(
+      `PowerShell folder picker exited with code ${subprocess.exitCode} and signal ${subprocess.signalCode}: ${stderr.trim()}`,
+    )
+  }
   return stdout
 }
 

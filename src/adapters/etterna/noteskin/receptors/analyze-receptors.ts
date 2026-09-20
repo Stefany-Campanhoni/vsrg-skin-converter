@@ -1,10 +1,10 @@
-import { readFile } from "node:fs/promises"
 import type { Diagnostic } from "../../../../domain/diagnostics.ts"
 import {
   type ColumnDirection,
   columnDirections,
   type ReceptorSet,
 } from "../../../../domain/image.ts"
+import { readTextFile } from "../../../../infrastructure/filesystem/bun-file.ts"
 import { type NoteSkinContext, normalizeRotation, titleByDirection } from "../note-skin-context.ts"
 import { analyzeReceptorLua } from "./analyze-receptor.ts"
 
@@ -64,7 +64,7 @@ export async function analyzeEtternaReceptors(
 
     try {
       const analysis = analyzeReceptorLua({
-        source: await readFile(receptorLuaPath, "utf8"),
+        source: await readTextFile(receptorLuaPath),
         filePath: receptorLuaPath,
         direction,
         variables: {

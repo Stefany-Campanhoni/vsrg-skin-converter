@@ -12,11 +12,11 @@ Describe the user-visible outcome and why this change is needed.
 ## Verification
 
 - [ ] I added or updated a regression test before changing behavior
-- [ ] `npm test`
-- [ ] `npm run typecheck`
-- [ ] `npm run lint`
-- [ ] `npm run test:architecture`
-- [ ] `npx tsc --noEmit --noUnusedLocals --noUnusedParameters`
+- [ ] `bun test`
+- [ ] `bun run typecheck`
+- [ ] `bun run lint`
+- [ ] `bun run test:architecture`
+- [ ] `bunx --bun --no-install tsc --noEmit --noUnusedLocals --noUnusedParameters`
 - [ ] `git diff --check`
 - [ ] I ran applicable integration, compatibility, and release checks
 

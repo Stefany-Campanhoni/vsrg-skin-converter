@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto"
 import { access, mkdir, mkdtemp, rename, rm } from "node:fs/promises"
 import path from "node:path"
 import type { OutputBuilder, OutputPublisher } from "../../application/ports/output-publisher.ts"
@@ -11,7 +10,7 @@ export class TransactionalOutputPublisher implements OutputPublisher {
     await mkdir(parent, { recursive: true })
 
     const staging = await mkdtemp(path.join(parent, `.${name}.staging-`))
-    const backup = path.join(parent, `.${name}.backup-${randomUUID()}`)
+    const backup = path.join(parent, `.${name}.backup-${crypto.randomUUID()}`)
     let hasBackup = false
 
     try {

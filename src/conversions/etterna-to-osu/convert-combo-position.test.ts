@@ -1,13 +1,12 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import { getComboPosition } from "./convert-combo-position.ts"
 
 test("converts Etterna combo position with the osu calibration offset", () => {
-  assert.equal(getComboPosition(0), 229)
-  assert.equal(getComboPosition(-20), 209)
+  expect(getComboPosition(0)).toBe(229)
+  expect(getComboPosition(-20)).toBe(209)
 })
 
 test("rounds before applying the combo calibration offset", () => {
-  assert.equal(getComboPosition(-20.4), 209)
-  assert.equal(getComboPosition(-20.6), 208)
+  expect(getComboPosition(-20.4)).toBe(209)
+  expect(getComboPosition(-20.6)).toBe(208)
 })

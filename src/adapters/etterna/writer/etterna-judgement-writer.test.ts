@@ -1,5 +1,6 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
+import { decodeUtf8 } from "../../../../tests/support/bytes.ts"
+import { expectRejectionSatisfies, expectTruthy } from "../../../../tests/support/expectations.ts"
 import type { ImageAsset } from "../../../domain/image.ts"
 import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import type { SkinModel } from "../../../domain/skin.ts"
@@ -16,17 +17,20 @@ test("renders complete custom judgements in row order without loading the fallba
     scale: number
   }> = []
   let composedFrames: readonly CenteredSpriteSheetFrame[] = []
-  const writes: Array<{ path: string; data: Buffer }> = []
+  const writes: Array<{ path: string; data: Uint8Array }> = []
   const custom = completeJudgements("custom", 1)
   const writer = new EtternaJudgementWriter(defaultSheetPath, {
-    analyzeDefaultJudgements: async () => assert.fail("complete custom set must not load fallback"),
+    analyzeDefaultJudgements: async () =>
+      (() => {
+        throw new Error("complete custom set must not load fallback")
+      })(),
     render: async (definition, sourceDensity, scale) => {
       rendered.push({ definition, sourceDensity, scale })
       return variants(definition.filePath)
     },
     compose: async (frames) => {
       composedFrames = frames
-      return Buffer.from("sheet")
+      return new TextEncoder().encode("sheet")
     },
     writeFile: async (filePath, data) => {
       writes.push({ path: filePath, data })
@@ -35,23 +39,27 @@ test("renders complete custom judgements in row order without loading the fallba
 
   await writer.writeJudgement(etternaSkin(custom), "staging/judgement.png")
 
-  assert.deepEqual(
+  expect(
     rendered.map(({ definition, sourceDensity, scale }) => ({
       filePath: definition.filePath,
       sourceDensity,
       scale,
     })),
+  ).toStrictEqual(
     judgementGrades.map((grade) => ({
       filePath: `custom-${grade}.png`,
       sourceDensity: 1,
       scale: 1,
     })),
   )
-  assert.deepEqual(
-    composedFrames.map(({ label, image }) => ({ label, image: image.toString() })),
+  expect(
+    composedFrames.map(({ label, image }) => ({ label, image: decodeUtf8(image) })),
+  ).toStrictEqual(
     judgementGrades.map((grade) => ({ label: grade, image: `sd:custom-${grade}.png` })),
   )
-  assert.deepEqual(writes, [{ path: "staging/judgement.png", data: Buffer.from("sheet") }])
+  expect(writes).toStrictEqual([
+    { path: "staging/judgement.png", data: new TextEncoder().encode("sheet") },
+  ])
 })
 
 test("fills only missing standard-density grades from extracted fallback frames", async () => {
@@ -77,20 +85,21 @@ test("fills only missing standard-density grades from extracted fallback frames"
     },
     compose: async (frames) => {
       composedFrames = frames
-      return Buffer.from("sheet")
+      return new TextEncoder().encode("sheet")
     },
     writeFile: async () => {},
   })
 
   await writer.writeJudgement(etternaSkin(judgements), "output.png")
 
-  assert.equal(analyzedPath, defaultSheetPath)
-  assert.deepEqual(
+  expect(analyzedPath).toBe(defaultSheetPath)
+  expect(
     rendered.map(({ definition, sourceDensity }) => ({
       filePath: definition.filePath,
       frame: definition.frame,
       sourceDensity,
     })),
+  ).toStrictEqual(
     judgementGrades.map((grade, index) => ({
       filePath:
         grade === "perfect" || grade === "miss" ? `custom-${grade}.png` : `fallback-${grade}.png`,
@@ -98,8 +107,9 @@ test("fills only missing standard-density grades from extracted fallback frames"
       sourceDensity: 1,
     })),
   )
-  assert.deepEqual(
-    composedFrames.map(({ label, image }) => ({ label, image: image.toString() })),
+  expect(
+    composedFrames.map(({ label, image }) => ({ label, image: decodeUtf8(image) })),
+  ).toStrictEqual(
     judgementGrades.map((grade) => ({
       label: grade,
       image: `sd:${grade === "perfect" || grade === "miss" ? "custom" : "fallback"}-${grade}.png`,
@@ -119,7 +129,7 @@ test("doubles every default frame when all @2x judgements are absent", async () 
     },
     compose: async (frames) => {
       composedFrames = frames
-      return Buffer.from("sheet")
+      return new TextEncoder().encode("sheet")
     },
     writeFile: async () => {},
   })
@@ -129,9 +139,10 @@ test("doubles every default frame when all @2x judgements are absent", async () 
     "output (Doubleres).png",
   )
 
-  assert.deepEqual(renderedDensities, [1, 1, 1, 1, 1, 1])
-  assert.deepEqual(
-    composedFrames.map(({ label, image }) => ({ label, image: image.toString() })),
+  expect(renderedDensities).toStrictEqual([1, 1, 1, 1, 1, 1])
+  expect(
+    composedFrames.map(({ label, image }) => ({ label, image: decodeUtf8(image) })),
+  ).toStrictEqual(
     judgementGrades.map((grade) => ({ label: grade, image: `hd:fallback-${grade}.png` })),
   )
 })
@@ -144,24 +155,22 @@ test("rejects non-Etterna and judgement-free models before loading the fallback"
       return completeJudgements("fallback", 1)
     },
     render: async (definition) => variants(definition.filePath),
-    compose: async () => Buffer.alloc(0),
+    compose: async () => new Uint8Array(0),
     writeFile: async () => {},
   })
   const skin = etternaSkin(completeJudgements("custom", 1))
 
-  await assert.rejects(
-    () => writer.writeJudgement({ ...skin, game: "osu" }, "output.png"),
-    /cannot write.*osu/i,
-  )
-  await assert.rejects(
-    () =>
+  await expect(
+    (() => writer.writeJudgement({ ...skin, game: "osu" }, "output.png"))(),
+  ).rejects.toThrow(/cannot write.*osu/i)
+  await expect(
+    (() =>
       writer.writeJudgement(
         { ...skin, assets: { ...skin.assets, judgements: undefined } },
         "output.png",
-      ),
-    /does not contain judgements/i,
-  )
-  assert.equal(analyses, 0)
+      ))(),
+  ).rejects.toThrow(/does not contain judgements/i)
+  expect(analyses).toBe(0)
 })
 
 test("settles every judgement render before rethrowing the first contextual failure", async () => {
@@ -169,7 +178,10 @@ test("settles every judgement render before rethrowing the first contextual fail
   let started = 0
   let settled = 0
   const writer = new EtternaJudgementWriter(defaultSheetPath, {
-    analyzeDefaultJudgements: async () => assert.fail("fallback must not load"),
+    analyzeDefaultJudgements: async () =>
+      (() => {
+        throw new Error("fallback must not load")
+      })(),
     render: (definition) => {
       const index = started++
       return new Promise<JudgementImageVariants>((resolve, reject) => {
@@ -180,20 +192,21 @@ test("settles every judgement render before rethrowing the first contextual fail
         })
       })
     },
-    compose: async () => Buffer.alloc(0),
+    compose: async () => new Uint8Array(0),
     writeFile: async () => {},
   })
 
-  await assert.rejects(
-    () => writer.writeJudgement(etternaSkin(completeJudgements("custom", 1)), "output.png"),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /marvelous.*custom-marvelous\.png/i)
-      assert.equal(error.cause, failures[0])
+  await expectRejectionSatisfies(
+    (() => writer.writeJudgement(etternaSkin(completeJudgements("custom", 1)), "output.png"))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/marvelous.*custom-marvelous\.png/i)
+      expect(error.cause).toBe(failures[0])
       return true
     },
   )
-  assert.equal(started, 6)
-  assert.equal(settled, 6)
+  expect(started).toBe(6)
+  expect(settled).toBe(6)
 })
 
 test("rejects an incomplete fallback before starting any judgement render", async () => {
@@ -206,15 +219,14 @@ test("rejects an incomplete fallback before starting any judgement render", asyn
       renders += 1
       return variants(definition.filePath)
     },
-    compose: async () => Buffer.from("sheet"),
+    compose: async () => new TextEncoder().encode("sheet"),
     writeFile: async () => {},
   })
 
-  await assert.rejects(
-    () => writer.writeJudgement(etternaSkin({ sourceDensity: 1, images: {} }), "output.png"),
-    /default Etterna judgement.*does not contain miss/i,
-  )
-  assert.equal(renders, 0)
+  await expect(
+    (() => writer.writeJudgement(etternaSkin({ sourceDensity: 1, images: {} }), "output.png"))(),
+  ).rejects.toThrow(/default Etterna judgement.*does not contain miss/i)
+  expect(renders).toBe(0)
 })
 
 test("preserves fallback analysis, compositor, and writer failures as contextual causes", async () => {
@@ -224,53 +236,62 @@ test("preserves fallback analysis, compositor, and writer failures as contextual
   const missingJudgements: JudgementSet = { sourceDensity: 1, images: {} }
   const customSkin = etternaSkin(completeJudgements("custom", 1))
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       new EtternaJudgementWriter(defaultSheetPath, {
         analyzeDefaultJudgements: async () => {
           throw analysisFailure
         },
         render: async (definition) => variants(definition.filePath),
-        compose: async () => Buffer.from("sheet"),
+        compose: async () => new TextEncoder().encode("sheet"),
         writeFile: async () => {},
-      }).writeJudgement(etternaSkin(missingJudgements), "output.png"),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /default Etterna judgement.*default 1x6\.png/i)
-      assert.equal(error.cause, analysisFailure)
+      }).writeJudgement(etternaSkin(missingJudgements), "output.png"))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/default Etterna judgement.*default 1x6\.png/i)
+      expect(error.cause).toBe(analysisFailure)
       return true
     },
   )
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       new EtternaJudgementWriter(defaultSheetPath, {
-        analyzeDefaultJudgements: async () => assert.fail("fallback must not load"),
+        analyzeDefaultJudgements: async () =>
+          (() => {
+            throw new Error("fallback must not load")
+          })(),
         render: async (definition) => variants(definition.filePath),
         compose: async () => {
           throw composeFailure
         },
         writeFile: async () => {},
-      }).writeJudgement(customSkin, "output.png"),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /compose Etterna judgement/i)
-      assert.equal(error.cause, composeFailure)
+      }).writeJudgement(customSkin, "output.png"))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/compose Etterna judgement/i)
+      expect(error.cause).toBe(composeFailure)
       return true
     },
   )
 
-  await assert.rejects(
-    () =>
+  await expectRejectionSatisfies(
+    (() =>
       new EtternaJudgementWriter(defaultSheetPath, {
-        analyzeDefaultJudgements: async () => assert.fail("fallback must not load"),
+        analyzeDefaultJudgements: async () =>
+          (() => {
+            throw new Error("fallback must not load")
+          })(),
         render: async (definition) => variants(definition.filePath),
-        compose: async () => Buffer.from("sheet"),
+        compose: async () => new TextEncoder().encode("sheet"),
         writeFile: async () => {
           throw writeFailure
         },
-      }).writeJudgement(customSkin, "output.png"),
-    (error: Error & { cause?: unknown }) => {
-      assert.match(error.message, /write Etterna judgement.*output\.png/i)
-      assert.equal(error.cause, writeFailure)
+      }).writeJudgement(customSkin, "output.png"))(),
+    (error) => {
+      expectTruthy(error instanceof Error)
+      expect(error.message).toMatch(/write Etterna judgement.*output\.png/i)
+      expect(error.cause).toBe(writeFailure)
       return true
     },
   )
@@ -278,8 +299,8 @@ test("preserves fallback analysis, compositor, and writer failures as contextual
 
 function variants(filePath: string): JudgementImageVariants {
   return {
-    standardResolution: Buffer.from(`sd:${filePath}`),
-    doubleResolution: Buffer.from(`hd:${filePath}`),
+    standardResolution: new TextEncoder().encode(`sd:${filePath}`),
+    doubleResolution: new TextEncoder().encode(`hd:${filePath}`),
   }
 }
 

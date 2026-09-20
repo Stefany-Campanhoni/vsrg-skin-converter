@@ -1,8 +1,9 @@
-import { readFile, realpath, stat } from "node:fs/promises"
+import { realpath, stat } from "node:fs/promises"
 import path from "node:path"
 import luaparse, { type Chunk, type Expression } from "luaparse"
 import type { Diagnostic } from "../../../domain/diagnostics.ts"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import { type AstObject, asAstObject, getTableField } from "../../../infrastructure/lua/ast.ts"
 import { evaluateLuaString } from "../../../infrastructure/lua/evaluate-expression.ts"
 import { resolveEtternaThemeSettingsPath } from "../settings/etterna-settings-paths.ts"
@@ -27,7 +28,7 @@ export async function readEtternaJudgementSelection(
   const configPath = path.join(resolveEtternaThemeSettingsPath(gameRoot, theme), "assetsConfig.lua")
   let source: string
   try {
-    source = await readFile(configPath, "utf8")
+    source = await readTextFile(configPath)
   } catch (cause) {
     throw new Error(`Could not read Etterna asset configuration ${configPath}`, { cause })
   }

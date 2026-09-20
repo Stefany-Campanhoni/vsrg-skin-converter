@@ -1,5 +1,4 @@
-import assert from "node:assert/strict"
-import test from "node:test"
+import { expect, test } from "bun:test"
 import type { SkinModel, SkinReference } from "../../domain/skin.ts"
 import type { OutputPublisher } from "../ports/output-publisher.ts"
 import type { SkinReader } from "../ports/skin-reader.ts"
@@ -83,8 +82,8 @@ test("orchestrates read, conversion, staged writing, and publication", async () 
     },
   )
 
-  assert.deepEqual(calls, ["read", "convert", "publish:output", "write:osu:staging"])
-  assert.equal(result.diagnostics[0]?.code, "fixture.warning")
+  expect(calls).toStrictEqual(["read", "convert", "publish:output", "write:osu:staging"])
+  expect(result.diagnostics[0]?.code).toBe("fixture.warning")
 })
 
 test("does not publish when source reading fails", async () => {
@@ -110,8 +109,8 @@ test("does not publish when source reading fails", async () => {
     writeSkin: async () => {},
   }
 
-  await assert.rejects(
-    () =>
+  await expect(
+    (() =>
       convertSkin(
         {
           reference,
@@ -124,8 +123,7 @@ test("does not publish when source reading fails", async () => {
           conversions: new ConversionRegistry([conversion]),
           publisher,
         },
-      ),
-    /read failed/i,
-  )
-  assert.equal(published, false)
+      ))(),
+  ).rejects.toThrow(/read failed/i)
+  expect(published).toBe(false)
 })

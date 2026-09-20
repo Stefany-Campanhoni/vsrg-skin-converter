@@ -1,11 +1,13 @@
 import path from "node:path"
 
-export const nodeRuntime = {
-  version: "22.23.2",
-  archiveName: "node-v22.23.2-win-x64.zip",
-  sha256: "1177b4137ba5adaa56354ae40f1080c7450e8ae09cecb47da459d1c52ac99f97",
-  executableSha256: "0d0f5e39f9f3d9587bc19f73eab3c2c9c4903fd02d6dbf9c853dd81b3d95fad4",
-  url: "https://nodejs.org/dist/v22.23.2/node-v22.23.2-win-x64.zip",
+export const bunRuntime = {
+  version: "1.4.0",
+  revision: "34cbb9a40",
+  archiveName: "bun-windows-x64-baseline.zip",
+  archiveDirectoryName: "bun-windows-x64-baseline",
+  sha256: "b929c54a9badb104a16dedd23aab6152c86793ae653d4e6b13983ffd0c882a66",
+  executableSha256: "627d2e4775c24bdedee2cd7ccc18dcadae061e5345274ab6e3c4c797927bfb8f",
+  url: "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-windows-x64-baseline.zip",
 } as const
 
 export interface ReleasePaths {
@@ -15,8 +17,8 @@ export interface ReleasePaths {
   readonly cacheRoot: string
   readonly releaseRoot: string
   readonly bundlePath: string
-  readonly nodeArchivePath: string
-  readonly nodeRuntimeRoot: string
+  readonly bunArchivePath: string
+  readonly bunRuntimeRoot: string
   readonly runtimeDependenciesRoot: string
   readonly windowsBuildRoot: string
   readonly unpackedPackageRoot: string
@@ -52,8 +54,8 @@ export function getReleasePaths(projectRoot: string, version: string): ReleasePa
   const cacheRoot = path.join(resolvedRoot, ".cache", "release")
   const releaseRoot = path.join(resolvedRoot, "release")
   const bundlePath = path.join(buildRoot, "app.mjs")
-  const nodeArchivePath = path.join(cacheRoot, nodeRuntime.archiveName)
-  const nodeRuntimeRoot = path.join(cacheRoot, `node-v${nodeRuntime.version}-win-x64`)
+  const bunArchivePath = path.join(cacheRoot, bunRuntime.archiveName)
+  const bunRuntimeRoot = path.join(cacheRoot, `bun-v${bunRuntime.version}-windows-x64-baseline`)
   const runtimeDependenciesRoot = path.join(cacheRoot, "runtime-package-win-x64")
   const windowsBuildRoot = path.join(buildRoot, "windows-portable")
   const unpackedPackageRoot = path.join(windowsBuildRoot, packageDirectoryName)
@@ -67,8 +69,8 @@ export function getReleasePaths(projectRoot: string, version: string): ReleasePa
     cacheRoot,
     releaseRoot,
     bundlePath,
-    nodeArchivePath,
-    nodeRuntimeRoot,
+    bunArchivePath,
+    bunRuntimeRoot,
     runtimeDependenciesRoot,
     windowsBuildRoot,
     unpackedPackageRoot,

@@ -1,8 +1,7 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import { resolveOsuJudgementAsset } from "./resolve-osu-judgement-asset.ts"
 
 async function withSkin(run: (skinDirectory: string) => Promise<void>): Promise<void> {
@@ -41,8 +40,8 @@ test("resolves a simple skin.ini judgement name from the skin root", async () =>
 
     const asset = await resolve(skinDirectory, "0")
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "standard")
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("standard")
   })
 })
 
@@ -53,7 +52,7 @@ test("prefers animation frame zero over the unsuffixed referenced judgement", as
 
     const asset = await resolve(skinDirectory, "0")
 
-    assert.equal(asset.filePath, expected)
+    expect(asset.filePath).toBe(expected)
   })
 })
 
@@ -63,7 +62,7 @@ test("resolves the osu default judgement name inside a referenced directory", as
 
     const asset = await resolve(skinDirectory, "judgements", "mania-hit50")
 
-    assert.equal(asset.filePath, expected)
+    expect(asset.filePath).toBe(expected)
   })
 })
 
@@ -74,7 +73,7 @@ test("uses the frame-zero osu default from the skin root when the property is ab
 
     const asset = await resolve(skinDirectory, undefined, "mania-hit300")
 
-    assert.equal(asset.filePath, expected)
+    expect(asset.filePath).toBe(expected)
   })
 })
 
@@ -85,8 +84,8 @@ test("applies selected density after the frame-zero suffix", async () => {
 
     const asset = await resolve(skinDirectory, undefined, "mania-hit300g", true)
 
-    assert.equal(asset.filePath, expected)
-    assert.equal(asset.pixelDensity, "double")
+    expect(asset.filePath).toBe(expected)
+    expect(asset.pixelDensity).toBe("double")
   })
 })
 
@@ -94,6 +93,6 @@ test("rejects traversal before deriving frame-zero candidates", async () => {
   await withSkin(async (skinDirectory) => {
     await writePng(skinDirectory, "..-0.png")
 
-    await assert.rejects(() => resolve(skinDirectory, ".."), /traversal/i)
+    await expect((() => resolve(skinDirectory, ".."))()).rejects.toThrow(/traversal/i)
   })
 })

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises"
+import { readTextFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
 export type TemplateReplacements = Readonly<Record<string, string | number>>
 
@@ -17,10 +17,10 @@ export async function renderTemplateFile(
   replacements: TemplateReplacements,
 ): Promise<void> {
   try {
-    const template = await readFile(filePath, "utf-8")
+    const template = await readTextFile(filePath)
     const renderedTemplate = replaceWildcards(template, replacements)
 
-    await writeFile(filePath, renderedTemplate, "utf-8")
+    await writeFileContents(filePath, renderedTemplate)
   } catch (error) {
     throw new Error(`Failed to render template file "${filePath}".`, {
       cause: error,

@@ -1,9 +1,10 @@
-import assert from "node:assert/strict"
+import { expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import test from "node:test"
 import sharp from "sharp"
+import { concatBytes } from "../../../tests/support/bytes.ts"
+import { expectTruthy } from "../../../tests/support/expectations.ts"
 import type { ImageAsset } from "../../domain/image.ts"
 import {
   getReceptorBottomPadding,
@@ -36,28 +37,28 @@ async function withImages(
 }
 
 test("calculates dynamic receptor footer and canvas height", () => {
-  assert.equal(getReceptorBottomPadding(432, 480, 150, 62, 13), 148)
-  assert.equal(getReceptorBottomPadding(438, 480, 150, 62, 13), 133)
-  assert.equal(getReceptorBottomPadding(432, 480, 150, 68, 13), 135)
+  expect(getReceptorBottomPadding(432, 480, 150, 62, 13)).toBe(148)
+  expect(getReceptorBottomPadding(438, 480, 150, 62, 13)).toBe(133)
+  expect(getReceptorBottomPadding(432, 480, 150, 68, 13)).toBe(135)
 
-  assert.equal(getReceptorCanvasHeight(432, 356, 196, 438, 2, 148), 368)
-  assert.equal(getReceptorCanvasHeight(438, 356, 196, 438, 2, 133), 356)
-  assert.equal(getReceptorCanvasHeight(438, 100, 300, 438, 2, 148), 448)
+  expect(getReceptorCanvasHeight(432, 356, 196, 438, 2, 148)).toBe(368)
+  expect(getReceptorCanvasHeight(438, 356, 196, 438, 2, 133)).toBe(356)
+  expect(getReceptorCanvasHeight(438, 100, 300, 438, 2, 148)).toBe(448)
 })
 
 test("rejects invalid dynamic-footer geometry", () => {
-  assert.throws(() => getReceptorBottomPadding(432, 480, 150, 0, 13), /positive/)
-  assert.throws(() => getReceptorBottomPadding(481, 480, 150, 62, 13), /between/)
-  assert.throws(() => getReceptorBottomPadding(432, 480, 150, 62, Number.NaN), /finite/)
+  expect(() => getReceptorBottomPadding(432, 480, 150, 0, 13)).toThrow(/positive/)
+  expect(() => getReceptorBottomPadding(481, 480, 150, 62, 13)).toThrow(/between/)
+  expect(() => getReceptorBottomPadding(432, 480, 150, 62, Number.NaN)).toThrow(/finite/)
 })
 
 test("extracts the selected spritesheet frame before rendering", async () => {
   await withImages(async ({ base, source }) => {
-    const red = Buffer.from([255, 0, 0, 255])
-    const blue = Buffer.from([0, 0, 255, 255])
-    const pixels = Buffer.concat(
+    const red = new Uint8Array([255, 0, 0, 255])
+    const blue = new Uint8Array([0, 0, 255, 255])
+    const pixels = concatBytes(
       Array.from({ length: 10 }, () =>
-        Buffer.concat([
+        concatBytes([
           ...Array.from({ length: 10 }, () => red),
           ...Array.from({ length: 10 }, () => blue),
         ]),
@@ -88,8 +89,8 @@ test("extracts the selected spritesheet frame before rendering", async () => {
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
     const centerBottom = pixel(data, info.width, 74, 222)
 
-    assert.deepEqual([...centerBottom], [0, 0, 255, 255])
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect([...centerBottom]).toStrictEqual([0, 0, 255, 255])
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: 0,
       top: 73,
       right: 149,
@@ -127,13 +128,13 @@ test("rotates before centering and keeps the receptor anchored at the hit positi
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: 0,
       top: 0,
       right: 149,
       bottom: 299,
     })
-    assert.equal(pixel(data, info.width, 74, 300)[3], 0)
+    expect(pixel(data, info.width, 74, 300)[3]).toBe(0)
   })
 })
 
@@ -170,7 +171,7 @@ test("extracts a non-square frame before applying rotation", async () => {
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: 0,
       top: 0,
       right: 149,
@@ -205,7 +206,7 @@ test("normalizes receptor width to 150 pixels while preserving its aspect ratio"
       baseImagePath: base,
     })
     const smallRaw = await sharp(small).raw().toBuffer({ resolveWithObject: true })
-    assert.deepEqual(alphaBounds(smallRaw.data, smallRaw.info.width, smallRaw.info.height), {
+    expect(alphaBounds(smallRaw.data, smallRaw.info.width, smallRaw.info.height)).toStrictEqual({
       left: 0,
       top: 103,
       right: 149,
@@ -234,7 +235,7 @@ test("normalizes receptor width to 150 pixels while preserving its aspect ratio"
       baseImagePath: base,
     })
     const largeRaw = await sharp(large).raw().toBuffer({ resolveWithObject: true })
-    assert.deepEqual(alphaBounds(largeRaw.data, largeRaw.info.width, largeRaw.info.height), {
+    expect(alphaBounds(largeRaw.data, largeRaw.info.width, largeRaw.info.height)).toStrictEqual({
       left: 0,
       top: 173,
       right: 149,
@@ -272,7 +273,7 @@ test("keeps a tall receptor within the existing 150 pixel boundary", async () =>
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: 37,
       top: 73,
       right: 111,
@@ -321,8 +322,8 @@ test("stretches the visible receptor and aligns its bottom edge with the canvas"
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual({ width: info.width, height: info.height }, { width: 150, height: 368 })
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect({ width: info.width, height: info.height }).toStrictEqual({ width: 150, height: 368 })
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: 2,
       top: 24,
       right: 147,
@@ -378,7 +379,7 @@ test("keeps the visible receptor bottom at the logical hit position across width
       const footer = raw.info.height - bounds.bottom - 1
       const logicalVisibleBottom = 480 - (footer * renderedWidth) / raw.info.width
 
-      assert.ok(Math.abs(logicalVisibleBottom - (432 - 13)) < 0.2)
+      expectTruthy(Math.abs(logicalVisibleBottom - (432 - 13)) < 0.2)
     }
   })
 })
@@ -412,7 +413,7 @@ test("preserves a receptor without visible pixels", async () => {
     )
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual(alphaBounds(data, info.width, info.height), {
+    expect(alphaBounds(data, info.width, info.height)).toStrictEqual({
       left: info.width,
       top: info.height,
       right: -1,
@@ -423,11 +424,11 @@ test("preserves a receptor without visible pixels", async () => {
 
 test("extracts a note frame without resizing or adding canvas", async () => {
   await withImages(async ({ source }) => {
-    const red = Buffer.from([255, 0, 0, 255])
-    const blue = Buffer.from([0, 0, 255, 255])
-    const pixels = Buffer.concat(
+    const red = new Uint8Array([255, 0, 0, 255])
+    const blue = new Uint8Array([0, 0, 255, 255])
+    const pixels = concatBytes(
       Array.from({ length: 12 }, (_, y) =>
-        Buffer.concat(Array.from({ length: 18 }, () => (y < 6 ? red : blue))),
+        concatBytes(Array.from({ length: 18 }, () => (y < 6 ? red : blue))),
       ),
     )
     await sharp(pixels, { raw: { width: 18, height: 12, channels: 4 } })
@@ -442,8 +443,8 @@ test("extracts a note frame without resizing or adding canvas", async () => {
     const output = await renderNoteImage(definition)
     const { data, info } = await sharp(output).raw().toBuffer({ resolveWithObject: true })
 
-    assert.deepEqual({ width: info.width, height: info.height }, { width: 18, height: 6 })
-    assert.deepEqual([...pixel(data, info.width, 0, 0)], [0, 0, 255, 255])
+    expect({ width: info.width, height: info.height }).toStrictEqual({ width: 18, height: 6 })
+    expect([...pixel(data, info.width, 0, 0)]).toStrictEqual([0, 0, 255, 255])
   })
 })
 
@@ -467,16 +468,19 @@ test("rotates a selected non-square note frame while preserving its dimensions",
     })
     const metadata = await sharp(output).metadata()
 
-    assert.deepEqual({ width: metadata.width, height: metadata.height }, { width: 10, height: 12 })
+    expect({ width: metadata.width, height: metadata.height }).toStrictEqual({
+      width: 10,
+      height: 12,
+    })
   })
 })
 
-function pixel(data: Buffer, width: number, x: number, y: number): Buffer {
+function pixel(data: Uint8Array, width: number, x: number, y: number): Uint8Array {
   const offset = (y * width + x) * 4
   return data.subarray(offset, offset + 4)
 }
 
-function alphaBounds(data: Buffer, width: number, height: number) {
+function alphaBounds(data: Uint8Array, width: number, height: number) {
   let left = width
   let top = height
   let right = -1

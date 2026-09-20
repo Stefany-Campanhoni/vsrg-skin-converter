@@ -1,13 +1,14 @@
-import { mkdir, writeFile } from "node:fs/promises"
+import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
+import { writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 import { runEtternaAssetOperation } from "./run-etterna-asset-operation.ts"
 
-export type EtternaAssetWriter = (filePath: string, buffer: Buffer) => Promise<void>
+export type EtternaAssetWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
 
 export interface PreparedEtternaAsset {
   readonly filename: string
-  readonly buffer: Buffer
+  readonly buffer: Uint8Array
 }
 
 export interface WritePreparedEtternaAssetsOptions {
@@ -19,7 +20,7 @@ export interface WritePreparedEtternaAssetsOptions {
 export async function writePreparedEtternaAssets(
   options: WritePreparedEtternaAssetsOptions,
 ): Promise<void> {
-  const write = options.write ?? writeFile
+  const write = options.write ?? writeFileContents
   await runEtternaAssetOperation(
     `create Etterna asset output directory '${options.outputDirectory}'`,
     () => mkdir(options.outputDirectory, { recursive: true }),

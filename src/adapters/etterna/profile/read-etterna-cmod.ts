@@ -1,12 +1,12 @@
-import { readFile } from "node:fs/promises"
 import path from "node:path"
+import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import { resolveEtternaProfilePath } from "../settings/etterna-settings-paths.ts"
 
 export async function readEtternaCmod(gameRoot: string, profileId: string): Promise<number> {
   const profilePath = path.join(resolveEtternaProfilePath(gameRoot, profileId), "Etterna.xml")
   let source: string
   try {
-    source = await readFile(profilePath, "utf8")
+    source = await readTextFile(profilePath)
   } catch (cause) {
     throw new Error(`Could not read Etterna CMod from ${profilePath}`, { cause })
   }
