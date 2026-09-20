@@ -1,4 +1,4 @@
-import { lstat, mkdir, rename, rm } from "node:fs/promises"
+import { lstat, mkdir, rm } from "node:fs/promises"
 
 interface DirectoryDetails {
   readonly mtimeMs: number
@@ -9,7 +9,6 @@ interface DirectoryDetails {
 export interface DirectoryPublicationLockDependencies {
   readonly createDirectory: (directory: string) => Promise<void>
   readonly inspectPath: (target: string) => Promise<DirectoryDetails>
-  readonly renamePath: (source: string, destination: string) => Promise<void>
   readonly removePath: (
     target: string,
     options: { readonly recursive?: boolean; readonly force?: boolean },
@@ -20,7 +19,6 @@ export interface DirectoryPublicationLockDependencies {
 
 export interface DirectoryPublicationLockOptions {
   readonly lockPath: string
-  readonly staleLockPath: string
   readonly pollIntervalMs: number
   readonly timeoutMs: number
   readonly staleAfterMs: number
@@ -30,7 +28,6 @@ export interface DirectoryPublicationLockOptions {
 const defaultDependencies: DirectoryPublicationLockDependencies = {
   createDirectory: async (directory) => mkdir(directory),
   inspectPath: lstat,
-  renamePath: rename,
   removePath: rm,
   delay: async (milliseconds) => {
     await new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -67,14 +64,9 @@ export async function acquireDirectoryPublicationLock(
     }
     const now = dependencies.now()
     if (now - details.mtimeMs >= options.staleAfterMs) {
-      try {
-        await dependencies.renamePath(options.lockPath, options.staleLockPath)
-      } catch (error) {
-        if (hasErrorCode(error, "ENOENT")) continue
-        throw error
-      }
-      await dependencies.removePath(options.staleLockPath, { recursive: true, force: true })
-      continue
+      throw new Error(
+        `Stale publication lock requires manual cleanup after confirming no publisher is active: ${options.lockPath}`,
+      )
     }
     if (now - startedAt >= options.timeoutMs) {
       throw new Error(`Timed out waiting for publication lock: ${options.lockPath}`)

@@ -242,18 +242,12 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
   const extractionContainer = `${extractionRoot}.${token}.extract`
   const staleExtractionRoot = `${extractionRoot}.${token}.stale`
   const publicationLock = `${extractionRoot}.publish.lock`
-  const stalePublicationLock = `${publicationLock}.${token}.stale`
   assertControlledReleasePath(
     controlledRoot,
     temporaryArchive,
     "temporary Bun runtime archive path",
   )
   assertControlledReleasePath(controlledRoot, publicationLock, "Bun runtime publication lock path")
-  assertControlledReleasePath(
-    controlledRoot,
-    stalePublicationLock,
-    "stale Bun runtime publication lock path",
-  )
   assertControlledReleasePath(
     controlledRoot,
     extractionContainer,
@@ -284,11 +278,6 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
       controlledRoot,
       publicationLock,
       "Bun runtime publication lock path",
-    ),
-    assertPhysicallyControlledReleasePath(
-      controlledRoot,
-      stalePublicationLock,
-      "stale Bun runtime publication lock path",
     ),
   ])
   await mkdir(path.dirname(archivePath), { recursive: true })
@@ -343,7 +332,6 @@ export async function acquireBunRuntime(options: AcquireBunRuntimeOptions): Prom
     await verifyFreshExtraction(extractedRuntime, dependencies)
     const releasePublicationLock = await acquireDirectoryPublicationLock({
       lockPath: publicationLock,
-      staleLockPath: stalePublicationLock,
       pollIntervalMs: publicationLockPollIntervalMs,
       timeoutMs: publicationLockTimeoutMs,
       staleAfterMs: stalePublicationLockAgeMs,

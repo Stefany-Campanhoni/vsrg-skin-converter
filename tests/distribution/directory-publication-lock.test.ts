@@ -12,7 +12,6 @@ test("retries when a lock disappears before it can be inspected", async () => {
   const removed: string[] = []
   const release = await acquireDirectoryPublicationLock({
     lockPath: "runtime.lock",
-    staleLockPath: "runtime.lock.stale-test",
     pollIntervalMs: 1,
     timeoutMs: 10,
     staleAfterMs: 5,
@@ -23,9 +22,6 @@ test("retries when a lock disappears before it can be inspected", async () => {
       },
       inspectPath: async () => {
         throw filesystemError("ENOENT")
-      },
-      renamePath: async () => {
-        throw new Error("a disappeared lock must not be renamed")
       },
       removePath: async (target) => {
         removed.push(target)
@@ -40,40 +36,33 @@ test("retries when a lock disappears before it can be inspected", async () => {
   expect(removed).toStrictEqual(["runtime.lock"])
 })
 
-test("never removes the active lock when another waiter retires the stale lock first", async () => {
-  let createAttempts = 0
+test("fails closed instead of stealing a stale publication lock", async () => {
   const removed: string[] = []
-  const renamed: Array<readonly [string, string]> = []
-  const release = await acquireDirectoryPublicationLock({
-    lockPath: "runtime.lock",
-    staleLockPath: "runtime.lock.stale-test",
-    pollIntervalMs: 1,
-    timeoutMs: 10,
-    staleAfterMs: 5,
-    dependencies: {
-      createDirectory: async () => {
-        createAttempts += 1
-        if (createAttempts === 1) throw filesystemError("EEXIST")
+  await expect(
+    acquireDirectoryPublicationLock({
+      lockPath: "runtime.lock",
+      pollIntervalMs: 1,
+      timeoutMs: 10,
+      staleAfterMs: 5,
+      dependencies: {
+        createDirectory: async () => {
+          throw filesystemError("EEXIST")
+        },
+        inspectPath: async () => ({
+          isDirectory: () => true,
+          isSymbolicLink: () => false,
+          mtimeMs: 0,
+        }),
+        removePath: async (target) => {
+          removed.push(target)
+        },
+        delay: async () => {},
+        now: () => 10,
       },
-      inspectPath: async () => ({
-        isDirectory: () => true,
-        isSymbolicLink: () => false,
-        mtimeMs: 0,
-      }),
-      renamePath: async (source, destination) => {
-        renamed.push([source, destination])
-        throw filesystemError("ENOENT")
-      },
-      removePath: async (target) => {
-        removed.push(target)
-      },
-      delay: async () => {},
-      now: () => 10,
-    },
-  })
+    }),
+  ).rejects.toThrow(
+    "Stale publication lock requires manual cleanup after confirming no publisher is active: runtime.lock",
+  )
 
-  expect(createAttempts).toBe(2)
-  expect(renamed).toStrictEqual([["runtime.lock", "runtime.lock.stale-test"]])
-  await release()
-  expect(removed).toStrictEqual(["runtime.lock"])
+  expect(removed).toBeEmpty()
 })
