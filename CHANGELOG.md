@@ -1,5 +1,12 @@
 # vsrg-skin-converter
 
+## 1.1.0
+
+### Minor Changes
+
+- [#65](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/65) [`ea61cbf`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/ea61cbf8c70d94056ebea4b5962bdd7a1fe1a8c7) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Ship the Windows x64 portable distribution with the pinned Bun 1.4.0 baseline runtime instead
+  of Node.js, while preserving the CLI, Sharp image processing, and transactional ZIP checks.
+
 ## 1.0.3
 
 ### Patch Changes
