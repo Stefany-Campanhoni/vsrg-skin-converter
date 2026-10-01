@@ -49,8 +49,8 @@ test("writes every receptor using the names referenced by the osu template", asy
     expectTruthy(receivedOptions.every((options) => options.pixelsPerHitPositionPoint === 2))
     expectTruthy(receivedOptions.every((options) => options.verticalScale === 196 / 146))
     expectTruthy(receivedOptions.every((options) => options.logicalCanvasHeight === 480))
-    expectTruthy(receivedOptions.every((options) => options.renderedWidth === 62))
-    expectTruthy(receivedOptions.every((options) => options.logicalBottomOffset === 23))
+    expectTruthy(receivedOptions.every((options) => options.pixelsPerLogicalPoint === 3.2))
+    expectTruthy(receivedOptions.every((options) => options.logicalBottomOffset === 1.5))
     expectTruthy(receivedOptions.every((options) => options.normalizationSize === 150))
   } finally {
     await rm(outputDirectory, { recursive: true, force: true })
@@ -358,3 +358,58 @@ function createPng(background: { r: number; g: number; b: number; alpha: number 
     .png()
     .toBuffer()
 }
+
+test("keeps receptor PNG bottoms aligned across column widths using HD vertical density", async () => {
+  const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-receptor-alignment-"))
+  const source = path.join(outputDirectory, "source.png")
+  try {
+    await sharp({
+      create: {
+        width: 150,
+        height: 146,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toFile(source)
+    const asset: ImageAsset = { filePath: source, rotation: 0 }
+    const fixture: ReceptorSet = {
+      left: { normal: asset, pressed: asset },
+      down: { normal: asset, pressed: asset },
+      up: { normal: asset, pressed: asset },
+      right: { normal: asset, pressed: asset },
+    }
+    for (const hitPosition of [432, 438, 439, 480]) {
+      for (const columnWidth of [46, 54, 62, 70, 78]) {
+        await writeOsuReceptors({
+          receptors: fixture,
+          outputDirectory,
+          hitPosition,
+          columnWidth,
+          baseImagePath: path.join(import.meta.dir, "../../../templates/osu/receptor-base.png"),
+        })
+        for (const filename of await readdir(path.join(outputDirectory, "mania", "receptors"))) {
+          const { data, info } = await sharp(
+            path.join(outputDirectory, "mania", "receptors", filename),
+          )
+            .raw()
+            .toBuffer({ resolveWithObject: true })
+          let bottom = -1
+          for (let y = 0; y < info.height; y += 1) {
+            for (let x = 0; x < info.width; x += 1) {
+              if (data[(y * info.width + x) * info.channels + 3] !== 0) bottom = y
+            }
+          }
+          const footer = info.height - bottom - 1
+          // HD key height is halved; legacy 480-point coordinates use a 1.6 scale.
+          const logicalBottom = 480 - footer / 2 / 1.6
+          expect(Math.abs(logicalBottom - (hitPosition - 1.5))).toBeLessThanOrEqual(0.15625)
+          if (hitPosition === 438) expect(footer).toBe(139)
+        }
+      }
+    }
+  } finally {
+    await rm(outputDirectory, { recursive: true, force: true })
+  }
+})

@@ -24,6 +24,8 @@ type ReceptorTransparencyInspector = (image: Uint8Array) => Promise<boolean>
 
 const osuReceptorCanvasPixelsPerHitPositionPoint = 2
 const osuLogicalCanvasHeight = 480
+const osuReceptorImageDensity = 2
+const osuLegacyCoordinateScale = 768 / osuLogicalCanvasHeight
 
 export interface WriteOsuReceptorsOptions {
   receptors: ReceptorSet
@@ -46,7 +48,8 @@ export async function writeOsuReceptors(options: WriteOsuReceptorsOptions): Prom
     pixelsPerHitPositionPoint: osuReceptorCanvasPixelsPerHitPositionPoint,
     verticalScale: getOsuReceptorVerticalScale(options.columnWidth),
     logicalCanvasHeight: osuLogicalCanvasHeight,
-    renderedWidth: options.columnWidth,
+    // Key images fit the column horizontally; their vertical density stays fixed.
+    pixelsPerLogicalPoint: osuReceptorImageDensity * osuLegacyCoordinateScale,
     logicalBottomOffset: getOsuReceptorLogicalVerticalOffset(),
     normalizationSize: getOsuReceptorNormalizationSize(),
     baseImagePath: options.baseImagePath,
