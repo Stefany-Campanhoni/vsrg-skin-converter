@@ -1,5 +1,11 @@
 # vsrg-skin-converter
 
+## 1.1.1
+
+### Patch Changes
+
+- [#77](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/77) [`bb528c3`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/bb528c3fb8514ea312026eeaeac28e3917076aa2) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Fix Etterna-to-osu! receptor PNG placement drifting upward at smaller column sizes by calculating transparent footer padding from the fixed HD vertical density instead of column width.
+
 ## 1.1.0
 
 ### Minor Changes
