@@ -1,5 +1,16 @@
 # vsrg-skin-converter
 
+## 1.1.0
+
+### Minor Changes
+
+- [#65](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/65) [`ea61cbf`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/ea61cbf8c70d94056ebea4b5962bdd7a1fe1a8c7) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Ship the Windows x64 portable distribution with the pinned Bun 1.4.0 baseline runtime instead
+  of Node.js, while preserving the CLI, Sharp image processing, and transactional ZIP checks.
+
+### Patch Changes
+
+- [#76](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/76) [`b63760b`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/b63760bab5b329ab0fdaa3b7f7769ae5aca0e35e) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Ignore stray text and assignments before the first skin.ini section so osu! skins with a leading character can be discovered and converted.
+
 ## 1.0.3
 
 ### Patch Changes
