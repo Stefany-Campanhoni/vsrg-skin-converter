@@ -27,7 +27,7 @@ const defaultPressedReceptors = [
 ] as const
 const defaultTapNotes = ["mania-note1", "mania-note2", "mania-note2", "mania-note1"] as const
 
-export function parseOsuSkinIni(source: string, filePath: string): readonly OsuIniSection[] {
+export function parseOsuSkinIni(source: string, _filePath: string): readonly OsuIniSection[] {
   const sections: OsuIniSection[] = []
   let current: { name: string; properties: Map<string, string> } | undefined
 
@@ -36,18 +36,15 @@ export function parseOsuSkinIni(source: string, filePath: string): readonly OsuI
     if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith(";")) {
       continue
     }
-    const sectionMatch = /^\[([^\]]+)\]$/.exec(trimmed)
+    const sectionMatch = (current ? /^\[([^\]]+)\]$/ : /^[^[]*\[([^\]]+)\]$/).exec(trimmed)
     if (sectionMatch?.[1]) {
       current = { name: sectionMatch[1].trim(), properties: new Map<string, string>() }
       sections.push(current)
       continue
     }
     const separator = line.indexOf(":")
-    if (separator < 0) {
+    if (separator < 0 || !current) {
       continue
-    }
-    if (!current) {
-      throw new Error(`Assignment outside a section in osu! skin ${filePath}`)
     }
     const name = line.slice(0, separator).trim().toLowerCase()
     if (name) {
