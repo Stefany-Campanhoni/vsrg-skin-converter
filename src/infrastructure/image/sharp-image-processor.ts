@@ -8,7 +8,7 @@ export interface RenderReceptorOptions {
   pixelsPerHitPositionPoint: number
   verticalScale: number
   logicalCanvasHeight: number
-  renderedWidth: number
+  pixelsPerLogicalPoint: number
   logicalBottomOffset: number
   normalizationSize: number
   baseImagePath: string
@@ -17,19 +17,16 @@ export interface RenderReceptorOptions {
 export function getReceptorBottomPadding(
   hitPosition: number,
   logicalCanvasHeight: number,
-  canvasWidth: number,
-  renderedWidth: number,
+  pixelsPerLogicalPoint: number,
   logicalBottomOffset: number,
 ): number {
   if (
     !Number.isFinite(hitPosition) ||
     !Number.isFinite(logicalCanvasHeight) ||
-    !Number.isFinite(canvasWidth) ||
-    !Number.isFinite(renderedWidth) ||
+    !Number.isFinite(pixelsPerLogicalPoint) ||
     !Number.isFinite(logicalBottomOffset) ||
     logicalCanvasHeight <= 0 ||
-    canvasWidth <= 0 ||
-    renderedWidth <= 0
+    pixelsPerLogicalPoint <= 0
   ) {
     throw new Error("Receptor footer dimensions must be finite and positive")
   }
@@ -43,7 +40,7 @@ export function getReceptorBottomPadding(
     throw new Error("Receptor logical bottom gap must be non-negative")
   }
 
-  return Math.round((logicalBottomGap * canvasWidth) / renderedWidth)
+  return Math.round(logicalBottomGap * pixelsPerLogicalPoint)
 }
 
 export function getReceptorCanvasHeight(
@@ -119,8 +116,7 @@ export async function renderReceptorImage(
   const bottomPadding = getReceptorBottomPadding(
     options.hitPosition,
     options.logicalCanvasHeight,
-    baseMetadata.width,
-    options.renderedWidth,
+    options.pixelsPerLogicalPoint,
     options.logicalBottomOffset,
   )
   const canvasHeight = getReceptorCanvasHeight(

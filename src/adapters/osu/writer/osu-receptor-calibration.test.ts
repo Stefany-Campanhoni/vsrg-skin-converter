@@ -17,7 +17,7 @@ test("rejects a non-positive extrapolated scale", () => {
 })
 
 test("provides the calibrated logical receptor offset", () => {
-  expect(getOsuReceptorLogicalVerticalOffset()).toBe(23)
+  expect(getOsuReceptorLogicalVerticalOffset()).toBe(1.5)
 })
 
 test("provides the osu receptor normalization size", () => {

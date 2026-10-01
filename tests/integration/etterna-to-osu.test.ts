@@ -257,9 +257,9 @@ describe("Etterna-to-osu production installation", () => {
     })
     expect(alphaBounds(receptor.data, receptor.info.width, receptor.info.height)).toStrictEqual({
       left: 0,
-      top: 96,
+      top: 110,
       right: 149,
-      bottom: 196,
+      bottom: 210,
     })
     await expect(
       (() => readFile(path.join(outputDirectory, "mania", "receptors", "left.png")))(),

@@ -2,7 +2,8 @@ const receptorCalibration = {
   unstretchedColumnWidth: 46,
   calibratedColumnWidth: 62,
   calibratedVerticalScale: 196 / 146,
-  logicalVerticalOffset: 23,
+  // Preserve the 139-pixel footer at HitPosition 438 and the working 108% size.
+  logicalVerticalOffset: 1.5,
   normalizationSize: 150,
 } as const
 

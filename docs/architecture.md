@@ -205,8 +205,18 @@ Etterna `ComboZoom` is preserved as the neutral combo scale. `JudgmentZoom` beco
 `1 + (JudgmentZoom - 1) * 0.5`; output dimensions are rounded and clamped to at least one
 pixel. The osu! receptor canvas changes by two pixels for each hit-position point relative
 to `438`. Receptor vertical scaling maps column width `46` to `1` and width `62` to
-`196 / 146`, uses a logical playfield height of `480`, and applies a logical vertical offset
-of `23`. These empirical values belong to the osu! target calibration module.
+`196 / 146` and uses a logical playfield height of `480`. Receptor key images are stretched
+horizontally to the column width, but retain their vertical density: `@2x` output and osu!'s
+`480`-to-`768` coordinate conversion require `2 * 1.6 = 3.2` source pixels per logical point.
+The footer is `round((480 - HitPosition + 1.5) * 3.2)`, independent of column width. The
+`1.5` logical vertical offset retains the working 108% (`ColumnWidth 70`) placement at the
+reference `HitPosition 438` within pixel rounding: its footer remains `139` pixels. The
+vertical stretch calibration continues to control artwork height separately from placement.
+
+The density contract follows osu!'s [legacy key renderer](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Mania/Skinning/Legacy/LegacyKeyArea.cs),
+[HD texture loading](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkin.cs), and
+[legacy coordinate decoder](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacyManiaSkinDecoder.cs).
+Target density and empirical alignment values belong to the osu! adapter.
 
 ## Windows Portable Distribution
 
@@ -329,8 +339,8 @@ exact resize, and transparency mechanisms requested by that adapter.
 The Etterna-to-osu! conversion maps `ReceptorSize` units to osu! `ColumnWidth`. The osu!
 adapter owns empirical pixel calibration, while the image infrastructure receives only a
 generic vertical scale and geometry. The osu! adapter supplies logical playfield height,
-rendered column width, receptor normalization size, and a named logical bottom offset from
-its calibration module. Image infrastructure converts that geometry into source-pixel
+source pixels per logical point, receptor normalization size, and a named logical bottom
+offset from its calibration module. Image infrastructure converts that geometry into source-pixel
 padding, removes input-specific trailing transparency, and composes the receptor above the
 calculated footer without embedding osu!-specific constants. Target calibration values
 remain outside infrastructure, keeping source properties and target rendering details out

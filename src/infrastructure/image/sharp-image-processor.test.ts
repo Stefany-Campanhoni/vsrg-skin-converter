@@ -37,9 +37,10 @@ async function withImages(
 }
 
 test("calculates dynamic receptor footer and canvas height", () => {
-  expect(getReceptorBottomPadding(432, 480, 150, 62, 13)).toBe(148)
-  expect(getReceptorBottomPadding(438, 480, 150, 62, 13)).toBe(133)
-  expect(getReceptorBottomPadding(432, 480, 150, 68, 13)).toBe(135)
+  expect(getReceptorBottomPadding(432, 480, 3.2, 1.5)).toBe(158)
+  expect(getReceptorBottomPadding(438, 480, 3.2, 1.5)).toBe(139)
+  expect(getReceptorBottomPadding(439, 480, 3.2, 1.5)).toBe(136)
+  expect(getReceptorBottomPadding(480, 480, 3.2, 1.5)).toBe(5)
 
   expect(getReceptorCanvasHeight(432, 356, 196, 438, 2, 148)).toBe(368)
   expect(getReceptorCanvasHeight(438, 356, 196, 438, 2, 133)).toBe(356)
@@ -47,9 +48,12 @@ test("calculates dynamic receptor footer and canvas height", () => {
 })
 
 test("rejects invalid dynamic-footer geometry", () => {
-  expect(() => getReceptorBottomPadding(432, 480, 150, 0, 13)).toThrow(/positive/)
-  expect(() => getReceptorBottomPadding(481, 480, 150, 62, 13)).toThrow(/between/)
-  expect(() => getReceptorBottomPadding(432, 480, 150, 62, Number.NaN)).toThrow(/finite/)
+  for (const density of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expect(() => getReceptorBottomPadding(432, 480, density, 13)).toThrow(/positive/)
+  }
+  expect(() => getReceptorBottomPadding(480, 480, 3.2, -1)).toThrow(/non-negative/)
+  expect(() => getReceptorBottomPadding(481, 480, 150 / 62, 13)).toThrow(/between/)
+  expect(() => getReceptorBottomPadding(432, 480, 150 / 62, Number.NaN)).toThrow(/finite/)
 })
 
 test("extracts the selected spritesheet frame before rendering", async () => {
@@ -81,7 +85,7 @@ test("extracts the selected spritesheet frame before rendering", async () => {
         normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
@@ -121,7 +125,7 @@ test("rotates before centering and keeps the receptor anchored at the hit positi
         normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
@@ -164,7 +168,7 @@ test("extracts a non-square frame before applying rotation", async () => {
         normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
@@ -201,7 +205,7 @@ test("normalizes receptor width to 150 pixels while preserving its aspect ratio"
       normalizationSize: 150,
       verticalScale: 1,
       logicalCanvasHeight: 480,
-      renderedWidth: 62,
+      pixelsPerLogicalPoint: 150 / 62,
       logicalBottomOffset: 13,
       baseImagePath: base,
     })
@@ -230,7 +234,7 @@ test("normalizes receptor width to 150 pixels while preserving its aspect ratio"
       normalizationSize: 150,
       verticalScale: 1,
       logicalCanvasHeight: 480,
-      renderedWidth: 62,
+      pixelsPerLogicalPoint: 150 / 62,
       logicalBottomOffset: 13,
       baseImagePath: base,
     })
@@ -266,7 +270,7 @@ test("keeps a tall receptor within the existing 150 pixel boundary", async () =>
         normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
@@ -315,7 +319,7 @@ test("stretches the visible receptor and aligns its bottom edge with the canvas"
         normalizationSize: 150,
         verticalScale: 196 / 146,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
@@ -332,7 +336,7 @@ test("stretches the visible receptor and aligns its bottom edge with the canvas"
   })
 })
 
-test("keeps the visible receptor bottom at the logical hit position across widths", async () => {
+test("keeps the visible receptor bottom at the logical hit position across vertical stretches", async () => {
   await withImages(async ({ base, source }) => {
     const visibleLayer = await sharp({
       create: {
@@ -357,12 +361,9 @@ test("keeps the visible receptor bottom at the logical hit position across width
       .toFile(source)
 
     const definition: ImageAsset = { filePath: source, rotation: 0 }
-    const cases = [
-      { renderedWidth: 46, verticalScale: 1 },
-      { renderedWidth: 62, verticalScale: 196 / 146 },
-    ]
+    const cases = [{ verticalScale: 1 }, { verticalScale: 196 / 146 }]
 
-    for (const { renderedWidth, verticalScale } of cases) {
+    for (const { verticalScale } of cases) {
       const output = await renderReceptorImage(definition, {
         hitPosition: 432,
         referenceHitPosition: 438,
@@ -370,14 +371,14 @@ test("keeps the visible receptor bottom at the logical hit position across width
         normalizationSize: 150,
         verticalScale,
         logicalCanvasHeight: 480,
-        renderedWidth,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       })
       const raw = await sharp(output).raw().toBuffer({ resolveWithObject: true })
       const bounds = alphaBounds(raw.data, raw.info.width, raw.info.height)
       const footer = raw.info.height - bounds.bottom - 1
-      const logicalVisibleBottom = 480 - (footer * renderedWidth) / raw.info.width
+      const logicalVisibleBottom = 480 - footer / (150 / 62)
 
       expectTruthy(Math.abs(logicalVisibleBottom - (432 - 13)) < 0.2)
     }
@@ -406,7 +407,7 @@ test("preserves a receptor without visible pixels", async () => {
         normalizationSize: 150,
         verticalScale: 1,
         logicalCanvasHeight: 480,
-        renderedWidth: 62,
+        pixelsPerLogicalPoint: 150 / 62,
         logicalBottomOffset: 13,
         baseImagePath: base,
       },
