@@ -251,8 +251,11 @@ answer is false or cancelled. The installer receives the expected selected name 
 separate overwrite policy, verifies the name again, and never prompts.
 
 For osu! sources, keep ordered INI parsing, CFG interpretation, and PNG path resolution in
-`adapters/osu`. Density is explicit model data: explicit `@2x` wins; otherwise resolutions
-above `1280x720` select only `@2x`, and standard resolutions select only unsuffixed PNGs.
+`adapters/osu`. Ignore text and assignments before the first INI section, including stray
+characters preceding its header on the same line. Preserve section order and validate the
+required 4K properties after parsing. Density is explicit model data: explicit `@2x` wins;
+otherwise resolutions above `1280x720` select only `@2x`, and standard resolutions select
+only unsuffixed PNGs.
 Never add density fallback silently, and never use the selected source density to vary target
 filenames or dimensions. Keep inverse osu!-to-Etterna coordinate/width formulas in
 `conversions/osu-to-etterna`, generic receptor normalization in image infrastructure,

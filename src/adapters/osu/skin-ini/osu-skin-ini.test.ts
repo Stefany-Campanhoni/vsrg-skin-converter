@@ -228,10 +228,26 @@ test("reads the last Name from duplicate case-insensitive General sections", () 
   expect(readOsuSkinName(sections)).toBe("Second Name")
 })
 
-test("rejects an assignment outside a section with the file path", () => {
-  expect(() => parseOsuSkinIni("Name: Orphan", filePath)).toThrow(
-    /C:\/osu!\/Skins\/Test\/skin\.ini/,
-  )
+test.each(["x\n", "x", "Name: Orphan\n", "x\nName: Orphan\n"])(
+  "ignores leading text %j before the first section",
+  (prefix) => {
+    const sections = parseOsuSkinIni(`${prefix}${fixture}`, filePath)
+
+    expect(sections.map((section) => section.name)).toStrictEqual([
+      "General",
+      "Mania",
+      "Mania",
+      "Mania",
+    ])
+    expect(readOsuSkinName(sections)).toBe("Fixture Name")
+    expect(readOsuMania4kDefinition(sections, filePath).columnWidths).toStrictEqual([
+      68, 68, 70, 70,
+    ])
+  },
+)
+
+test("ignores assignments when no section exists", () => {
+  expect(parseOsuSkinIni("Name: Orphan", filePath)).toStrictEqual([])
 })
 
 function maniaSection(extraProperty = ""): string {
