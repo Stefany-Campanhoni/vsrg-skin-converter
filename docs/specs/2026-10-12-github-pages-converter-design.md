@@ -18,6 +18,8 @@ The user selected browser conversion and refined the input flows:
   scroll speed; link to https://cmodcalc.com/ for manual conversion.
 - Preserve supported artwork and visual gameplay settings. When a configuration
   file is absent, use documented defaults and report their use before conversion.
+- Preserve every existing migration business rule. Modularize the implementation
+  so multiple entrypoints use the same migration core and format policies.
 
 The scroll-speed exclusion is interpreted as specific to osu!mania to Etterna.
 Etterna to osu!mania retains speed conversion when the selected profile supplies
@@ -58,6 +60,11 @@ diagnostic. Missing CMod omits a speed recommendation and offers the calculator;
 it must not manufacture a converted speed. An unavailable judgement selection
 uses the bundled standard judgement sheet with a diagnostic.
 
+These defaults are explicit browser input choices, shown before conversion. They
+do not relax an existing parser's requirements or add silent adapter fallbacks.
+The entrypoint supplies the selected defaults to the shared visual operation;
+existing complete-input callers continue to receive their current failures.
+
 Only genuine absence permits these defaults. Malformed selected configurations,
 unsafe references, unreadable files, and invalid images remain contextual errors.
 The required NoteSkin and its essential note/receptor assets cannot be replaced
@@ -69,9 +76,11 @@ by generic defaults to turn an unsupported skin into an apparent success.
 2. Read the unique 4K Mania section and supported artwork/settings. Reject a
    missing or ambiguous 4K section. No osu! user CFG is requested or read.
 3. Resolve density from the skin assets. Explicit `@2x` references remain
-   authoritative. For implicit references, prefer HD when the required lane
-   assets can be resolved, using the existing allowed SD lane fallback; otherwise
-   select SD. Show the chosen density and allow an SD/HD override in the review.
+   authoritative. Since this input excludes the CFG, the browser presents an
+   SD/HD choice with SD as the explicit initial selection; it does not infer a
+   screen resolution or add a new automatic density-fallback policy. Pass the
+   selected density to the same resolver policy used by the CLI, including only
+   the already-supported SD fallback for implicit lane references.
    Missing selected-density judgement grades use the existing target fallback;
    mixed custom judgement densities remain an error under the existing contract.
 4. Review converted receptor size, positions, combo zoom, and scroll direction.
@@ -122,10 +131,41 @@ storage. The calculator opens through an ordinary external link in a new tab wit
 
 ## Architecture and ownership
 
-Keep the current game-neutral model and pair-specific semantic formulas as the
-shared core. Add `src/web` as the browser composition root, owning DOM interaction,
-directory-selection coordination, route wiring, and presentation. Add its allowed
-dependencies to the architecture matrix alongside the existing CLI root.
+### Business rules are preserved
+
+Modularity must come from separating input, coordination, format policy, and
+technical mechanisms. It must not come from changing migration behavior to fit
+the browser. Preserve formulas, validation, rounding, calibrated constants,
+required assets, density precedence, allowed fallbacks, processing order,
+dimensions, filenames, scale factors, scroll semantics, and diagnostics.
+
+Mechanical extraction and dependency injection are permitted when evidence shows
+the existing CLI still produces the same complete outputs and failures for the
+same inputs. No formula recalibration, relaxed validation, expanded asset support,
+new silent default, or alternative browser-specific migration implementation is
+part of this work. If a technical backend cannot preserve a supported behavior,
+resolve the technical limitation rather than redefining the business rule.
+
+### Multiple entrypoints use one core
+
+Keep `src/cli` and add `src/web` as separate composition roots. They collect user
+choices, construct input sources, select supported application operations, wire
+implementations, and present results. The shared core must not inspect whether a
+request originated from a terminal, browser, or future entrypoint. Add `web` to the
+architecture dependency matrix and reject dependencies between entrypoints.
+
+Application operations own coordination through typed ports. Game adapters own
+one shared implementation of their parsing, asset-selection, and target-format
+policies. Pair-specific conversions own the existing semantic mappings. Runtime
+implementations supply relative-path file access, image processing, templates,
+and output publication; they contain no game-specific decisions. Keep the ports
+small and driven by current operations, with no speculative future UI/API layer.
+
+An additional entrypoint must be able to supply the same input/operation contracts
+and alternate technical implementations without copying a migration algorithm or
+importing another entrypoint. Both roots use the same parsing, semantic mapping,
+and rendering policy modules; the only intended differences are the authorized
+input scope and how the completed output is delivered.
 
 Generic directory/file access, image processing, and archive generation remain in
 infrastructure. Game-specific discovery, parsing, density selection, output names,
@@ -135,20 +175,35 @@ must not duplicate cross-game conversion formulas or import CLI installation cod
 Extract pure parsing/rendering and narrowly scoped file/image ports only where
 needed to share current behavior. Existing runtime implementations use Bun, local
 filesystems, and Sharp. Browser implementations use selected directory handles or
-Files, Web image APIs, and Canvas. Avoid a broad rewrite of the CLI or an in-memory
-emulation of the complete Node filesystem.
+Files and browser-compatible pixel processing. Core parsing and format-policy
+modules must not eagerly import platform implementations; each composition root
+supplies them. Avoid a broad rewrite of the CLI or an in-memory emulation of the
+complete Node filesystem.
 
 `ImageAsset.filePath` identifies a normalized source-relative asset in the browser;
 the browser asset store resolves its bytes. Shared skin Lua remains statically
 parsed using the existing AST analysis and is never executed.
 
-Represent an unavailable scroll speed explicitly in the neutral model, rather
-than injecting a placeholder solely to satisfy a required number. Pair-specific
-conversions skip speed conversion when it is absent. CLI readers continue to
-provide speed, and CLI installation writers continue to require it where their
-output contract needs it. Browser reverse readers omit it intentionally; browser
-reverse exporters never call the speed-required profile renderer. Tests protect
-both the browser omission and the existing CLI speed-conversion behavior.
+### Visual migration is a separate requested operation
+
+Preserve the full migration's required speed and current validation contract. Do
+not make speed optional in the existing complete-input model to accommodate a
+folder-only request, and do not insert a dummy source speed.
+
+Expose a typed visual-migration operation accepting the visual subset of source
+data and returning converted artwork/settings without speed. Extract the existing
+visual orchestration into shared functions as needed; both the complete migration
+and the visual operation call those functions and the same existing pair-specific
+mapping functions. The full operation still converts speed using its unchanged
+formula and validation. There must be one implementation of each mapping and
+asset policy, with no copied partial-converter algorithm in `src/web`.
+
+The web reverse route requests only the visual operation. The web forward route
+requests the complete operation when the selected profile supplies speed, or the
+visual operation with an explicit diagnostic when it does not. Neither entrypoint
+decides how a property is converted. Browser reverse exporters do not invoke the
+speed-required profile renderer. Tests protect visual-result equivalence and the
+complete CLI's existing speed requirements, formulas, and output behavior.
 
 Browser output is a complete virtual file set. Build and settle all output tasks
 before creating the downloadable ZIP; on failure, expose no partial archive.
@@ -156,10 +211,14 @@ Keep the existing CLI transactional filesystem publishers and guarantees. ZIP
 creation uses a small browser-compatible library with documented licensing.
 
 Preserve current target inventories, geometry, SD/HD semantics, transparency,
-frame/rotation order, receiver calibration, and judgement row order. Canvas
-resampling need not be byte-identical to Sharp, but exported image dimensions,
-lane/state selection, alpha behavior, and placement must satisfy the same tested
-contracts. Close decoded images and revoke object URLs after use. Limit concurrent
+frame/rotation order, receptor calibration, and judgement row order. The browser
+image backend must preserve the existing image-operation contract, including its
+resampling behavior; choosing Canvas alone is not evidence of equivalence. Verify
+decoded pixel results against the current Sharp reference with the same fixtures.
+Differences in lossless PNG encoding are acceptable; changed artwork, dimensions,
+lane/state selection, alpha behavior, or placement are not. Use Canvas only where
+it meets the contract, or a portable implementation of the existing operation.
+Close decoded images and revoke object URLs after use. Limit concurrent
 image decoding/rendering and report progress between assets. Bound input assets
 to 32 MiB encoded and 16 megapixels decoded, and converted output to 256 MiB,
 rejecting oversized inputs with contextual errors before rendering.
@@ -190,6 +249,15 @@ empty Changeset because it does not ship application behavior.
 ## Required evidence
 
 - Follow TDD for production changes and do not introduce TypeScript `any`.
+- Capture the existing CLI's supported successes and important failures before
+  extraction. Keep these characterization tests green after modularization;
+  adding the web entrypoint must not change complete migration business behavior.
+- Run shared contract tests against native and browser implementations. Compare
+  converted semantic values and decoded artwork for the same source fixtures;
+  compare the reverse route's visual subset separately from its excluded speed
+  and installation effects. PNG byte equality alone is not a pixel comparison.
+- Enforce that shared core modules cannot import either entrypoint or runtime-only
+  implementations, and that neither entrypoint imports or copies the other.
 - Test both directory backends against the same discovery/read contract,
   including cancellation, containment, duplicates, and irrelevant-file exclusion.
 - Test profile/skin selection, absent configuration defaults, fatal malformed
@@ -199,8 +267,9 @@ empty Changeset because it does not ship application behavior.
 - Verify exported ZIP file inventories and parsed configurations in both routes.
   Assert that reverse output contains no CMod or replacement profile XML.
 - Test image dimensions, receptor alignment, lane/state pixels, transparent
-  receptors, judgement fallbacks, and normal/double-density sheets. Audit the
-  applicable real skins under `tmp` as required by the development standards.
+  receptors, resampling equivalence, judgement fallbacks, and normal/double-density
+  sheets. Audit the applicable real skins under `tmp` as required by the
+  development standards.
 - Exercise both flows in a real browser, including directory selection, missing
   settings, progress, a failed image, and downloading/extracting the final ZIP.
   Run a Chromium handle-path check and a file-input fallback check. If browser
@@ -215,7 +284,8 @@ empty Changeset because it does not ship application behavior.
 
 No backend, uploaded-file processing, login, cloud storage, automatic installation,
 filesystem overwrites, reverse speed migration, additional games/key counts,
-full Lua evaluation, or unrelated CLI refactoring. ZIP source import is deferred:
+full Lua evaluation, changed migration business rules, or unrelated CLI
+refactoring. ZIP source import is deferred:
 the approved input contract is folder selection in both directions.
 
 ## References
