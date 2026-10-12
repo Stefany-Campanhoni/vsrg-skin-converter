@@ -27,6 +27,7 @@ if (Bun.argv.includes("--parity")) {
     )
 }
 Bun.serve({
+  hostname: "127.0.0.1",
   port: 4173,
   async fetch(request) {
     const pathname = decodeURIComponent(new URL(request.url).pathname)
