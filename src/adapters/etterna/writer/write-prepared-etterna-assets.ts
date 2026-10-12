@@ -6,10 +6,9 @@ import { runEtternaAssetOperation } from "./run-etterna-asset-operation.ts"
 
 export type EtternaAssetWriter = (filePath: string, buffer: Uint8Array) => Promise<void>
 
-export interface PreparedEtternaAsset {
-  readonly filename: string
-  readonly buffer: Uint8Array
-}
+import type { PreparedEtternaAsset } from "./prepared-etterna-asset.ts"
+
+export type { PreparedEtternaAsset } from "./prepared-etterna-asset.ts"
 
 export interface WritePreparedEtternaAssetsOptions {
   readonly assets: readonly PreparedEtternaAsset[]

@@ -2,11 +2,7 @@ import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { copyFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
-
-const longNoteTemplateAssets = [
-  { sourceFilename: "LNB.png", outputFilename: "body.png" },
-  { sourceFilename: "LNT.png", outputFilename: "tail.png" },
-] as const
+import { longNoteTemplateAssets } from "./osu-template-assets.ts"
 
 export interface WriteOsuLongNotesOptions {
   outputDirectory: string

@@ -2,6 +2,7 @@ import { mkdir as createDirectory, rename as moveFile } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 import { readTextFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
+import { renderOwnedTemplate } from "./etterna-profile-template-content.ts"
 
 export interface EtternaProfileTemplateValues {
   readonly profileName: string
@@ -31,8 +32,6 @@ const defaultDependencies: EtternaProfileTemplateRendererDependencies = {
   },
   rename: moveFile,
 }
-
-const wildcardPattern = /\$\{([^}]*)\}/g
 
 export async function renderEtternaProfileTemplates(
   profileDirectory: string,
@@ -164,34 +163,6 @@ function hasUnsafeThemeCharacter(theme: string): boolean {
   return [...theme].some(
     (character) => character.charCodeAt(0) <= 0x1f || '<>:"/\\|?*'.includes(character),
   )
-}
-
-function renderOwnedTemplate(
-  fileName: string,
-  template: string,
-  replacements: Readonly<Record<string, string | number>>,
-): string {
-  const wildcards = [...template.matchAll(wildcardPattern)].flatMap((match) =>
-    match[1] === undefined ? [] : [match[1]],
-  )
-  for (const key of Object.keys(replacements)) {
-    const count = wildcards.filter((wildcard) => wildcard === key).length
-    if (count !== 1) {
-      throw new Error(`Expected exactly one \${${key}} wildcard in ${fileName}; found ${count}`)
-    }
-  }
-  for (const wildcard of wildcards) {
-    if (!Object.hasOwn(replacements, wildcard)) {
-      throw new Error(`Unresolved wildcard \${${wildcard}} in ${fileName}`)
-    }
-  }
-
-  return template.replace(wildcardPattern, (wildcard, key: string) => {
-    if (!Object.hasOwn(replacements, key)) {
-      throw new Error(`Unresolved wildcard ${wildcard} in ${fileName}`)
-    }
-    return String(replacements[key])
-  })
 }
 
 function escapeXmlText(value: string): string {

@@ -1,4 +1,4 @@
-import type { ImageDimensions } from "../../../infrastructure/image/read-image-dimensions.ts"
+import type { ImageDimensions } from "../../../application/ports/image-operations.ts"
 
 const etternaLogicalWidth = 64
 

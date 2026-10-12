@@ -1,8 +1,7 @@
 import { rm } from "node:fs/promises"
 import path from "node:path"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
-
-const internalOsuTemplateArtifacts = ["receptor-base.png", "LNB.png", "LNT.png"] as const
+import { internalOsuTemplateArtifacts } from "./osu-template-assets.ts"
 
 type ArtifactRemover = (artifactPath: string) => Promise<void>
 
