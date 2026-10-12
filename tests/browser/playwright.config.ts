@@ -12,7 +12,7 @@ export default defineConfig({
   },
   webServer: {
     cwd: "../..",
-    command: "bun .ci/web/serve-web.ts --parity",
+    command: "bun .ci/web/serve-web.ts --site --parity --pages",
     url: "http://127.0.0.1:4173/vsrg-skin-converter/image-backend.html",
     reuseExistingServer: false,
   },

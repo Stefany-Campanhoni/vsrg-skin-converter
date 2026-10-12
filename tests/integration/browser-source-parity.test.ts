@@ -16,6 +16,22 @@ function ports(files: ReadonlyMap<string, Uint8Array>) {
   loader.register(source)
   return { source, images: createImageOperations(loader, createSharpImageBackend()) }
 }
+test("browser Etterna assets reject case-ambiguous physical files", async () => {
+  const files = new Map(await createEtternaSourceFixture())
+  const original = "NoteSkins/dance/Reference/Notes/_Left Tap Note.png"
+  const bytes = files.get(original)
+  if (!bytes) throw new Error("Missing source fixture")
+  files.set("NoteSkins/dance/Reference/Notes/_LEFT TAP NOTE.PNG", bytes)
+  const { source, images } = ports(files)
+  await expect(
+    readEtternaVisualSkinFromSource(source, images, {
+      skinPath: "NoteSkins/dance/Reference",
+      name: "Reference",
+      theme: "Rebirth",
+      useDefaultSettings: true,
+    }),
+  ).rejects.toThrow(/ambiguous/)
+})
 test("folder-only osu reader imports visual settings and assets without reading a CFG", async () => {
   const { source, images } = ports(await createOsuSourceFixture())
   const skin = await readOsuVisualSkinFromSource(source, images, {
@@ -81,6 +97,15 @@ test("missing Etterna settings use browser defaults but malformed Lua stays fata
       profileId: "00000000",
       theme: "Rebirth",
       useDefaultSettings: false,
+    }),
+  ).rejects.toThrow()
+  await expect(
+    readEtternaVisualSkinFromSource(malformed.source, malformed.images, {
+      skinPath: "NoteSkins/dance/Reference",
+      name: "Reference",
+      profileId: "00000000",
+      theme: "Rebirth",
+      useDefaultSettings: true,
     }),
   ).rejects.toThrow()
 })

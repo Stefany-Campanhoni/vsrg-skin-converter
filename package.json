@@ -5,6 +5,9 @@
   "packageManager": "bun@1.4.0",
   "main": "src/cli.ts",
   "scripts": {
+    "build:web": "bun .ci/web/build-web.ts",
+    "dev:web": "bun .ci/web/serve-web.ts --site --pages",
+    "test:browser": "bun .ci/web/capture-image-reference.ts && bun node_modules/@playwright/test/cli.js test -c tests/browser/playwright.config.ts",
     "build": "bun .ci/release/build-application.ts",
     "build:windows": "bun .ci/release/assemble-windows-portable.ts",
     "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && bun .ci/release/create-windows-release.ts",

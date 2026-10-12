@@ -11,6 +11,14 @@ export function createGeneratedFileSet(
   return {
     async write(relativePath, contents) {
       const path = sourceRelativePath(relativePath)
+      const key = path.toLowerCase()
+      if (
+        [...files.keys()].some(
+          (prior) =>
+            prior.toLowerCase().startsWith(`${key}/`) || key.startsWith(`${prior.toLowerCase()}/`),
+        )
+      )
+        throw new Error("Output file/directory path conflict")
       if (
         [...files.keys()].some(
           (prior) => prior !== path && prior.toLowerCase() === path.toLowerCase(),

@@ -7,7 +7,16 @@ export function createScopedSourceFiles(
   const prefix = `asset:${crypto.randomUUID()}:`
   const identities = new Map<string, string>()
   return {
-    list: async (directory) => access.list(sourceRelativePath(directory, true)),
+    list: async (directory) => {
+      const entries = await access.list(sourceRelativePath(directory, true))
+      const names = new Set<string>()
+      for (const entry of entries) {
+        const name = entry.name.toLowerCase()
+        if (names.has(name)) throw new Error("Source paths are ambiguous ignoring case")
+        names.add(name)
+      }
+      return entries
+    },
     readBytes: async (path) => access.readBytes(sourceRelativePath(path)),
     assetId(path) {
       const relative = sourceRelativePath(path)

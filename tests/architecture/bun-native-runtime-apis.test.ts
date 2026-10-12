@@ -77,6 +77,7 @@ const bareNodeBuiltins = new Set([
   "zlib",
 ])
 const allowedProductionFsPromiseFiles = new Set([
+  ".ci/web/build-web.ts",
   ".ci/release/acquire-bun-runtime.ts",
   ".ci/release/assemble-windows-portable.ts",
   ".ci/release/build-application.ts",

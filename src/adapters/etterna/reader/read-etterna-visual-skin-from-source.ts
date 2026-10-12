@@ -70,12 +70,11 @@ export async function readEtternaVisualSkinFromSource(
     comboScale: 1,
     judgementScale: 1,
   }
-  const settings =
-    options.profileId && !options.useDefaultSettings
-      ? await readOptional(
-          `Save/LocalProfiles/${options.profileId}/${options.theme}_settings/playerConfig.lua`,
-        )
-      : undefined
+  const settings = options.profileId
+    ? await readOptional(
+        `Save/LocalProfiles/${options.profileId}/${options.theme}_settings/playerConfig.lua`,
+      )
+    : undefined
   if (settings === undefined)
     diagnostics.push({
       code: "web.etterna.default-settings",
@@ -87,10 +86,18 @@ export async function readEtternaVisualSkinFromSource(
   const xmlPath = options.profileId
     ? `Save/LocalProfiles/${options.profileId}/Etterna.xml`
     : undefined
-  const xml = xmlPath && !options.useDefaultSettings ? await readOptional(xmlPath) : undefined
+  const xml = xmlPath ? await readOptional(xmlPath) : undefined
   const guid = xml === undefined ? "" : extractEtternaProfileGuid(xml, xmlPath ?? "Etterna.xml")
   const scrollSpeed =
     xml === undefined ? undefined : extractOptionalEtternaCmod(xml, xmlPath ?? "Etterna.xml")
+  if (scrollSpeed === undefined)
+    diagnostics.push({
+      code: "web.etterna.manual-speed",
+      component: "settings",
+      severity: "warning",
+      message:
+        "No CMod was found in the selected profile. Configure ManiaSpeed manually; no speed was generated.",
+    })
   const configPath = `Save/${options.theme}_settings/assetsConfig.lua`
   const config = await readOptional(configPath)
   const selection =

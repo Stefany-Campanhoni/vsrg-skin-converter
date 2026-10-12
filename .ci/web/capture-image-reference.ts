@@ -14,6 +14,7 @@ import { createAsymmetricImage, decodeReference } from "../../tests/support/imag
 
 export async function captureImageReference(
   directory = path.resolve(".tmp/browser-reference"),
+  extended = false,
 ): Promise<void> {
   const source = await createAsymmetricImage()
   const sourcePath = path.join(directory, "source.png")
@@ -28,6 +29,20 @@ export async function captureImageReference(
       .toBuffer(),
   )
   const outputs = new Map<string, Uint8Array>()
+  if (extended) {
+    const jpeg = await sharp(source)
+      .removeAlpha()
+      .resize(160, 120)
+      .withIccProfile("p3")
+      .jpeg({ quality: 92 })
+      .toBuffer()
+    const jpegPath = path.join(directory, "source.jpg")
+    await Bun.write(jpegPath, jpeg)
+    const jpegRendered = await renderNoteImage({ filePath: jpegPath, rotation: 17 })
+    outputs.set("jpeg-zero", await renderNoteImage({ filePath: jpegPath, rotation: 0 }))
+    outputs.set("jpeg-icc", jpegRendered)
+    outputs.set("jpeg-reduction", await resizeImageToWidth(jpegRendered, 150))
+  }
   for (const rotation of [0, 90, 180, 270, 17])
     outputs.set(`rotate-${rotation}`, await renderNoteImage({ filePath: sourcePath, rotation }))
   outputs.set(
@@ -47,7 +62,9 @@ export async function captureImageReference(
   outputs.set(
     "sheet",
     await composeCenteredVerticalSpriteSheet(
-      [...outputs.values()].slice(0, 6).map((image, index) => ({ label: `${index}`, image })),
+      [...outputs]
+        .filter(([name]) => name.startsWith("rotate-") || name === "frame")
+        .map(([, image], index) => ({ label: `${index}`, image })),
     ),
   )
   for (const hitPosition of [432, 438, 439])
@@ -85,4 +102,4 @@ export async function captureImageReference(
   }
   await Bun.write(path.join(directory, "manifest.json"), JSON.stringify(manifest, null, 2))
 }
-if (import.meta.main) await captureImageReference()
+if (import.meta.main) await captureImageReference(undefined, true)

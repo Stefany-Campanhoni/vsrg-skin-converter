@@ -26,4 +26,6 @@ test("output and archive boundaries reject traversal and ambiguous target paths"
   }
   await output.write("skin/Note.png", new Uint8Array())
   await expect(output.write("skin/note.png", new Uint8Array())).rejects.toThrow(/ambiguous/)
+  await expect(output.write("skin/Note.png/nested", new Uint8Array())).rejects.toThrow(/conflict/)
+  await expect(output.write("skin", new Uint8Array())).rejects.toThrow(/conflict/)
 })

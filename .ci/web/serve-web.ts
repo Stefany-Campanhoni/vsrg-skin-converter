@@ -1,6 +1,8 @@
 import path from "node:path"
+import { buildWeb } from "./build-web.ts"
 
 const root = path.resolve("build/web")
+if (Bun.argv.includes("--site")) await buildWeb()
 if (Bun.argv.includes("--parity")) {
   const result = await Bun.build({
     entrypoints: ["tests/browser/image-backend-entry.ts"],
@@ -34,11 +36,13 @@ Bun.serve({
     const file = Bun.file(target)
     if (!(await file.exists())) return new Response("Not found", { status: 404 })
     return new Response(file, {
-      headers: {
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "Cache-Control": "no-store",
-      },
+      headers: Bun.argv.includes("--pages")
+        ? { "Cache-Control": "no-store" }
+        : {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+            "Cache-Control": "no-store",
+          },
     })
   },
 })

@@ -1,6 +1,19 @@
 # Development Standards
 
+Browser changes additionally require `bun run build:web` and `bun run test:browser`. The
+browser build must use only same-origin relative resources and work under a repository
+subpath. Real-browser evidence covers isolation without development headers, both ZIP
+downloads, source privacy, unchanged source bytes, invalid input and decoded image parity.
+Keep synthetic fixtures/reports under ignored `.tmp`; private corpora must not enter commits.
+`bun .ci/web/audit-browser-skins.ts <corpus-root>` prepares local reference evidence for
+applicable Etterna skins; browser tests compare that evidence when present. Report native
+unsupported cases separately from regressions. Native folder-picker dialogs need a manual
+smoke check because browser automation only covers the directory-input/handle contracts.
+Pages actions use full commit pins, PR jobs have read-only permissions, and only the tested
+`main` artifact deploys with Pages/OIDC permissions in the `github-pages` environment.
+
 Scoped native source access in `src/infrastructure/filesystem/native-source-files.ts`
+and browser build staging in `.ci/web/build-web.ts` (controlled output mkdir/removal only)
 uses `node:fs/promises` for directory metadata, realpath containment, and file-kind checks;
 Bun reads file bytes. Browser sources use read-only directory handles or directory File inputs.
 
