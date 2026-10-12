@@ -1,5 +1,9 @@
 # Development Standards
 
+Scoped native source access in `src/infrastructure/filesystem/native-source-files.ts`
+uses `node:fs/promises` for directory metadata, realpath containment, and file-kind checks;
+Bun reads file bytes. Browser sources use read-only directory handles or directory File inputs.
+
 These rules are mandatory for production code, tests, documentation, and agent-authored
 changes.
 

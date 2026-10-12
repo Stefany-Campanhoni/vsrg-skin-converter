@@ -106,6 +106,7 @@ const allowedProductionFsPromiseFiles = new Set([
   "src/adapters/osu/writer/write-osu-receptors.ts",
   "src/cli/installation-directory.ts",
   "src/infrastructure/filesystem/copy-directory.ts",
+  "src/infrastructure/filesystem/native-source-files.ts",
   "src/infrastructure/filesystem/transactional-output-publisher.ts",
   "src/infrastructure/filesystem/transactional-output-set-publisher.ts",
 ])
