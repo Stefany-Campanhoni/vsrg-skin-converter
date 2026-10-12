@@ -105,6 +105,14 @@ For concerns about bundled templates or assets, contact `scampanhoni@gmail.com`.
 
 ## Versions and Releases
 
+Browser changes must run `bun run build:web` and `bun run test:browser` as well as `bun run check`.
+On Windows use `PLAYWRIGHT_CHANNEL=msedge` with the installed Edge browser. Elsewhere install
+Chromium using `bun node_modules/@playwright/test/cli.js install --with-deps chromium` first.
+The E2E server exercises `/vsrg-skin-converter/` without isolation headers, so the Pages
+service worker bootstrap is tested. Generated fixtures and browser reports stay ignored.
+Use the shared adapter policies and application ports; do not copy migration logic into web UI.
+Source/image extraction changes also require the documented Windows portable verification.
+
 Changesets is the only owner of version planning and changelog entries. Contributors declare
 release intent in their pull requests; they must not edit `package.json`, `bun.lock`, or
 `CHANGELOG.md` release sections manually.

@@ -17,9 +17,35 @@ OsuSkinReader -> OsuToEtternaConversion -> EtternaSkinInstaller
   -> TransactionalOutputSetPublisher
 ```
 
-The CLI is the composition root. It selects concrete implementations and passes them to the
+The CLI and browser worker are composition roots. They select concrete implementations and pass them to the
 application use case. The application layer coordinates the operation exclusively through
 ports.
+
+The full `SkinModel` and CLI operation retain required scroll speed and transactional native
+publication. `VisualSkinModel` omits speed; `convertVisualSkin` coordinates reader, registered
+route and exporter ports for downloadable files. Pair conversions share one visual mapping;
+the forward browser route invokes the full converter only with a real source CMod.
+
+`SourceFiles` scopes native roots, read-only directory handles or directory Files. Issued
+opaque asset identities belong to exactly one registered store. Shared adapter readers own
+Lua/INI/XML parsing, case/density selection and missing-file decisions; Lua is never executed.
+Native convenience wrappers preserve existing public contracts. Shared target preparation
+owns all image geometry/naming and template rendering; native outputs preserve transactions,
+while browser exporters write a bounded in-memory `GeneratedFiles` set and archive only its
+settled final snapshot. Reverse web output contains NoteSkin, judgement, visual settings and
+installation guide, with no numbered profile, XML identity, CMod or destination CFG.
+
+`ImageOperations` uses shared image policies over `RasterBackend`: Sharp for native I/O and
+local wasm-vips/libvips for browser execution. Decoded pixel parity is a required gate.
+The `web` layer may depend on web/adapters/application/conversions/domain/infrastructure;
+other layers cannot depend on web. Its transitive graph must contain no CLI, Node, Bun,
+Sharp or native wrappers, including type dependencies. Browser sources never become URLs.
+
+The worker preinitializes before selection, reports tagged progress/results, and transfers
+only completed archive bytes. Reset invalidates request IDs immediately, waits for accepted
+work to settle and disposal acknowledgment, releases WASM/cache/source references, then
+terminates and initializes a fresh worker. The controller drops stale replies. The local
+isolation service worker performs at most one initialization reload, before any selection.
 
 ## Layers
 

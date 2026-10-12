@@ -1,7 +1,7 @@
 # Browser Skin Converter on GitHub Pages
 
 Date: 2026-10-12
-Status: Approved on 2026-10-12; implementation plan awaits review
+Status: Approved on 2026-10-12; implemented with shared CLI/browser policies, verification and deployment workflow
 
 ## Intent and agreed scope
 
