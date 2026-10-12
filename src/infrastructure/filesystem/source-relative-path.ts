@@ -17,3 +17,11 @@ export function sourceBasename(value: string): string {
 export function sourceJoin(...parts: string[]): string {
   return parts.filter(Boolean).join("/")
 }
+export function sourceExtname(value: string): string {
+  const name = sourceBasename(value)
+  const dot = name.lastIndexOf(".")
+  return dot < 1 ? "" : name.slice(dot)
+}
+export function sourceIsAbsolute(value: string): boolean {
+  return /^[\\/]|^[A-Za-z]:[\\/]/.test(value)
+}
