@@ -1,7 +1,7 @@
 # Browser Skin Converter on GitHub Pages
 
 Date: 2026-10-12
-Status: Awaiting written-spec review
+Status: Approved on 2026-10-12; implementation plan awaits review
 
 ## Intent and agreed scope
 
@@ -27,6 +27,9 @@ a valid CMod; its result is installation guidance rather than a local CFG edit.
 
 This document defines the proposed implementation. Product code, dependencies,
 GitHub repository settings, and deployment have not been changed at this stage.
+
+The implementation tasks are recorded in
+[the implementation plan](../plans/2026-10-12-github-pages-converter.md).
 
 ## User experience
 
