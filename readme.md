@@ -98,11 +98,11 @@ Only 4K is supported. Review the target visual settings, download the ZIP, and f
 The interface starts in English with a dark theme. Use the top controls for Portuguese or
 the light theme; these changes retain the selected source and completed ZIP. Switching
 conversion routes slides the purple arrow and pink triangle backgrounds linearly and clears
-the source for the new game. The whole interface palette smoothly exchanges purple for pink,
-retaining the same border shapes and opacity. While the worker
+the source for the new game. The interface enters from the right with a short 320 ms transition;
+its palette exchanges purple for pink, retaining the same border shapes and opacity. While the worker
 discovers skins, inspects files or converts images, the folder controls are replaced by a
-processing panel showing the current stage. Reduced-motion preferences disable displacement
-and pulsing while retaining a gentle exchange of gradient and interface colors. Technical
+processing panel showing the current stage. Route transitions stay animated with reduced motion;
+that preference disables processing pulses and hover displacement. Technical
 converter diagnostics retain their original English messages in the conversion notes.
 
 Absent Etterna profile settings use browser defaults with warnings. Present invalid files

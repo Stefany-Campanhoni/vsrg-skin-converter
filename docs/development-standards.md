@@ -15,9 +15,9 @@ Pages actions use full commit pins, PR jobs have read-only permissions, and only
 Browser presentation tests also cover English defaults, Portuguese visible and accessible
 labels, theme/language changes retaining a reviewed source and archive URL, both route
 backgrounds, reduced motion, and a mobile viewport without horizontal overflow.
-They verify linear background movement, identical border geometry/opacity across both
-palettes, and intermediate rendered component/background colors with and without reduced
-motion. They also verify replacement of
+They verify continuous linear background movement in both directions, a quick converter
+entrance from the right, identical border geometry/opacity across both palettes, and intermediate
+rendered component/background colors with and without reduced motion. They also verify replacement of
 folder controls with localized processing stages throughout discovery/inspection/conversion.
 Worker discovery tests cover cancellation, stale replies and retry after failure. A large
 synthetic installation guards against repeated full-file scans during directory lookups.

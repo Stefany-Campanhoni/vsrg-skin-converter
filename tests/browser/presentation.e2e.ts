@@ -286,7 +286,8 @@ test("interface and background colors swap gradually even with reduced motion", 
         animation.pause()
       return Number(transition.effect.getTiming().duration)
     })
-    expect(duration, motion).toBeGreaterThanOrEqual(600)
+    expect(duration, motion).toBeGreaterThanOrEqual(200)
+    expect(duration, motion).toBeLessThanOrEqual(400)
     const colors: number[][] = [],
       backgrounds: number[][] = []
     for (const fraction of [0.25, 0.5, 0.75]) {
@@ -322,6 +323,76 @@ test("interface and background colors swap gradually even with reduced motion", 
       for (const animation of document.getAnimations())
         if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
     })
+  }
+})
+
+test("background motifs slide continuously in both directions instead of jumping", async ({
+  page,
+}) => {
+  for (const motion of ["reduce", "no-preference"] as const) {
+    await page.emulateMedia({ reducedMotion: motion })
+    await page.goto(address)
+    await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+    const track = page.locator("#background-track")
+    for (const route of ["osu!mania → Etterna", "Etterna → osu!mania"]) {
+      const start = await track.evaluate((node) => node.getBoundingClientRect().x)
+      await page.getByRole("radio", { name: route }).check()
+      const movement = await track.evaluate((node) => {
+        const animation = node.getAnimations()[0]
+        if (!animation?.effect) return { duration: 0, positions: [], end: 0 }
+        animation.pause()
+        const duration = Number(animation.effect.getTiming().duration)
+        const positions = [0.25, 0.5, 0.75].map((fraction) => {
+          animation.currentTime = duration * fraction
+          return node.getBoundingClientRect().x
+        })
+        animation.finish()
+        return { duration, positions, end: node.getBoundingClientRect().x }
+      })
+      expect(movement.duration, `${motion}: ${route}`).toBeGreaterThan(0)
+      expect(movement.duration, `${motion}: ${route}`).toBeLessThanOrEqual(400)
+      for (const [index, x] of movement.positions.entries())
+        expect(x).toBeCloseTo(start + ((movement.end - start) * (index + 1)) / 4, 0)
+      await page.evaluate(() => {
+        for (const animation of document.getAnimations())
+          if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
+      })
+      await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
+    }
+  }
+})
+
+test("route changes enter the converter from the right and settle quickly", async ({ page }) => {
+  for (const motion of ["no-preference", "reduce"] as const) {
+    await page.emulateMedia({ reducedMotion: motion })
+    await page.goto(address)
+    await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+    for (const route of ["osu!mania → Etterna", "Etterna → osu!mania"]) {
+      await page.getByRole("radio", { name: route }).check()
+      const entrance = await page.locator(".converter").evaluate((node) => {
+        const animation = node.getAnimations()[0]
+        if (!animation?.effect) return { duration: 0, offsets: [] }
+        animation.pause()
+        const duration = Number(animation.effect.getTiming().duration)
+        const offsets = [0.25, 0.5, 0.75].map((fraction) => {
+          animation.currentTime = duration * fraction
+          return new DOMMatrixReadOnly(getComputedStyle(node).transform).m41
+        })
+        animation.finish()
+        return { duration, offsets }
+      })
+      expect(entrance.duration, `${motion}: ${route}`).toBeGreaterThanOrEqual(200)
+      expect(entrance.duration, `${motion}: ${route}`).toBeLessThanOrEqual(400)
+      expect(entrance.offsets[0] ?? 0).toBeGreaterThan(entrance.offsets[1] ?? 0)
+      expect(entrance.offsets[1] ?? 0).toBeGreaterThan(entrance.offsets[2] ?? 0)
+      expect(entrance.offsets[2] ?? 0).toBeGreaterThan(0)
+      await expect(page.locator(".converter")).toHaveCSS("transform", "none")
+      await page.evaluate(() => {
+        for (const animation of document.getAnimations())
+          if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
+      })
+      await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
+    }
   }
 })
 
@@ -369,7 +440,7 @@ test("mobile layout fits the viewport and respects reduced motion", async ({ pag
   await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
   await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
   await expect(page.locator("#background-track")).toHaveCSS("opacity", "1")
-  await expect(page.locator("#background-track")).toHaveCSS("transition-duration", "0s")
+  await expect(page.locator(".processing-lanes span").first()).toHaveCSS("animation-name", "none")
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
   await page.screenshot({ path: ".tmp/ui-mobile.png", fullPage: true })
 })

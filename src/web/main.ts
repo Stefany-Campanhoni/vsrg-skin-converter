@@ -33,6 +33,7 @@ let copy = applyPageCopy("en"),
   epoch = 0,
   url: string | undefined,
   ready = false,
+  routeAnimation: Animation | undefined,
   statusOverride: PageCopyKey | undefined,
   localError: string | undefined
 const controller = createConversionController(() =>
@@ -298,8 +299,24 @@ for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="dir
     element("osu-options", HTMLElement).hidden = direction !== "osu-to-etterna"
     element("manual-speed", HTMLElement).hidden = direction !== "osu-to-etterna"
     void clear()
+    routeAnimation?.cancel()
+    routeAnimation = element("source-panel", HTMLElement)
+      .closest(".converter")
+      ?.animate(
+        [
+          { transform: "translateX(12px)", opacity: 0.92 },
+          { transform: "translateX(0)", opacity: 1 },
+        ],
+        {
+          duration: Number.parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue("--route-duration"),
+          ),
+          easing: "ease-out",
+        },
+      )
   }
 window.addEventListener("pagehide", () => {
+  routeAnimation?.cancel()
   revoke()
   void controller.dispose()
 })

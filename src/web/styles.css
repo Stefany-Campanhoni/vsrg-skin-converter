@@ -9,7 +9,8 @@
   background: #251a38;
   color: var(--text);
   --route-mix: 0%;
-  transition: --route-mix 850ms linear;
+  --route-duration: 320ms;
+  transition: --route-mix var(--route-duration) linear;
   --purple: #432b6a;
   --pink: #743251;
   --text: color-mix(in srgb, #f4f0fc calc(100% - var(--route-mix)), #fcf0f5 var(--route-mix));
@@ -25,16 +26,6 @@
     #46162c var(--route-mix)
   );
   --shadow: color-mix(in srgb, #13091b40 calc(100% - var(--route-mix)), #1b091340 var(--route-mix));
-  --swap-start: color-mix(
-    in srgb,
-    var(--purple) calc(100% - var(--route-mix)),
-    var(--pink) var(--route-mix)
-  );
-  --swap-end: color-mix(
-    in srgb,
-    var(--pink) calc(100% - var(--route-mix)),
-    var(--purple) var(--route-mix)
-  );
   --etterna: #c5a0ff;
   --osu: #ffa9d5;
   --warning: #f7d49e;
@@ -169,7 +160,7 @@ legend {
   display: flex;
   background: linear-gradient(90deg, var(--purple), var(--pink) 50%, var(--purple));
   transform: translateX(0);
-  transition: transform 850ms linear;
+  transition: transform var(--route-duration) linear;
 }
 .background::after {
   content: "";
@@ -745,11 +736,6 @@ footer a {
 @media (prefers-reduced-motion: reduce) {
   .processing-lanes span {
     animation: none;
-  }
-  .game-background {
-    background: linear-gradient(90deg, var(--swap-start), var(--swap-end));
-    background-size: 50% 100%;
-    transition: none;
   }
   button,
   .button,

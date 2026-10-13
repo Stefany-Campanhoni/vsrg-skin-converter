@@ -59,9 +59,11 @@ still reset the controller and invalidate the previous source.
 The folder controls are hidden during initialization, discovery, inspection and conversion;
 a local processing panel shows the current stage until completion or failure. The background
 slides its color gradient and motifs linearly with the route. A registered CSS percentage
-interpolates the whole component palette on the same timeline, replacing purple with pink
-without changing border geometry or opacity. Reduced motion disables the slide and processing
-animation but retains a gentle gradient/color exchange without animated displacement.
+interpolates the whole component palette on the same 320 ms timeline, replacing purple with pink
+without changing border geometry or opacity. Route changes also animate the converter into place
+from a short offset on the right; any previous entrance is cancelled before starting the next.
+These explicitly requested route transitions stay animated with reduced motion, while processing
+pulses and hover displacement remain disabled for that preference.
 
 ## Layers
 
