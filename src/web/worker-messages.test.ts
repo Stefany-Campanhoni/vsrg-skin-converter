@@ -1,5 +1,42 @@
 import { expect, test } from "bun:test"
+import { createOsuSourceFixture } from "../../tests/support/migration-source-fixtures.ts"
+import { columnDirections } from "../domain/image.ts"
 import { isWorkerReply } from "./worker-messages.ts"
+
+test("preview messages require four ordered lanes with bounded note and receptor bytes", async () => {
+  const files = await createOsuSourceFixture()
+  const image = [...files].find(([name]) => name.endsWith(".png"))?.[1]
+  if (!image) throw new Error("Missing PNG fixture")
+  const artwork = columnDirections.map((direction) => ({ direction, note: image, receptor: image }))
+  const preview = {
+    artwork,
+    playfield: {
+      hitPosition: 450,
+      judgementPosition: 300,
+      comboPosition: 200,
+      columnWidth: 64,
+      comboScale: 1,
+      judgementScale: 1,
+    },
+    diagnostics: [],
+  }
+  const reply = (artwork: unknown) => ({
+    kind: "preview",
+    requestId: 1,
+    preview: { ...preview, artwork },
+  })
+  expect(isWorkerReply(reply(artwork))).toBe(true)
+  for (const invalid of [
+    undefined,
+    [],
+    artwork.slice(0, 3),
+    [...artwork].reverse(),
+    artwork.map((lane) => ({ ...lane, note: [] })),
+    artwork.map((lane) => ({ ...lane, receptor: new Uint8Array() })),
+    artwork.map((lane) => ({ ...lane, note: new Uint8Array(1024 * 1024 + 1) })),
+  ])
+    expect(isWorkerReply(reply(invalid))).toBe(false)
+})
 
 test("worker catalogs require complete typed skin, profile, theme and diagnostic fields", () => {
   const discovery = {

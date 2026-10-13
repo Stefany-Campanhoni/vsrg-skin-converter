@@ -92,15 +92,19 @@ fails, it restores the previous files and removes incomplete output.
 The static GitHub Pages app converts entirely on your computer, with no upload or backend.
 For Etterna → osu!mania, select the Etterna installation, then a dance NoteSkin and a local
 profile. For osu!mania → Etterna, select only the skin folder and choose SD or HD explicitly.
-Only 4K is supported. Review the target visual settings, download the ZIP, and follow its
+Only 4K is supported. The card has three screens: Source, Review and Download. Choose the
+source options before continuing; Back returns to those options without losing the folder.
+Review shows four tap notes and normal receptors from the selected skin, alongside the
+target visual settings. The artwork layout is illustrative, not a game simulation.
+Convert, download the ZIP, and follow its
 `INSTALLATION.md` before applying anything to a game installation.
 
 The interface starts in English with a dark theme. Use the top controls for Portuguese or
 the light theme; these changes retain the selected source and completed ZIP. Switching
 conversion routes slides the purple arrow and pink triangle backgrounds linearly and clears
 the source for the new game. The interface enters from the right with a short 320 ms transition;
-its palette exchanges purple for pink, retaining the same border shapes and opacity. While the worker
-discovers skins, inspects files or converts images, the folder controls are replaced by a
+its palette exchanges purple for pink, retaining the same border shapes and opacity. From opening
+the folder picker through discovery, inspection and conversion, the card is replaced by a
 processing panel showing the current stage. Route transitions stay animated with reduced motion;
 that preference disables processing pulses and hover displacement. Technical
 converter diagnostics retain their original English messages in the conversion notes.
@@ -114,7 +118,8 @@ Use a modern browser over HTTPS (or localhost). The app enables isolation throug
 service worker and may reload once **before** enabling folder selection. Directory handles
 are read-only; a directory file input is available as a fallback. Prefer the native folder
 picker for large installations: the file-list picker may take time to enumerate the entire
-folder before handing files to the app. Discovery and file-list indexing then run in the
+folder before handing files to the app; the waiting panel covers this interval without
+claiming enumeration progress. Cancelling restores the Source screen. Discovery and file-list indexing then run in the
 worker, with indexed directory lookups avoiding repeated scans of unrelated Songs.
 Selection and diagnostics
 are never persisted. Limits: 32 MiB per source/image, 16 megapixels per decoded image, and

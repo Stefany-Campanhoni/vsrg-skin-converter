@@ -8,6 +8,10 @@ asset identities must belong to registered sources, and present unsafe/unreadabl
 are fatal. Image/source files are bounded to 32 MiB, decoded images to 16 megapixels, and
 generated files to 256 MiB. Lua is analyzed statically and is never executed. WASM, worker,
 templates and service worker resources ship locally without external runtime services.
+Review artwork uses locally rendered, bounded PNG thumbnails rather than original source
+URLs. Temporary thumbnail Blob URLs are revoked when replaced, reset or the page exits;
+changing language or theme retains the current preview. Neither thumbnails nor folder
+selection metadata are persisted.
 
 ## Supported Versions
 

@@ -39,14 +39,18 @@ installation guide, with no numbered profile, XML identity, CMod or destination 
 local wasm-vips/libvips for browser execution. Decoded pixel parity is a required gate.
 The `web` layer may depend on web/adapters/application/conversions/domain/infrastructure;
 other layers cannot depend on web. Its transitive graph must contain no CLI, Node, Bun,
-Sharp or native wrappers, including type dependencies. Browser sources never become URLs.
+Sharp or native wrappers, including type dependencies. Original browser source assets never
+become URLs. Inspection renders bounded PNG thumbnails through the existing frame/rotation
+image operations; their temporary Blob URLs belong to the artwork presentation module.
 
 The worker preinitializes before selection and owns Etterna catalog discovery, source
 indexing, inspection and conversion. Directory File metadata is indexed once per source
 instance into immediate-child listings; lookups do not rescan unrelated installation files.
 File/directory and case ambiguities remain errors when their directory is requested.
-The worker reports tagged catalogs/progress/results and transfers only completed archive
-bytes. Reset rejects pending discovery and invalidates request IDs immediately, waits for accepted
+The worker reports tagged catalogs/progress/results, clones four ordered note/receptor
+thumbnail pairs for review, and transfers completed archive bytes. Thumbnail dimensions
+are bounded to 128 pixels per axis and reply validation limits each image to 1 MiB.
+Reset rejects pending discovery and invalidates request IDs immediately, waits for accepted
 work to settle and disposal acknowledgment, releases WASM/cache/source references, then
 terminates and initializes a fresh worker. The controller drops stale replies. The local
 isolation service worker performs at most one initialization reload, before any selection.
@@ -56,8 +60,15 @@ labels without altering adapter diagnostics or migration policies. Language and 
 changes only rerender the page and retain controller/source/result state. Archive URL
 creation belongs to controller result delivery, not presentation rerenders. Route changes
 still reset the controller and invalidate the previous source.
-The folder controls are hidden during initialization, discovery, inspection and conversion;
-a local processing panel shows the current stage until completion or failure. The background
+Source, Review and Download replace the card's main content; progress indicators track the
+visible step. Source catalog discovery finishes before the user chooses options and requests
+inspection. Back preserves the source; another inspection replaces the artwork. Thumbnail
+URLs survive language/theme rerenders and are revoked on replacement, reset or page exit.
+Artwork represents selected tap notes and normal receptors in an illustrative four-lane
+layout; target geometry and migration policies remain owned by the existing adapters.
+The folder controls are hidden from opening either picker through initialization, discovery,
+inspection and conversion; a local processing panel shows the current stage until completion,
+cancellation or failure. Picker epochs reject selections delivered after reset. The background
 slides its color gradient and motifs linearly with the route. A registered CSS percentage
 interpolates the whole component palette on the same 320 ms timeline, replacing purple with pink
 without changing border geometry or opacity. Route changes also animate the converter into place

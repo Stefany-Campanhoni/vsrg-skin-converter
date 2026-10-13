@@ -177,6 +177,7 @@ test("controller requires reviewed values before conversion", () => {
     kind: "preview",
     requestId: commands[0]?.requestId ?? 0,
     preview: {
+      artwork: [],
       playfield: {
         hitPosition: 0,
         judgementPosition: 0,

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { unzipSync } from "fflate"
+import sharp from "sharp"
 import { createNativeSourceFiles } from "../../src/infrastructure/filesystem/native-source-files.ts"
 import { createSharpImageBackend } from "../../src/infrastructure/image/sharp-image-backend.ts"
 import { createWebConversionRuntime } from "../../src/web/web-conversion.ts"
@@ -32,7 +33,7 @@ for (const direction of ["osu-to-etterna", "etterna-to-osu"] as const)
         ? createOsuSourceFixture()
         : createEtternaSourceFixture()),
     )
-    const result = await runtime.run(
+    const request =
       direction === "osu-to-etterna"
         ? { direction, source: input, skinName: "Reference", useDoubleResolutionAssets: false }
         : {
@@ -42,9 +43,21 @@ for (const direction of ["osu-to-etterna", "etterna-to-osu"] as const)
             profileId: "00000000",
             theme: "Rebirth",
             useDefaultSettings: false,
-          },
-      (step) => progress.push(step),
-    )
+          }
+    const preview = await runtime.inspect(request)
+    expect(preview).toHaveProperty("artwork")
+    expect(preview.artwork.map((lane) => lane.direction)).toEqual(["left", "down", "up", "right"])
+    for (const [index, lane] of preview.artwork.entries())
+      for (const image of [lane.note, lane.receptor]) {
+        const { data, info } = await sharp(image)
+          .ensureAlpha()
+          .raw()
+          .toBuffer({ resolveWithObject: true })
+        expect(info.width).toBeGreaterThan(0)
+        expect(info.height).toBeGreaterThan(0)
+        expect([...data.slice(0, 4)]).toEqual([index * 40, 90, 200, 255])
+      }
+    const result = await runtime.run(request, (step) => progress.push(step))
     const files = unzipSync(result.archive)
     expect(progress.at(-1)).toEqual({ phase: "archiving", completed: 1, total: 1 })
     if (direction === "osu-to-etterna") {

@@ -18,7 +18,12 @@ backgrounds, reduced motion, and a mobile viewport without horizontal overflow.
 They verify continuous linear background movement in both directions, a quick converter
 entrance from the right, identical border geometry/opacity across both palettes, and intermediate
 rendered component/background colors with and without reduced motion. They also verify replacement of
-folder controls with localized processing stages throughout discovery/inspection/conversion.
+folder controls with localized processing stages from opening either picker through
+discovery/inspection/conversion, including cancellation and late selection after reset.
+Wizard tests verify exclusive Source/Review/Download content, Back retaining source options,
+four decoded note/receptor pairs, thumbnail URL retention during localization and revocation
+on replacement/reset. Integration tests decode the preview PNGs against source fixture pixels
+while retaining archive parity assertions.
 Worker discovery tests cover cancellation, stale replies and retry after failure. A large
 synthetic installation guards against repeated full-file scans during directory lookups.
 Contrast regressions for small text outside the panel are checked against the rendered

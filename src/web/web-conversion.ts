@@ -17,6 +17,7 @@ import { createRegisteredAssetLoader } from "../infrastructure/filesystem/regist
 import type { RasterBackend } from "../infrastructure/image/raster-backend.ts"
 import { createImageOperations } from "../infrastructure/image/shared-image-operations.ts"
 import { createBrowserSourceFiles } from "./browser-source.ts"
+import { renderArtworkPreview } from "./render-artwork-preview.ts"
 import type {
   ConversionPreview,
   ConversionProgress,
@@ -89,6 +90,7 @@ export function createWebConversionRuntime(dependencies: {
       if (inspect) {
         const skin = await convert(await read())
         return {
+          artwork: await renderArtworkPreview(skin, images),
           playfield: skin.playfield,
           diagnostics: skin.diagnostics,
           ...(maniaSpeed === undefined ? {} : { convertedManiaSpeed: maniaSpeed }),

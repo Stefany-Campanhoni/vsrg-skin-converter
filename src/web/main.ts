@@ -1,5 +1,6 @@
 import type { EtternaSourceDiscovery } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import type { ReadableDirectoryHandle } from "../application/ports/source-files.ts"
+import { createArtworkPresentation } from "./artwork-presentation.ts"
 import { type ConversionState, createConversionController } from "./conversion-controller.ts"
 import { createConversionWorkerTransport } from "./conversion-worker-transport.ts"
 import { applyPageCopy, type PageCopyKey, type PageLanguage } from "./page-copy.ts"
@@ -15,6 +16,8 @@ const select = element("select", HTMLButtonElement),
   folder = element("folder", HTMLInputElement),
   convert = element("convert", HTMLButtonElement),
   reset = element("reset", HTMLButtonElement),
+  next = element("next", HTMLButtonElement),
+  back = element("back", HTMLButtonElement),
   skin = element("skin", HTMLSelectElement),
   profile = element("profile", HTMLSelectElement),
   density = element("density", HTMLSelectElement),
@@ -34,8 +37,11 @@ let copy = applyPageCopy("en"),
   url: string | undefined,
   ready = false,
   routeAnimation: Animation | undefined,
+  currentStep: "source" | "review" | "download" = "source",
+  pickerEpoch: number | undefined,
   statusOverride: PageCopyKey | undefined,
   localError: string | undefined
+const artwork = createArtworkPresentation(element("skin-artwork", HTMLElement))
 const controller = createConversionController(() =>
   createConversionWorkerTransport(
     new Worker(new URL("./conversion-worker.js", import.meta.url), { type: "module" }),
@@ -58,6 +64,7 @@ const playfieldKeys = [
 ] as const
 function renderState(state: ConversionState) {
   const busy =
+    statusOverride === "waitingFolder" ||
     statusOverride === "checking" ||
     state.phase === "initializing" ||
     state.phase === "selecting" ||
@@ -65,34 +72,45 @@ function renderState(state: ConversionState) {
     (state.phase === "review" && !state.preview)
   select.disabled = fallback.disabled = !ready || busy
   convert.disabled = state.phase !== "review" || !state.preview
-  convert.hidden = state.phase === "success"
+  convert.hidden = currentStep !== "review" || busy
+  next.hidden = currentStep !== "source" || busy
+  next.disabled = !source || busy || !ready
+  back.hidden = currentStep !== "review" || busy
+  download.hidden = currentStep !== "download" || !url
   skin.disabled = profile.disabled = density.disabled = busy
   for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="direction"]'))
-    radio.disabled = state.phase === "initializing"
+    radio.disabled = state.phase === "initializing" || busy
   error.hidden = state.phase !== "error" && !localError
   error.textContent = localError ?? state.message ?? ""
   const statusKey: PageCopyKey =
     statusOverride ??
-    (state.phase === "initializing"
-      ? "initializing"
-      : state.phase === "idle"
-        ? "idle"
-        : state.phase === "selecting"
-          ? "checking"
-          : state.phase === "review"
-            ? state.preview
-              ? "reviewed"
-              : "reviewing"
-            : state.phase === "converting"
-              ? (state.progress?.phase ?? "reading")
-              : state.phase === "success"
-                ? "success"
-                : "failed")
+    (currentStep === "source" && source && !busy
+      ? "sourceReady"
+      : state.phase === "initializing"
+        ? "initializing"
+        : state.phase === "idle"
+          ? source
+            ? "sourceReady"
+            : "idle"
+          : state.phase === "selecting"
+            ? "checking"
+            : state.phase === "review"
+              ? state.preview
+                ? "reviewed"
+                : "reviewing"
+              : state.phase === "converting"
+                ? (state.progress?.phase ?? "reading")
+                : state.phase === "success"
+                  ? "success"
+                  : "failed")
   status.textContent = copy[statusKey]
   element("folder-selection", HTMLElement).hidden = busy
   element("processing", HTMLElement).hidden = !busy
   element("processing-stage", HTMLElement).textContent = copy[statusKey]
   element("source-panel", HTMLElement).setAttribute("aria-busy", String(busy))
+  element("source-stage", HTMLElement).hidden = busy || currentStep !== "source"
+  element("review-stage", HTMLElement).hidden = busy || currentStep !== "review"
+  element("download-stage", HTMLElement).hidden = busy || currentStep !== "download"
   element("source-title", HTMLElement).textContent =
     direction === "etterna-to-osu" ? copy.sourceEtterna : copy.sourceOsu
   element("source-help", HTMLElement).textContent =
@@ -106,11 +124,11 @@ function renderState(state: ConversionState) {
   const defaultOption = profile.options[0]
   if (defaultOption?.value === "") defaultOption.textContent = copy.defaultProfile
   element("review", HTMLElement).hidden = !state.preview
-  element("waiting", HTMLElement).hidden = !!state.preview || state.phase === "success"
-  element("result-help", HTMLElement).hidden = state.phase !== "success"
+  element("result-filename", HTMLElement).textContent = state.result?.filename ?? ""
   values.replaceChildren()
   diagnostics.replaceChildren()
   if (state.preview) {
+    artwork.show(state.preview, copy)
     for (const key of playfieldKeys) {
       const value = state.preview.playfield[key]
       if (value === undefined) continue
@@ -134,14 +152,8 @@ function renderState(state: ConversionState) {
     }
   }
   element("conversion-notes", HTMLElement).hidden = diagnostics.childElementCount === 0
-  const active =
-    state.phase === "success"
-      ? "download"
-      : state.phase === "review" || state.phase === "converting"
-        ? "review"
-        : "source"
   for (const step of document.querySelectorAll<HTMLElement>("[data-step]")) {
-    const current = step.dataset.step === active
+    const current = step.dataset.step === currentStep
     step.dataset.active = String(current)
     if (current) step.setAttribute("aria-current", "step")
     else step.removeAttribute("aria-current")
@@ -158,6 +170,8 @@ controller.subscribe((state) => {
   if (state.phase === "initializing") ready = false
   statusOverride = undefined
   localError = undefined
+  if (state.phase === "success") currentStep = "download"
+  if (state.phase === "error" && currentStep === "download") currentStep = "source"
   renderState(state)
   if (state.result) {
     revoke()
@@ -167,6 +181,9 @@ controller.subscribe((state) => {
     download.href = url
     download.download = state.result.filename
     download.hidden = false
+    element("download-title", HTMLElement).focus({ preventScroll: true })
+  } else if (state.phase === "review" && state.preview && currentStep === "review") {
+    element("review-title", HTMLElement).focus({ preventScroll: true })
   }
 })
 language.onchange = () => {
@@ -179,6 +196,9 @@ uiTheme.onchange = () => {
 }
 function review() {
   if (!source) return
+  currentStep = "review"
+  artwork.clear()
+  statusOverride = undefined
   const request: WebConversionRequest =
     direction === "etterna-to-osu"
       ? {
@@ -221,6 +241,8 @@ async function waitReady() {
 }
 async function accept(next: BrowserSource, name: string) {
   const ticket = ++epoch
+  currentStep = "source"
+  artwork.clear()
   revoke()
   select.disabled = fallback.disabled = true
   try {
@@ -246,7 +268,8 @@ async function accept(next: BrowserSource, name: string) {
     )
     if (found?.profileIds[0]) profile.value = found.profileIds[0]
     element("options", HTMLElement).hidden = false
-    review()
+    statusOverride = undefined
+    renderState(controller.state)
   } catch (cause) {
     if (ticket !== epoch) return
     localError = cause instanceof Error ? cause.message : copy.folderError
@@ -255,34 +278,83 @@ async function accept(next: BrowserSource, name: string) {
     select.disabled = fallback.disabled = false
   }
 }
+function beginFolderSelection() {
+  pickerEpoch = epoch
+  statusOverride = "waitingFolder"
+  localError = undefined
+  renderState(controller.state)
+}
+function cancelFolderSelection() {
+  const ticket = pickerEpoch
+  pickerEpoch = undefined
+  if (ticket !== epoch) return
+  statusOverride = undefined
+  renderState(controller.state)
+}
+function selectFileList() {
+  beginFolderSelection()
+  folder.click()
+}
 select.onclick = async () => {
   if (!("showDirectoryPicker" in window) || typeof window.showDirectoryPicker !== "function") {
-    folder.click()
+    selectFileList()
     return
   }
+  beginFolderSelection()
+  const ticket = epoch
   try {
     const picker = window.showDirectoryPicker as (options: {
       mode: "read"
     }) => Promise<ReadableDirectoryHandle>
     const handle = await picker({ mode: "read" })
+    if (ticket !== epoch) return
+    pickerEpoch = undefined
     await accept({ kind: "directory-handle", handle }, handle.name)
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === "AbortError") return
+    if (ticket !== epoch) return
+    if (cause instanceof DOMException && cause.name === "AbortError") {
+      cancelFolderSelection()
+      return
+    }
+    pickerEpoch = undefined
+    statusOverride = undefined
     localError = cause instanceof Error ? cause.message : copy.pickerError
     renderState(controller.state)
   }
 }
-fallback.onclick = () => folder.click()
+fallback.onclick = selectFileList
+folder.addEventListener("cancel", cancelFolderSelection)
 folder.onchange = () => {
+  const ticket = pickerEpoch ?? epoch
+  pickerEpoch = undefined
+  if (ticket !== epoch) {
+    folder.value = ""
+    return
+  }
   const files = [...(folder.files ?? [])]
   folder.value = ""
   if (files.length)
     void accept({ kind: "file-list", files }, files[0]?.webkitRelativePath.split("/")[0] ?? "Skin")
+  else {
+    statusOverride = undefined
+    renderState(controller.state)
+  }
 }
-skin.onchange = profile.onchange = density.onchange = review
-convert.onclick = () => controller.convert()
+next.onclick = review
+back.onclick = () => {
+  currentStep = "source"
+  renderState(controller.state)
+}
+convert.onclick = () => {
+  currentStep = "download"
+  controller.convert()
+}
 async function clear() {
   ++epoch
+  currentStep = "source"
+  statusOverride = undefined
+  folder.value = ""
+  artwork.clear()
   source = undefined
   discovery = undefined
   sourceName = ""
@@ -317,6 +389,7 @@ for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="dir
   }
 window.addEventListener("pagehide", () => {
   routeAnimation?.cancel()
+  artwork.clear()
   revoke()
   void controller.dispose()
 })

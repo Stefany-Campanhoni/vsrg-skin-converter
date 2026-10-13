@@ -86,6 +86,8 @@ test("fresh Pages isolation, both complete downloads and private read-only folde
   await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true)
   await page.locator("#folder").setInputFiles(path.join(root, "Etterna"))
+  await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+  await page.locator("#next").click()
   await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
   await expect(page.locator("#values")).toContainText("29")
   await page.locator("#convert").click()
@@ -99,9 +101,13 @@ test("fresh Pages isolation, both complete downloads and private read-only folde
   expect(forwardFiles["Reference/skin.ini"]).toBeDefined()
   await compareArchive(forwardFiles, "etterna-to-osu")
   expect(new TextDecoder().decode(forwardFiles["INSTALLATION.md"])).toContain("ManiaSpeed = 29")
+  await page.locator("#reset").click()
+  await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
   await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
   await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
   await page.locator("#folder").setInputFiles(path.join(root, "Osu"))
+  await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+  await page.locator("#next").click()
   await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
   await expect(page.locator("#manual-speed a")).toHaveAttribute("href", "https://cmodcalc.com/")
   await page.locator("#convert").click()
@@ -120,7 +126,11 @@ test("fresh Pages isolation, both complete downloads and private read-only folde
   )
   expect(Object.keys(reverseFiles).some((file) => file.startsWith("NoteSkins/dance/"))).toBe(true)
   expect(
-    requests.every((url) => url.startsWith("http://127.0.0.1:4173/vsrg-skin-converter/")),
+    requests.every(
+      (url) =>
+        url.startsWith("http://127.0.0.1:4173/vsrg-skin-converter/") ||
+        url.startsWith("blob:http://127.0.0.1:4173/"),
+    ),
   ).toBe(true)
   expect(requests.some((url) => /LocalProfiles|Reference/.test(url))).toBe(false)
   for (const [file, hash] of before)
@@ -138,8 +148,11 @@ test("invalid source is actionable and never creates a download", async ({ page 
   const invalid = path.join(root, "Invalid")
   await Bun.write(path.join(invalid, "skin.ini"), "[Mania]\nKeys=7\n")
   await page.locator("#folder").setInputFiles(invalid)
+  await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+  await page.locator("#next").click()
   await expect(page.locator("#error")).toBeVisible({ timeout: 30000 })
   await expect(page.locator("#processing")).toBeHidden()
+  await page.locator("#back").click()
   await expect(page.locator("#folder-selection")).toBeVisible()
   await expect(page.locator("#select")).toBeEnabled()
   await expect(page.locator("#download")).toBeHidden()
@@ -190,8 +203,11 @@ test("read-only directory handles and cancelled selection retain a valid review"
       { files, name: fixture.name },
     )
     await page.locator("#select").click()
+    await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+    await page.locator("#next").click()
     await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
     const selected = await page.locator("#selection").textContent()
+    await page.locator("#back").click()
     await page.evaluate(() =>
       Object.defineProperty(window, "showDirectoryPicker", {
         configurable: true,
@@ -201,7 +217,8 @@ test("read-only directory handles and cancelled selection retain a valid review"
       }),
     )
     await page.locator("#select").click()
-    await expect(page.locator("#convert")).toBeEnabled()
+    await expect(page.locator("#source-stage")).toBeVisible()
+    await expect(page.locator("#next")).toBeEnabled()
     expect(await page.locator("#selection").textContent()).toBe(selected)
   }
   await page.reload()

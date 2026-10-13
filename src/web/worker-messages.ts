@@ -1,6 +1,7 @@
 import type { EtternaSourceDiscovery } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import type { ReadableDirectoryHandle } from "../application/ports/source-files.ts"
 import type { Diagnostic } from "../domain/diagnostics.ts"
+import type { ColumnDirection } from "../domain/image.ts"
 import type { VisualPlayfieldConfiguration } from "../domain/visual-skin.ts"
 
 export type BrowserSource =
@@ -27,9 +28,15 @@ export interface ConversionProgress {
   total: number
 }
 export interface ConversionPreview {
+  artwork: readonly ArtworkPreviewLane[]
   playfield: VisualPlayfieldConfiguration
   diagnostics: readonly Diagnostic[]
   convertedManiaSpeed?: number
+}
+export interface ArtworkPreviewLane {
+  direction: ColumnDirection
+  note: Uint8Array
+  receptor: Uint8Array
 }
 export interface WebConversionResult {
   archive: Uint8Array
@@ -121,7 +128,23 @@ export function isWorkerReply(value: unknown): value is WorkerReply {
       if (!record(p) || !record(p.playfield) || !diagnostics(p.diagnostics) || !optionalSpeed(p))
         return false
       const playfield = p.playfield
+      const artwork = p.artwork
       return (
+        Array.isArray(artwork) &&
+        artwork.length === 4 &&
+        ["left", "down", "up", "right"].every((direction, index) => {
+          const lane: unknown = artwork[index]
+          return (
+            record(lane) &&
+            lane.direction === direction &&
+            [lane.note, lane.receptor].every(
+              (image) =>
+                image instanceof Uint8Array &&
+                image.byteLength > 0 &&
+                image.byteLength <= 1024 * 1024,
+            )
+          )
+        }) &&
         [
           "hitPosition",
           "judgementPosition",
