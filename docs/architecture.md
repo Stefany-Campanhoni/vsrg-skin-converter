@@ -47,6 +47,12 @@ work to settle and disposal acknowledgment, releases WASM/cache/source reference
 terminates and initializes a fresh worker. The controller drops stale replies. The local
 isolation service worker performs at most one initialization reload, before any selection.
 
+Browser copy belongs to `web/page-copy.ts`; it translates presentation text and accessible
+labels without altering adapter diagnostics or migration policies. Language and theme
+changes only rerender the page and retain controller/source/result state. Archive URL
+creation belongs to controller result delivery, not presentation rerenders. Route changes
+still reset the controller and invalidate the previous source.
+
 ## Layers
 
 ### `domain`

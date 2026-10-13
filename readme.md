@@ -95,6 +95,12 @@ profile. For osu!mania → Etterna, select only the skin folder and choose SD or
 Only 4K is supported. Review the target visual settings, download the ZIP, and follow its
 `INSTALLATION.md` before applying anything to a game installation.
 
+The interface starts in English with a dark theme. Use the top controls for Portuguese or
+the light theme; these changes retain the selected source and completed ZIP. Switching
+conversion routes exchanges the purple arrow and pink triangle backgrounds and clears the
+source for the new game. Reduced-motion preferences disable the transition. Technical
+converter diagnostics retain their original English messages in the conversion notes.
+
 Absent Etterna profile settings use browser defaults with warnings. Present invalid files
 remain errors. A valid source CMod produces a manual ManiaSpeed instruction. The reverse
 browser route never reads an osu! CFG or produces CMod/profile XML; configure speed with
@@ -148,6 +154,11 @@ requirements.
 
 VSRG Skin Converter is licensed under the [GNU General Public License v3.0](LICENSE)
 (`GPL-3.0-only`). Bundled templates are distributed with permission.
+
+The browser's decorative arrow and triangle patterns are original SVG drawings authored
+for this project and distributed under its GPL-3.0-only license. The arrow direction was
+inspired by a user-provided Etterna reference; that raster image and its wordmark are not
+included in the browser distribution.
 
 The project banner was created for VSRG Skin Converter by
 [@akaneyt](https://www.youtube.com/@akaneyt) and is redistributed with the artist's permission.

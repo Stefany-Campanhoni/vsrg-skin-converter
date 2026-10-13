@@ -190,7 +190,7 @@ test("read-only directory handles and cancelled selection retain a valid review"
   expect(await page.locator("#selection").textContent()).toBe(selected)
   await page.reload()
   await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
-  await expect(page.locator("#selection")).toBeEmpty()
+  await expect(page.locator("#selection")).toHaveText("No folder selected yet")
   await expect(page.locator("#convert")).toBeDisabled()
 })
 test("failed WASM initialization blocks selection and shows an actionable error", async ({

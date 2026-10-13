@@ -12,6 +12,12 @@ smoke check because browser automation only covers the directory-input/handle co
 Pages actions use full commit pins, PR jobs have read-only permissions, and only the tested
 `main` artifact deploys with Pages/OIDC permissions in the `github-pages` environment.
 
+Browser presentation tests also cover English defaults, Portuguese visible and accessible
+labels, theme/language changes retaining a reviewed source and archive URL, both route
+backgrounds, reduced motion, and a mobile viewport without horizontal overflow.
+Contrast regressions for small text outside the panel are checked against the rendered
+light-theme backgrounds in both directions, including the decorative patterns and overlay.
+
 Scoped native source access in `src/infrastructure/filesystem/native-source-files.ts`
 and browser build staging in `.ci/web/build-web.ts` (controlled output mkdir/removal only)
 uses `node:fs/promises` for directory metadata, realpath containment, and file-kind checks;

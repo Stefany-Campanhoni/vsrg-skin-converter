@@ -4,8 +4,9 @@ import {
 } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import type { ReadableDirectoryHandle } from "../application/ports/source-files.ts"
 import { createBrowserSourceFiles } from "./browser-source.ts"
-import { createConversionController } from "./conversion-controller.ts"
+import { type ConversionState, createConversionController } from "./conversion-controller.ts"
 import { createConversionWorkerTransport } from "./conversion-worker-transport.ts"
+import { applyPageCopy, type PageCopyKey, type PageLanguage } from "./page-copy.ts"
 import type { BrowserSource, WebConversionRequest } from "./worker-messages.ts"
 
 function element<T extends HTMLElement>(id: string, kind: { new (): T }): T {
@@ -25,14 +26,19 @@ const select = element("select", HTMLButtonElement),
   error = element("error", HTMLParagraphElement),
   download = element("download", HTMLAnchorElement),
   values = element("values", HTMLDListElement),
-  diagnostics = element("diagnostics", HTMLUListElement)
-let direction: WebConversionRequest["direction"] = "etterna-to-osu",
+  diagnostics = element("diagnostics", HTMLUListElement),
+  language = element("language", HTMLSelectElement),
+  uiTheme = element("ui-theme", HTMLSelectElement)
+let copy = applyPageCopy("en"),
+  direction: WebConversionRequest["direction"] = "etterna-to-osu",
   source: BrowserSource | undefined,
   discovery: EtternaSourceDiscovery | undefined,
   sourceName = "",
   epoch = 0,
   url: string | undefined,
-  ready = false
+  ready = false,
+  statusOverride: PageCopyKey | undefined,
+  localError: string | undefined
 const controller = createConversionController(() =>
   createConversionWorkerTransport(
     new Worker(new URL("./conversion-worker.js", import.meta.url), { type: "module" }),
@@ -44,65 +50,76 @@ function revoke() {
   download.removeAttribute("href")
   download.hidden = true
 }
-const labels = {
-  hitPosition: "Posição dos receptores",
-  judgementPosition: "Posição do judgement",
-  comboPosition: "Posição do combo",
-  columnWidth: "Tamanho / largura",
-  comboScale: "Escala do combo",
-  judgementScale: "Escala do judgement",
-  isDownscroll: "Scroll para baixo",
-}
-controller.subscribe((state) => {
-  if (state.phase === "idle") ready = true
-  if (state.phase === "initializing") ready = false
+const playfieldKeys = [
+  "hitPosition",
+  "judgementPosition",
+  "comboPosition",
+  "columnWidth",
+  "comboScale",
+  "judgementScale",
+  "isDownscroll",
+] as const
+function renderState(state: ConversionState) {
   const busy =
+    statusOverride === "checking" ||
     state.phase === "initializing" ||
     state.phase === "converting" ||
     (state.phase === "review" && !state.preview)
   select.disabled = fallback.disabled = !ready || busy
   convert.disabled = state.phase !== "review" || !state.preview
+  convert.hidden = state.phase === "success"
   skin.disabled = profile.disabled = density.disabled = busy
   for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="direction"]'))
     radio.disabled = state.phase === "initializing"
-  error.hidden = state.phase !== "error"
-  error.textContent = state.message ?? ""
-  status.textContent =
-    state.phase === "initializing"
-      ? "Preparando o processamento local…"
+  error.hidden = state.phase !== "error" && !localError
+  error.textContent = localError ?? state.message ?? ""
+  const statusKey: PageCopyKey =
+    statusOverride ??
+    (state.phase === "initializing"
+      ? "initializing"
       : state.phase === "idle"
-        ? "Pronto. Selecione a pasta de origem."
+        ? "idle"
         : state.phase === "review"
           ? state.preview
-            ? "Revisão pronta. Confira os valores e converta."
-            : "Lendo e validando a skin…"
+            ? "reviewed"
+            : "reviewing"
           : state.phase === "converting"
-            ? {
-                reading: "Lendo arquivos…",
-                converting: "Convertendo configurações…",
-                rendering: "Processando imagens…",
-                archiving: "Preparando ZIP…",
-              }[state.progress?.phase ?? "reading"]
+            ? (state.progress?.phase ?? "reading")
             : state.phase === "success"
-              ? "Conversão concluída. Seu ZIP está pronto."
-              : "Não foi possível concluir. Verifique os arquivos ou recomece."
+              ? "success"
+              : "failed")
+  status.textContent = copy[statusKey]
+  element("source-title", HTMLElement).textContent =
+    direction === "etterna-to-osu" ? copy.sourceEtterna : copy.sourceOsu
+  element("source-help", HTMLElement).textContent =
+    direction === "etterna-to-osu" ? copy.helpEtterna : copy.helpOsu
+  element("selection", HTMLElement).textContent = source
+    ? `${copy.selected}: ${sourceName}`
+    : copy.empty
+  element("theme", HTMLElement).textContent = discovery
+    ? `${copy.gameTheme}: ${discovery.theme}`
+    : ""
+  const defaultOption = profile.options[0]
+  if (defaultOption?.value === "") defaultOption.textContent = copy.defaultProfile
   element("review", HTMLElement).hidden = !state.preview
+  element("waiting", HTMLElement).hidden = !!state.preview || state.phase === "success"
+  element("result-help", HTMLElement).hidden = state.phase !== "success"
   values.replaceChildren()
   diagnostics.replaceChildren()
   if (state.preview) {
-    for (const [key, label] of Object.entries(labels)) {
-      const value = state.preview.playfield[key as keyof typeof labels]
+    for (const key of playfieldKeys) {
+      const value = state.preview.playfield[key]
       if (value === undefined) continue
       const dt = document.createElement("dt"),
         dd = document.createElement("dd")
-      dt.textContent = label
-      dd.textContent = typeof value === "boolean" ? (value ? "Sim" : "Não") : String(value)
+      dt.textContent = copy[key]
+      dd.textContent = typeof value === "boolean" ? (value ? copy.yes : copy.no) : String(value)
       values.append(dt, dd)
     }
     if (state.preview.convertedManiaSpeed !== undefined) {
       const dt = document.createElement("dt"),
         dd = document.createElement("dd")
-      dt.textContent = "ManiaSpeed (aplicar manualmente)"
+      dt.textContent = copy.maniaSpeed
       dd.textContent = String(state.preview.convertedManiaSpeed)
       values.append(dt, dd)
     }
@@ -112,13 +129,32 @@ controller.subscribe((state) => {
       diagnostics.append(li)
     }
   }
+  element("conversion-notes", HTMLElement).hidden = diagnostics.childElementCount === 0
+  const active =
+    state.phase === "success"
+      ? "download"
+      : state.phase === "review" || state.phase === "converting"
+        ? "review"
+        : "source"
+  for (const step of document.querySelectorAll<HTMLElement>("[data-step]")) {
+    const current = step.dataset.step === active
+    step.dataset.active = String(current)
+    if (current) step.setAttribute("aria-current", "step")
+    else step.removeAttribute("aria-current")
+  }
   const progress = element("progress", HTMLProgressElement)
   progress.hidden = state.phase !== "converting"
   progress.value = state.progress
     ? ["reading", "converting", "rendering", "archiving"].indexOf(state.progress.phase) +
       state.progress.completed
     : 0
-  element("result-help", HTMLElement).hidden = state.phase !== "success"
+}
+controller.subscribe((state) => {
+  if (state.phase === "idle") ready = true
+  if (state.phase === "initializing") ready = false
+  statusOverride = undefined
+  localError = undefined
+  renderState(state)
   if (state.result) {
     revoke()
     url = URL.createObjectURL(
@@ -129,6 +165,14 @@ controller.subscribe((state) => {
     download.hidden = false
   }
 })
+language.onchange = () => {
+  const next: PageLanguage = language.value === "pt-BR" ? "pt-BR" : "en"
+  copy = applyPageCopy(next)
+  renderState(controller.state)
+}
+uiTheme.onchange = () => {
+  document.documentElement.dataset.theme = uiTheme.value === "light" ? "light" : "dark"
+}
 function review() {
   if (!source) return
   const request: WebConversionRequest =
@@ -160,7 +204,7 @@ async function waitReady() {
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       unsubscribe()
-      reject(new Error("O processamento local não iniciou. Recarregue a página."))
+      reject(new Error(copy.timeout))
     }, 30000)
     const unsubscribe = controller.subscribe((state) => {
       if (state.phase === "idle" || state.phase === "error") {
@@ -182,7 +226,9 @@ async function accept(next: BrowserSource, name: string) {
     }
     source = undefined
     discovery = undefined
-    status.textContent = "Verificando a pasta…"
+    localError = undefined
+    statusOverride = "checking"
+    renderState(controller.state)
     const found =
       direction === "etterna-to-osu"
         ? await discoverEtternaSource(createBrowserSourceFiles(next))
@@ -193,19 +239,17 @@ async function accept(next: BrowserSource, name: string) {
     discovery = found
     skin.replaceChildren(...(found?.skins ?? []).map((item) => option(item.path, item.name)))
     profile.replaceChildren(
-      option("", "Valores padrão · sem perfil"),
+      option("", copy.defaultProfile),
       ...(found?.profileIds ?? []).map((id) => option(id, id)),
     )
     if (found?.profileIds[0]) profile.value = found.profileIds[0]
-    element("selection", HTMLElement).textContent = `Pasta selecionada: ${name}`
-    element("theme", HTMLElement).textContent = `Tema: ${found?.theme ?? ""}`
     element("options", HTMLElement).hidden = false
     review()
   } catch (cause) {
     if (ticket !== epoch) return
-    error.hidden = false
-    error.textContent = cause instanceof Error ? cause.message : "Não foi possível ler a pasta"
-    status.textContent = "Selecione uma pasta válida."
+    localError = cause instanceof Error ? cause.message : copy.folderError
+    statusOverride = "validFolder"
+    renderState(controller.state)
     select.disabled = fallback.disabled = false
   }
 }
@@ -222,9 +266,8 @@ select.onclick = async () => {
     await accept({ kind: "directory-handle", handle }, handle.name)
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") return
-    error.hidden = false
-    error.textContent =
-      cause instanceof Error ? cause.message : "Não foi possível selecionar a pasta"
+    localError = cause instanceof Error ? cause.message : copy.pickerError
+    renderState(controller.state)
   }
 }
 fallback.onclick = () => folder.click()
@@ -240,23 +283,16 @@ async function clear() {
   ++epoch
   source = undefined
   discovery = undefined
+  sourceName = ""
   revoke()
   element("options", HTMLElement).hidden = true
-  element("selection", HTMLElement).textContent = ""
   await controller.reset()
 }
 reset.onclick = () => void clear()
 for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="direction"]'))
   radio.onchange = () => {
     direction = radio.value as WebConversionRequest["direction"]
-    element("source-title", HTMLElement).textContent =
-      direction === "etterna-to-osu"
-        ? "Selecione a instalação do Etterna"
-        : "Selecione a pasta da skin osu!mania"
-    element("source-help", HTMLElement).textContent =
-      direction === "etterna-to-osu"
-        ? "Escolha a pasta que contém NoteSkins e Save."
-        : "Escolha a pasta que contém skin.ini e as imagens da skin."
+    document.documentElement.dataset.direction = direction
     element("etterna-options", HTMLElement).hidden = direction !== "etterna-to-osu"
     element("osu-options", HTMLElement).hidden = direction !== "osu-to-etterna"
     element("manual-speed", HTMLElement).hidden = direction !== "osu-to-etterna"
@@ -266,20 +302,21 @@ window.addEventListener("pagehide", () => {
   revoke()
   void controller.dispose()
 })
+function showStatus(key: PageCopyKey) {
+  statusOverride = key
+  renderState(controller.state)
+}
 async function initialize() {
   if (!isSecureContext || !("serviceWorker" in navigator)) {
-    status.textContent =
-      "Este navegador precisa de HTTPS e suporte a service worker. Use um navegador atualizado."
+    showStatus("unsupported")
     return
   }
   if (!crossOriginIsolated) {
-    status.textContent =
-      "Preparando isolamento local. A página será recarregada uma vez antes da seleção."
+    showStatus("isolation")
     for (let attempt = 0; attempt < 100 && !crossOriginIsolated; attempt++)
       await new Promise((resolve) => setTimeout(resolve, 100))
     if (!crossOriginIsolated) {
-      status.textContent =
-        "Não foi possível habilitar o processamento local. Permita service workers e recarregue a página."
+      showStatus("isolationFailed")
       return
     }
   }
