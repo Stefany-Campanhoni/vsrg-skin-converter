@@ -58,8 +58,10 @@ creation belongs to controller result delivery, not presentation rerenders. Rout
 still reset the controller and invalidate the previous source.
 The folder controls are hidden during initialization, discovery, inspection and conversion;
 a local processing panel shows the current stage until completion or failure. The background
-slides its color gradient and motifs linearly with the route; osu! sources use pink component
-outlines. Reduced motion disables the slide and processing animation.
+slides its color gradient and motifs linearly with the route. A registered CSS percentage
+interpolates the whole component palette on the same timeline, replacing purple with pink
+without changing border geometry or opacity. Reduced motion disables the slide and processing
+animation but retains a gentle gradient/color exchange without animated displacement.
 
 ## Layers
 

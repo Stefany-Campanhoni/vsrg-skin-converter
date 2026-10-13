@@ -1,18 +1,40 @@
+@property --route-mix {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
 :root {
   color-scheme: dark;
   font-family: "Segoe UI", system-ui, sans-serif;
   background: #251a38;
-  color: #f4f0fc;
+  color: var(--text);
+  --route-mix: 0%;
+  transition: --route-mix 850ms linear;
   --purple: #432b6a;
   --pink: #743251;
-  --text: #f4f0fc;
-  --muted: #beb3ce;
-  --panel: #191525f2;
-  --inset: #110e1b99;
+  --text: color-mix(in srgb, #f4f0fc calc(100% - var(--route-mix)), #fcf0f5 var(--route-mix));
+  --muted: color-mix(in srgb, #beb3ce calc(100% - var(--route-mix)), #ceb3c0 var(--route-mix));
+  --panel: color-mix(in srgb, #191525f2 calc(100% - var(--route-mix)), #25151cf2 var(--route-mix));
+  --inset: color-mix(in srgb, #110e1b99 calc(100% - var(--route-mix)), #1b0e1599 var(--route-mix));
   --border: #ffffff1f;
-  --accent: #e0c9ff;
-  --button: #dcc3ff;
-  --button-text: #2c1646;
+  --accent: color-mix(in srgb, #e0c9ff calc(100% - var(--route-mix)), #ffc9e3 var(--route-mix));
+  --button: color-mix(in srgb, #dcc3ff calc(100% - var(--route-mix)), #ffc3df var(--route-mix));
+  --button-text: color-mix(
+    in srgb,
+    #2c1646 calc(100% - var(--route-mix)),
+    #46162c var(--route-mix)
+  );
+  --shadow: color-mix(in srgb, #13091b40 calc(100% - var(--route-mix)), #1b091340 var(--route-mix));
+  --swap-start: color-mix(
+    in srgb,
+    var(--purple) calc(100% - var(--route-mix)),
+    var(--pink) var(--route-mix)
+  );
+  --swap-end: color-mix(
+    in srgb,
+    var(--pink) calc(100% - var(--route-mix)),
+    var(--purple) var(--route-mix)
+  );
   --etterna: #c5a0ff;
   --osu: #ffa9d5;
   --warning: #f7d49e;
@@ -23,16 +45,15 @@
 :root[data-theme="light"] {
   color-scheme: light;
   background: #ecdef6;
-  color: #30203e;
   --purple: #d4beed;
   --pink: #f4bdd7;
-  --text: #30203e;
-  --muted: #35223f;
-  --panel: #fffafff2;
-  --inset: #f0e8f699;
-  --border: #563a7929;
-  --accent: #432052;
-  --button: #653994;
+  --text: color-mix(in srgb, #30203e calc(100% - var(--route-mix)), #3e2030 var(--route-mix));
+  --muted: color-mix(in srgb, #35223f calc(100% - var(--route-mix)), #3f2235 var(--route-mix));
+  --panel: color-mix(in srgb, #fffafff2 calc(100% - var(--route-mix)), #fffafcf2 var(--route-mix));
+  --inset: color-mix(in srgb, #f0e8f699 calc(100% - var(--route-mix)), #f6e8ef99 var(--route-mix));
+  --border: color-mix(in srgb, #563a7929 calc(100% - var(--route-mix)), #793a5629 var(--route-mix));
+  --accent: color-mix(in srgb, #432052 calc(100% - var(--route-mix)), #6e1b46 var(--route-mix));
+  --button: color-mix(in srgb, #653994 calc(100% - var(--route-mix)), #a52d69 var(--route-mix));
   --button-text: #fff;
   --etterna: #6d39a0;
   --osu: #a52d69;
@@ -42,16 +63,7 @@
   --shade: #ffffff22;
 }
 :root[data-direction="osu-to-etterna"] {
-  --accent: #ffa9d5;
-  --button: #ffa9d5;
-  --button-text: #44142c;
-  --border: #ffa9d54d;
-}
-:root[data-theme="light"][data-direction="osu-to-etterna"] {
-  --accent: #6e1b46;
-  --button: #a52d69;
-  --button-text: #fff;
-  --border: #a52d694d;
+  --route-mix: 100%;
 }
 * {
   box-sizing: border-box;
@@ -268,11 +280,8 @@ main {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 18px;
-  box-shadow: 0 25px 70px #13091b40;
+  box-shadow: 0 25px 70px var(--shadow);
   overflow: hidden;
-}
-:root[data-direction="osu-to-etterna"] .converter {
-  border-color: var(--osu);
 }
 .steps {
   display: grid;
@@ -326,9 +335,6 @@ main {
   border-radius: 9px;
   padding: 16px 18px;
   cursor: pointer;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
 }
 .directions label:has(:checked) {
   border-color: var(--accent);
@@ -740,7 +746,11 @@ footer a {
   .processing-lanes span {
     animation: none;
   }
-  .game-background,
+  .game-background {
+    background: linear-gradient(90deg, var(--swap-start), var(--swap-end));
+    background-size: 50% 100%;
+    transition: none;
+  }
   button,
   .button,
   .directions label {

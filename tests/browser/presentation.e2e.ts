@@ -28,6 +28,10 @@ test("light theme keeps small text readable over the rendered game background", 
   for (const direction of ["Etterna → osu!mania", "osu!mania → Etterna"]) {
     await page.getByRole("radio", { name: direction }).check()
     await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
+    await page.evaluate(() => {
+      for (const animation of document.getAnimations())
+        if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
+    })
     for (const selector of [
       ".session-heading p",
       ".eyebrow",
@@ -39,13 +43,16 @@ test("light theme keeps small text readable over the rendered game background", 
       await text.scrollIntoViewIfNeeded()
       const region = await text.evaluate((node) => {
         const box = node.getBoundingClientRect()
-        const color = getComputedStyle(node).color
+        const context = document.createElement("canvas").getContext("2d")
+        if (!context) throw new Error("Missing color decoder")
+        context.fillStyle = getComputedStyle(node).color
+        context.fillRect(0, 0, 1, 1)
+        const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3)
         const opacity = Number(getComputedStyle(node).opacity)
         node.style.visibility = "hidden"
-        return { x: box.x, y: box.y, width: box.width, height: box.height, color, opacity }
+        return { x: box.x, y: box.y, width: box.width, height: box.height, rgb, opacity }
       })
-      const rgb = region.color.match(/\d+(?:\.\d+)?/g)?.map(Number)
-      if (rgb?.length !== 3) throw new Error("Expected opaque RGB text color")
+      const rgb = region.rgb
       const image = await decodeReference(
         new Uint8Array(await page.screenshot({ animations: "disabled" })),
       )
@@ -145,6 +152,7 @@ test("folder controls are replaced by processing stages throughout worker discov
 })
 
 test("starts in English and exchanges the game background with the route", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
   await page.goto(address)
   await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
   await expect(page.locator("html")).toHaveAttribute("lang", "en")
@@ -183,16 +191,138 @@ test("starts in English and exchanges the game background with the route", async
     .locator("#background-track")
     .evaluate((el) => getComputedStyle(el).transitionDuration)
   expect(Number.parseFloat(duration)).toBeGreaterThan(0)
-  for (const theme of ["dark", "light"]) {
-    await page.locator("#ui-theme").selectOption(theme)
-    const colors = await page.evaluate(() => ({
-      border: getComputedStyle(document.querySelector(".converter") as HTMLElement).borderTopColor,
-      osu: getComputedStyle(document.querySelector(".osu-name") as HTMLElement).color,
-    }))
-    expect(colors.border).toBe(colors.osu)
-  }
   await page.getByRole("combobox", { name: "Language" }).selectOption("pt-BR")
   await expect(page.getByRole("navigation", { name: "Progresso da conversão" })).toBeVisible()
+})
+
+test("both routes keep identical border shapes and opacity with purple or pink accents", async ({
+  page,
+}) => {
+  await page.goto(address)
+  await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+  for (const theme of ["dark", "light"]) {
+    await page.locator("#ui-theme").selectOption(theme)
+    const snapshots = []
+    for (const route of ["Etterna → osu!mania", "osu!mania → Etterna"]) {
+      await page.getByRole("radio", { name: route }).check()
+      await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
+      snapshots.push(
+        await page.evaluate(() => {
+          for (const animation of document.getAnimations())
+            if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
+          const canvas = document.createElement("canvas")
+          canvas.width = canvas.height = 1
+          const context = canvas.getContext("2d")
+          if (!context) throw new Error("Missing color decoder")
+          const rgba = (color: string) => {
+            context.clearRect(0, 0, 1, 1)
+            context.fillStyle = color
+            context.fillRect(0, 0, 1, 1)
+            return [...context.getImageData(0, 0, 1, 1).data]
+          }
+          const borders = [
+            ".converter",
+            ".source-panel",
+            ".review-panel",
+            ".directions label:has(:checked)",
+            ".folder-slot",
+            "#ui-theme",
+          ].map((selector) => {
+            const node = document.querySelector(selector)
+            if (!node) throw new Error(`Missing ${selector}`)
+            const style = getComputedStyle(node)
+            return {
+              widths: [
+                style.borderTopWidth,
+                style.borderRightWidth,
+                style.borderBottomWidth,
+                style.borderLeftWidth,
+              ],
+              styles: [
+                style.borderTopStyle,
+                style.borderRightStyle,
+                style.borderBottomStyle,
+                style.borderLeftStyle,
+              ],
+              radius: style.borderRadius,
+              alpha: [
+                style.borderTopColor,
+                style.borderRightColor,
+                style.borderBottomColor,
+                style.borderLeftColor,
+              ].map((color) => rgba(color)[3]),
+            }
+          })
+          const selected = document.querySelector(".directions label:has(:checked)")
+          if (!selected) throw new Error("Missing selected route")
+          return { borders, accent: rgba(getComputedStyle(selected).borderTopColor) }
+        }),
+      )
+    }
+    expect(snapshots[1]?.borders, theme).toEqual(snapshots[0]?.borders)
+    expect(snapshots[0]?.accent[2] ?? 0).toBeGreaterThan(snapshots[0]?.accent[0] ?? 0)
+    expect(snapshots[1]?.accent[0] ?? 0).toBeGreaterThan(snapshots[1]?.accent[2] ?? 0)
+  }
+})
+
+test("interface and background colors swap gradually even with reduced motion", async ({
+  page,
+}) => {
+  for (const motion of ["no-preference", "reduce"] as const) {
+    await page.emulateMedia({ reducedMotion: motion })
+    await page.goto(address)
+    await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+    await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
+    const duration = await page.evaluate(() => {
+      const transition = document.documentElement
+        .getAnimations()
+        .find(
+          (animation) =>
+            animation instanceof CSSTransition && animation.transitionProperty === "--route-mix",
+        )
+      if (!transition?.effect) return 0
+      transition.pause()
+      for (const animation of document.getElementById("background-track")?.getAnimations() ?? [])
+        animation.pause()
+      return Number(transition.effect.getTiming().duration)
+    })
+    expect(duration, motion).toBeGreaterThanOrEqual(600)
+    const colors: number[][] = [],
+      backgrounds: number[][] = []
+    for (const fraction of [0.25, 0.5, 0.75]) {
+      colors.push(
+        await page.evaluate(
+          ({ duration, fraction }) => {
+            for (const animation of [
+              ...document.documentElement.getAnimations(),
+              ...(document.getElementById("background-track")?.getAnimations() ?? []),
+            ])
+              animation.currentTime = duration * fraction
+            const button = document.getElementById("select")
+            const context = document.createElement("canvas").getContext("2d")
+            if (!button || !context) throw new Error("Missing route button")
+            context.fillStyle = getComputedStyle(button).backgroundColor
+            context.fillRect(0, 0, 1, 1)
+            return [...context.getImageData(0, 0, 1, 1).data]
+          },
+          { duration, fraction },
+        ),
+      )
+      const image = await decodeReference(new Uint8Array(await page.screenshot()))
+      const offset = (5 * image.width + 5) * 4
+      backgrounds.push([...image.pixels.slice(offset, offset + 4)])
+    }
+    expect(colors[0]).not.toEqual(colors[1])
+    expect(colors[1]).not.toEqual(colors[2])
+    expect(backgrounds[0]).not.toEqual(backgrounds[1])
+    expect(backgrounds[1]).not.toEqual(backgrounds[2])
+    for (let index = 1; index < backgrounds.length; index++)
+      expect(backgrounds[index]?.[0] ?? 0).toBeGreaterThan(backgrounds[index - 1]?.[0] ?? 0)
+    await page.evaluate(() => {
+      for (const animation of document.getAnimations())
+        if (animation.effect?.getTiming().iterations !== Infinity) animation.finish()
+    })
+  }
 })
 
 test("language and theme retain a reviewed source and the downloadable archive", async ({
