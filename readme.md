@@ -97,8 +97,10 @@ Only 4K is supported. Review the target visual settings, download the ZIP, and f
 
 The interface starts in English with a dark theme. Use the top controls for Portuguese or
 the light theme; these changes retain the selected source and completed ZIP. Switching
-conversion routes exchanges the purple arrow and pink triangle backgrounds and clears the
-source for the new game. Reduced-motion preferences disable the transition. Technical
+conversion routes slides the purple arrow and pink triangle backgrounds linearly and clears
+the source for the new game. osu! sources use pink outlines and actions. While the worker
+discovers skins, inspects files or converts images, the folder controls are replaced by a
+processing panel showing the current stage. Reduced-motion preferences disable animations. Technical
 converter diagnostics retain their original English messages in the conversion notes.
 
 Absent Etterna profile settings use browser defaults with warnings. Present invalid files
@@ -108,7 +110,11 @@ browser route never reads an osu! CFG or produces CMod/profile XML; configure sp
 
 Use a modern browser over HTTPS (or localhost). The app enables isolation through a local
 service worker and may reload once **before** enabling folder selection. Directory handles
-are read-only; a directory file input is available as a fallback. Selection and diagnostics
+are read-only; a directory file input is available as a fallback. Prefer the native folder
+picker for large installations: the file-list picker may take time to enumerate the entire
+folder before handing files to the app. Discovery and file-list indexing then run in the
+worker, with indexed directory lookups avoiding repeated scans of unrelated Songs.
+Selection and diagnostics
 are never persisted. Limits: 32 MiB per source/image, 16 megapixels per decoded image, and
 256 MiB generated files. Installation is manual and the ZIP includes backup instructions.
 

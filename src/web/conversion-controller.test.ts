@@ -3,6 +3,94 @@ import { createConversionController } from "./conversion-controller.ts"
 import type { ConversionWorkerTransport } from "./conversion-worker-transport.ts"
 import type { WebConversionRequest, WorkerCommand, WorkerReply } from "./worker-messages.ts"
 
+test("folder discovery stays busy until the worker returns its catalog", async () => {
+  let listener: ((reply: WorkerReply) => void) | undefined
+  const commands: WorkerCommand[] = []
+  const controller = createConversionController(() => ({
+    postMessage: (command) => commands.push(command),
+    subscribe(callback) {
+      listener = callback
+      return () => {}
+    },
+    async dispose() {},
+  }))
+  controller.initialize()
+  listener?.({ kind: "ready", requestId: 0 })
+  expect(typeof controller.discover).toBe("function")
+  const source = { kind: "file-list" as const, files: [] }
+  const pending = controller.discover(source)
+  expect(controller.state.phase).toBe("selecting")
+  expect(commands.at(-1)).toEqual({ kind: "discover", requestId: 1, source })
+  expect(() =>
+    controller.review({
+      direction: "osu-to-etterna",
+      source,
+      skinName: "x",
+      useDoubleResolutionAssets: false,
+    }),
+  ).toThrow("ready")
+  const discovery = {
+    skins: [{ name: "Foo", path: "NoteSkins/dance/Foo" }],
+    profileIds: ["00000000"],
+    theme: "Rebirth",
+    diagnostics: [],
+  }
+  listener?.({ kind: "discovery", requestId: 1, discovery })
+  expect(await pending).toEqual(discovery)
+})
+
+test("reset cancels discovery and stale catalogs cannot restore the selected folder", async () => {
+  const listeners: ((reply: WorkerReply) => void)[] = []
+  const controller = createConversionController(() => ({
+    postMessage() {},
+    subscribe(callback) {
+      listeners.push(callback)
+      return () => {}
+    },
+    async dispose() {},
+  }))
+  controller.initialize()
+  listeners[0]?.({ kind: "ready", requestId: 0 })
+  expect(typeof controller.discover).toBe("function")
+  const pending = controller.discover({ kind: "file-list", files: [] })
+  const cancelled = pending.catch((error: unknown) => error)
+  await controller.reset()
+  expect(await cancelled).toBeInstanceOf(Error)
+  expect(String(await cancelled)).toContain("cancelled")
+  listeners[0]?.({
+    kind: "discovery",
+    requestId: 1,
+    discovery: { skins: [], profileIds: [], theme: "Rebirth", diagnostics: [] },
+  })
+  expect(controller.state.phase).toBe("initializing")
+  listeners[1]?.({ kind: "ready", requestId: 0 })
+  expect(controller.state.phase).toBe("idle")
+})
+
+test("worker discovery failures settle the selection and allow a retry", async () => {
+  let listener: ((reply: WorkerReply) => void) | undefined
+  const controller = createConversionController(() => ({
+    postMessage() {},
+    subscribe(callback) {
+      listener = callback
+      return () => {}
+    },
+    async dispose() {},
+  }))
+  controller.initialize()
+  listener?.({ kind: "ready", requestId: 0 })
+  expect(typeof controller.discover).toBe("function")
+  const pending = controller.discover({ kind: "file-list", files: [] })
+  const failure = pending.catch((error: unknown) => error)
+  listener?.({ kind: "failure", requestId: 1, message: "No dance NoteSkins" })
+  expect(String(await failure)).toContain("No dance NoteSkins")
+  expect(controller.state.phase).toBe("error")
+  const retry = controller.discover({ kind: "file-list", files: [] })
+  const cancelled = retry.catch((error: unknown) => error)
+  await controller.dispose()
+  expect(String(await cancelled)).toContain("cancelled")
+})
+
 test("repeated reset waits for one disposal and initializes only one replacement", async () => {
   let release: (() => void) | undefined
   let created = 0

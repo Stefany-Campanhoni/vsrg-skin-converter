@@ -41,8 +41,12 @@ The `web` layer may depend on web/adapters/application/conversions/domain/infras
 other layers cannot depend on web. Its transitive graph must contain no CLI, Node, Bun,
 Sharp or native wrappers, including type dependencies. Browser sources never become URLs.
 
-The worker preinitializes before selection, reports tagged progress/results, and transfers
-only completed archive bytes. Reset invalidates request IDs immediately, waits for accepted
+The worker preinitializes before selection and owns Etterna catalog discovery, source
+indexing, inspection and conversion. Directory File metadata is indexed once per source
+instance into immediate-child listings; lookups do not rescan unrelated installation files.
+File/directory and case ambiguities remain errors when their directory is requested.
+The worker reports tagged catalogs/progress/results and transfers only completed archive
+bytes. Reset rejects pending discovery and invalidates request IDs immediately, waits for accepted
 work to settle and disposal acknowledgment, releases WASM/cache/source references, then
 terminates and initializes a fresh worker. The controller drops stale replies. The local
 isolation service worker performs at most one initialization reload, before any selection.
@@ -52,6 +56,10 @@ labels without altering adapter diagnostics or migration policies. Language and 
 changes only rerender the page and retain controller/source/result state. Archive URL
 creation belongs to controller result delivery, not presentation rerenders. Route changes
 still reset the controller and invalidate the previous source.
+The folder controls are hidden during initialization, discovery, inspection and conversion;
+a local processing panel shows the current stage until completion or failure. The background
+slides its color gradient and motifs linearly with the route; osu! sources use pink component
+outlines. Reduced motion disables the slide and processing animation.
 
 ## Layers
 

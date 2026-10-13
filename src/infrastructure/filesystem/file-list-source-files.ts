@@ -8,6 +8,8 @@ import { createScopedSourceFiles } from "./scoped-source-files.ts"
 import { sourceRelativePath } from "./source-relative-path.ts"
 export function createFileListSourceFiles(files: readonly ReadableSourceFile[]): SourceFiles {
   const indexed = new Map<string, ReadableSourceFile>()
+  const directories = new Map<string, Map<string, SourceEntry>>()
+  const ambiguous = new Set<string>()
   let selectedRoot: string | undefined
   for (const file of files) {
     const path = sourceRelativePath(file.webkitRelativePath ?? "")
@@ -20,24 +22,24 @@ export function createFileListSourceFiles(files: readonly ReadableSourceFile[]):
     const relative = path.slice(slash + 1)
     if (indexed.has(relative)) throw new Error("Duplicate source file path")
     indexed.set(relative, file)
+    const segments = relative.split("/")
+    let directory = ""
+    for (const [index, name] of segments.entries()) {
+      const entries = directories.get(directory) ?? new Map<string, SourceEntry>()
+      directories.set(directory, entries)
+      const kind = index === segments.length - 1 ? "file" : "directory"
+      const prior = entries.get(name)
+      if (prior && prior.kind !== kind) ambiguous.add(directory)
+      entries.set(name, { name, kind })
+      directory = directory ? `${directory}/${name}` : name
+    }
   }
   return createScopedSourceFiles({
     async list(directory) {
-      const prefix = directory ? `${directory}/` : ""
-      const entries = new Map<string, SourceEntry>()
-      for (const path of indexed.keys())
-        if (path.startsWith(prefix)) {
-          const tail = path.slice(prefix.length),
-            slash = tail.indexOf("/")
-          const name = slash < 0 ? tail : tail.slice(0, slash)
-          const kind = slash < 0 ? "file" : "directory"
-          const prior = entries.get(name)
-          if (prior && prior.kind !== kind) throw new Error("Ambiguous source file/directory path")
-          entries.set(name, { name, kind })
-        }
-      if (directory && entries.size === 0)
-        throw new SourceFileNotFoundError("Source directory was not found")
-      return [...entries.values()]
+      if (ambiguous.has(directory)) throw new Error("Ambiguous source file/directory path")
+      const entries = directories.get(directory)
+      if (directory && !entries) throw new SourceFileNotFoundError("Source directory was not found")
+      return entries ? [...entries.values()] : []
     },
     async readBytes(path) {
       const file = indexed.get(path)

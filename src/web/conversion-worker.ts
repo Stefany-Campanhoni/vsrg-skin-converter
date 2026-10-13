@@ -1,7 +1,9 @@
+import { discoverEtternaSource } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import {
   createWasmImageBackend,
   initializeBrowserVips,
 } from "../infrastructure/image/wasm-image-backend.ts"
+import { createBrowserSourceFiles } from "./browser-source.ts"
 import { loadWebTemplates } from "./template-source.ts"
 import { createWebConversionRuntime } from "./web-conversion.ts"
 import type { WorkerCommand, WorkerReply } from "./worker-messages.ts"
@@ -56,7 +58,10 @@ self.onmessage = (event: MessageEvent<WorkerCommand>) => {
   job = (async () => {
     try {
       const runtime = await initialization
-      if (command.kind === "inspect") {
+      if (command.kind === "discover") {
+        const discovery = await discoverEtternaSource(createBrowserSourceFiles(command.source))
+        if (!closing) send({ kind: "discovery", requestId: command.requestId, discovery })
+      } else if (command.kind === "inspect") {
         const preview = await runtime.inspect(command.request)
         if (!closing) send({ kind: "preview", requestId: command.requestId, preview })
       } else {

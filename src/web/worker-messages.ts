@@ -1,3 +1,4 @@
+import type { EtternaSourceDiscovery } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import type { ReadableDirectoryHandle } from "../application/ports/source-files.ts"
 import type { Diagnostic } from "../domain/diagnostics.ts"
 import type { VisualPlayfieldConfiguration } from "../domain/visual-skin.ts"
@@ -37,9 +38,11 @@ export interface WebConversionResult {
   convertedManiaSpeed?: number
 }
 export type WorkerCommand =
+  | { kind: "discover"; requestId: number; source: BrowserSource }
   | { kind: "convert" | "inspect"; requestId: number; request: WebConversionRequest }
   | { kind: "dispose"; requestId: number }
 export type WorkerReply =
+  | { kind: "discovery"; requestId: number; discovery: EtternaSourceDiscovery }
   | { kind: "ready"; requestId: number }
   | { kind: "progress"; requestId: number; progress: ConversionProgress }
   | { kind: "preview"; requestId: number; preview: ConversionPreview }
@@ -71,6 +74,21 @@ function optionalSpeed(value: Record<string, unknown>): boolean {
 export function isWorkerReply(value: unknown): value is WorkerReply {
   if (!record(value) || !Number.isSafeInteger(value.requestId)) return false
   switch (value.kind) {
+    case "discovery": {
+      const d = value.discovery
+      return (
+        record(d) &&
+        Array.isArray(d.skins) &&
+        d.skins.every(
+          (skin: unknown) =>
+            record(skin) && typeof skin.name === "string" && typeof skin.path === "string",
+        ) &&
+        Array.isArray(d.profileIds) &&
+        d.profileIds.every((id: unknown) => typeof id === "string") &&
+        typeof d.theme === "string" &&
+        diagnostics(d.diagnostics)
+      )
+    }
     case "ready":
     case "disposed":
       return true

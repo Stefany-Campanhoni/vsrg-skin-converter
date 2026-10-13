@@ -139,6 +139,9 @@ test("invalid source is actionable and never creates a download", async ({ page 
   await Bun.write(path.join(invalid, "skin.ini"), "[Mania]\nKeys=7\n")
   await page.locator("#folder").setInputFiles(invalid)
   await expect(page.locator("#error")).toBeVisible({ timeout: 30000 })
+  await expect(page.locator("#processing")).toBeHidden()
+  await expect(page.locator("#folder-selection")).toBeVisible()
+  await expect(page.locator("#select")).toBeEnabled()
   await expect(page.locator("#download")).toBeHidden()
   await expect(page.locator("#convert")).toBeDisabled()
 })
@@ -147,47 +150,60 @@ test("read-only directory handles and cancelled selection retain a valid review"
 }) => {
   await page.goto("http://127.0.0.1:4173/vsrg-skin-converter/")
   await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
-  await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
-  await expect(page.locator("#select")).toBeEnabled()
-  const files = [...(await createOsuSourceFixture())].map(([name, bytes]) => ({
-    name,
-    bytes: [...bytes],
-  }))
-  await page.evaluate(async (files) => {
-    const root = await navigator.storage.getDirectory()
-    const directory = await root.getDirectoryHandle("Readonly-fixture", { create: true })
-    for (const file of files) {
-      const parts = file.name.split("/")
-      let parent = directory
-      for (const segment of parts.slice(0, -1))
-        parent = await parent.getDirectoryHandle(segment, { create: true })
-      const handle = await parent.getFileHandle(parts.at(-1) ?? file.name, { create: true })
-      const writer = await handle.createWritable()
-      await writer.write(new Uint8Array(file.bytes))
-      await writer.close()
-    }
-    Object.defineProperty(window, "showDirectoryPicker", {
-      configurable: true,
-      value: async (options: { mode: string }) => {
-        if (options.mode !== "read") throw new Error("Expected read-only permission")
-        return directory
+  const fixtures = [
+    {
+      route: "Etterna → osu!mania",
+      name: "Readonly-Etterna",
+      files: await createEtternaSourceFixture(),
+    },
+    { route: "osu!mania → Etterna", name: "Readonly-Osu", files: await createOsuSourceFixture() },
+  ]
+  for (const fixture of fixtures) {
+    await page.getByRole("radio", { name: fixture.route }).check()
+    await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
+    const files = [...fixture.files].map(([name, bytes]) => ({
+      name,
+      bytes: [...bytes],
+    }))
+    await page.evaluate(
+      async ({ files, name }) => {
+        const root = await navigator.storage.getDirectory()
+        const directory = await root.getDirectoryHandle(name, { create: true })
+        for (const file of files) {
+          const parts = file.name.split("/")
+          let parent = directory
+          for (const segment of parts.slice(0, -1))
+            parent = await parent.getDirectoryHandle(segment, { create: true })
+          const handle = await parent.getFileHandle(parts.at(-1) ?? file.name, { create: true })
+          const writer = await handle.createWritable()
+          await writer.write(new Uint8Array(file.bytes))
+          await writer.close()
+        }
+        Object.defineProperty(window, "showDirectoryPicker", {
+          configurable: true,
+          value: async (options: { mode: string }) => {
+            if (options.mode !== "read") throw new Error("Expected read-only permission")
+            return directory
+          },
+        })
       },
-    })
-  }, files)
-  await page.locator("#select").click()
-  await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
-  const selected = await page.locator("#selection").textContent()
-  await page.evaluate(() =>
-    Object.defineProperty(window, "showDirectoryPicker", {
-      configurable: true,
-      value: async () => {
-        throw new DOMException("Cancelled", "AbortError")
-      },
-    }),
-  )
-  await page.locator("#select").click()
-  await expect(page.locator("#convert")).toBeEnabled()
-  expect(await page.locator("#selection").textContent()).toBe(selected)
+      { files, name: fixture.name },
+    )
+    await page.locator("#select").click()
+    await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
+    const selected = await page.locator("#selection").textContent()
+    await page.evaluate(() =>
+      Object.defineProperty(window, "showDirectoryPicker", {
+        configurable: true,
+        value: async () => {
+          throw new DOMException("Cancelled", "AbortError")
+        },
+      }),
+    )
+    await page.locator("#select").click()
+    await expect(page.locator("#convert")).toBeEnabled()
+    expect(await page.locator("#selection").textContent()).toBe(selected)
+  }
   await page.reload()
   await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
   await expect(page.locator("#selection")).toHaveText("No folder selected yet")

@@ -31,20 +31,27 @@ export function createConversionWorkerTransport(worker: Worker): ConversionWorke
   return {
     postMessage(command) {
       if (closing) throw new Error("Worker is closing")
-      if (command.kind !== "dispose" && command.request.source.kind === "file-list") {
-        const source = command.request.source
-        worker.postMessage({
-          ...command,
-          request: {
-            ...command.request,
-            source: {
-              ...source,
+      if (command.kind === "dispose") {
+        worker.postMessage(command)
+        return
+      }
+      const original = command.kind === "discover" ? command.source : command.request.source
+      const source =
+        original.kind === "file-list"
+          ? {
+              ...original,
               relativePaths:
-                source.relativePaths ?? source.files.map((file) => file.webkitRelativePath),
+                original.relativePaths ?? original.files.map((file) => file.webkitRelativePath),
+            }
+          : original
+      worker.postMessage(
+        command.kind === "discover"
+          ? { ...command, source }
+          : {
+              ...command,
+              request: { ...command.request, source },
             },
-          },
-        })
-      } else worker.postMessage(command)
+      )
     },
     subscribe(listener) {
       listeners.add(listener)

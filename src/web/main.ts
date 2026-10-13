@@ -1,9 +1,5 @@
-import {
-  discoverEtternaSource,
-  type EtternaSourceDiscovery,
-} from "../adapters/etterna/catalog/discover-etterna-source.ts"
+import type { EtternaSourceDiscovery } from "../adapters/etterna/catalog/discover-etterna-source.ts"
 import type { ReadableDirectoryHandle } from "../application/ports/source-files.ts"
-import { createBrowserSourceFiles } from "./browser-source.ts"
 import { type ConversionState, createConversionController } from "./conversion-controller.ts"
 import { createConversionWorkerTransport } from "./conversion-worker-transport.ts"
 import { applyPageCopy, type PageCopyKey, type PageLanguage } from "./page-copy.ts"
@@ -63,6 +59,7 @@ function renderState(state: ConversionState) {
   const busy =
     statusOverride === "checking" ||
     state.phase === "initializing" ||
+    state.phase === "selecting" ||
     state.phase === "converting" ||
     (state.phase === "review" && !state.preview)
   select.disabled = fallback.disabled = !ready || busy
@@ -79,16 +76,22 @@ function renderState(state: ConversionState) {
       ? "initializing"
       : state.phase === "idle"
         ? "idle"
-        : state.phase === "review"
-          ? state.preview
-            ? "reviewed"
-            : "reviewing"
-          : state.phase === "converting"
-            ? (state.progress?.phase ?? "reading")
-            : state.phase === "success"
-              ? "success"
-              : "failed")
+        : state.phase === "selecting"
+          ? "checking"
+          : state.phase === "review"
+            ? state.preview
+              ? "reviewed"
+              : "reviewing"
+            : state.phase === "converting"
+              ? (state.progress?.phase ?? "reading")
+              : state.phase === "success"
+                ? "success"
+                : "failed")
   status.textContent = copy[statusKey]
+  element("folder-selection", HTMLElement).hidden = busy
+  element("processing", HTMLElement).hidden = !busy
+  element("processing-stage", HTMLElement).textContent = copy[statusKey]
+  element("source-panel", HTMLElement).setAttribute("aria-busy", String(busy))
   element("source-title", HTMLElement).textContent =
     direction === "etterna-to-osu" ? copy.sourceEtterna : copy.sourceOsu
   element("source-help", HTMLElement).textContent =
@@ -224,15 +227,13 @@ async function accept(next: BrowserSource, name: string) {
       await controller.reset()
       await waitReady()
     }
+    if (ticket !== epoch) return
     source = undefined
     discovery = undefined
     localError = undefined
     statusOverride = "checking"
     renderState(controller.state)
-    const found =
-      direction === "etterna-to-osu"
-        ? await discoverEtternaSource(createBrowserSourceFiles(next))
-        : undefined
+    const found = direction === "etterna-to-osu" ? await controller.discover(next) : undefined
     if (ticket !== epoch) return
     source = next
     sourceName = name

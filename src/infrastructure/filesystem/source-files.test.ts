@@ -18,6 +18,32 @@ function file(
     arrayBuffer: read,
   }
 }
+
+test("repeated small directory lookups stay fast in a large installation", async () => {
+  const source = createFileListSourceFiles([
+    file("Etterna/NoteSkins/dance/Foo/NoteSkin.lua"),
+    ...Array.from({ length: 60000 }, (_, index) => file(`Etterna/Songs/Pack/${index}/chart.sm`)),
+  ])
+  const started = performance.now()
+  for (let index = 0; index < 2000; index++)
+    expect(await source.list("NoteSkins/dance")).toEqual([{ name: "Foo", kind: "directory" }])
+  // This generous budget detects rescanning unrelated Songs on every lookup.
+  expect(performance.now() - started).toBeLessThan(1000)
+}, 30000)
+
+test("file-list indexing keeps ambiguities local to the requested directory", async () => {
+  const source = createFileListSourceFiles([
+    file("Root/NoteSkins/dance/Foo/NoteSkin.lua"),
+    file("Root/Songs/Conflict"),
+    file("Root/Songs/Conflict/chart.sm"),
+    file("Root/Other/A.png"),
+    file("Root/Other/a.png"),
+  ])
+  expect(await source.list("NoteSkins/dance")).toEqual([{ name: "Foo", kind: "directory" }])
+  await expect(source.list("Songs")).rejects.toThrow("Ambiguous")
+  await expect(source.list("Other")).rejects.toThrow("ambiguous ignoring case")
+  await expect(source.list("missing")).rejects.toThrow("not found")
+})
 test("directory file input strips one common root and reads only requested bytes", async () => {
   let unrelatedReads = 0
   const source = createFileListSourceFiles([
