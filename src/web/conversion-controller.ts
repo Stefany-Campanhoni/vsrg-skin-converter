@@ -6,6 +6,7 @@ import type {
   ConversionProgress,
   WebConversionRequest,
   WebConversionResult,
+  WorkerCommand,
 } from "./worker-messages.ts"
 export interface ConversionState {
   phase: "initializing" | "idle" | "selecting" | "review" | "converting" | "success" | "error"
@@ -14,15 +15,19 @@ export interface ConversionState {
   progress?: ConversionProgress
   result?: WebConversionResult
   message?: string
+  requiresReset?: boolean
 }
 export function createConversionController(factory: () => ConversionWorkerTransport) {
   let state: ConversionState = { phase: "initializing" },
     transport: ConversionWorkerTransport | undefined,
     unsubscribe: (() => void) | undefined,
     id = 0,
-    generation = 0
+    generation = 0,
+    failed = false
   const listeners = new Set<(state: ConversionState) => void>()
   let resetting: Promise<void> | undefined
+  let inspecting: number | undefined,
+    queuedInspection: (WorkerCommand & { kind: "inspect" }) | undefined
   let discovery:
     | { resolve: (value: EtternaSourceDiscovery) => void; reject: (error: Error) => void }
     | undefined
@@ -34,14 +39,48 @@ export function createConversionController(factory: () => ConversionWorkerTransp
     state = next
     for (const listener of listeners) listener(state)
   }
+  function sendInspection(command: WorkerCommand & { kind: "inspect" }) {
+    inspecting = command.requestId
+    try {
+      transport?.postMessage(command)
+    } catch (cause) {
+      inspecting = undefined
+      update({
+        phase: "error",
+        message: cause instanceof Error ? cause.message : "Could not inspect the selection",
+      })
+    }
+  }
   function initialize() {
+    failed = false
     const epoch = ++generation
     transport = factory()
     unsubscribe = transport.subscribe((reply) => {
-      if (epoch !== generation) return
+      if (epoch !== generation || failed) return
+      if (reply.kind === "failure" && reply.requestId === 0) {
+        failed = true
+        inspecting = undefined
+        queuedInspection = undefined
+        discovery?.reject(new Error(reply.message))
+        discovery = undefined
+        update({ phase: "error", requiresReset: true, message: reply.message })
+        return
+      }
       if (reply.kind === "ready") {
         update({ phase: "idle" })
         return
+      }
+      if (
+        reply.requestId === inspecting &&
+        (reply.kind === "preview" || reply.kind === "failure")
+      ) {
+        inspecting = undefined
+        if (queuedInspection) {
+          const command = queuedInspection
+          queuedInspection = undefined
+          sendInspection(command)
+          return
+        }
       }
       if (reply.requestId !== id && !(reply.kind === "failure" && reply.requestId === 0)) return
       if (reply.kind === "progress") update({ ...state, progress: reply.progress })
@@ -68,6 +107,7 @@ export function createConversionController(factory: () => ConversionWorkerTransp
     discover(source: BrowserSource): Promise<EtternaSourceDiscovery> {
       if (
         !transport ||
+        failed ||
         state.phase === "initializing" ||
         state.phase === "converting" ||
         state.phase === "selecting" ||
@@ -95,13 +135,16 @@ export function createConversionController(factory: () => ConversionWorkerTransp
     review(request: WebConversionRequest) {
       if (
         !transport ||
+        failed ||
         state.phase === "initializing" ||
         state.phase === "converting" ||
         state.phase === "selecting"
       )
         throw new Error("Processor is not ready")
       update({ phase: "review", request })
-      transport.postMessage({ kind: "inspect", requestId: ++id, request })
+      const command = { kind: "inspect" as const, requestId: ++id, request }
+      if (inspecting !== undefined) queuedInspection = command
+      else sendInspection(command)
     },
     convert() {
       if (state.phase !== "review" || !state.preview || !state.request)
@@ -113,6 +156,8 @@ export function createConversionController(factory: () => ConversionWorkerTransp
     reset() {
       if (resetting) return resetting
       ++id
+      queuedInspection = undefined
+      inspecting = undefined
       cancelDiscovery()
       const epoch = ++generation
       unsubscribe?.()
@@ -136,6 +181,8 @@ export function createConversionController(factory: () => ConversionWorkerTransp
     },
     async dispose() {
       ++id
+      queuedInspection = undefined
+      inspecting = undefined
       cancelDiscovery()
       ++generation
       unsubscribe?.()

@@ -92,10 +92,12 @@ fails, it restores the previous files and removes incomplete output.
 The static GitHub Pages app converts entirely on your computer, with no upload or backend.
 For Etterna → osu!mania, select the Etterna installation, then a dance NoteSkin and a local
 profile. For osu!mania → Etterna, select only the skin folder and choose SD or HD explicitly.
-Only 4K is supported. The card has three screens: Source, Review and Download. Choose the
-source options before continuing; Back returns to those options without losing the folder.
-Review shows four tap notes and normal receptors from the selected skin, alongside the
-target visual settings. The artwork layout is illustrative, not a game simulation.
+Only 4K is supported. The card has three screens: Source, Review and Download. Source selects
+only the folder. Review contains the Etterna NoteSkin/profile or osu! density selectors;
+changing an option automatically updates the artwork and converted settings. Back returns
+to the folder screen while retaining those choices. Review shows four tap notes and normal
+receptors from the selected skin, alongside the target visual settings. The artwork layout
+is illustrative, not a game simulation.
 Convert, download the ZIP, and follow its
 `INSTALLATION.md` before applying anything to a game installation.
 
@@ -104,8 +106,12 @@ the light theme; these changes retain the selected source and completed ZIP. Swi
 conversion routes slides the purple arrow and pink triangle backgrounds linearly and clears
 the source for the new game. The interface enters from the right with a short 320 ms transition;
 its palette exchanges purple for pink, retaining the same border shapes and opacity. From opening
-the folder picker through discovery, inspection and conversion, the card is replaced by a
-processing panel showing the current stage. Route transitions stay animated with reduced motion;
+the folder picker through discovery and conversion, the card is replaced by a
+processing panel showing the current stage. Inspection keeps Review and its selectors visible;
+an inline update message dims the previous preview and blocks conversion until the latest
+selection is validated. Rapid changes replace the pending selection while the worker finishes
+its active inspection. Invalid selections clear the old artwork and can be corrected in Review.
+Route transitions stay animated with reduced motion;
 that preference disables processing pulses and hover displacement. Technical
 converter diagnostics retain their original English messages in the conversion notes.
 

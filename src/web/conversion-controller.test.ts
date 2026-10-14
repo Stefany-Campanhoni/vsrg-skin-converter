@@ -1,7 +1,133 @@
 import { expect, test } from "bun:test"
 import { createConversionController } from "./conversion-controller.ts"
 import type { ConversionWorkerTransport } from "./conversion-worker-transport.ts"
-import type { WebConversionRequest, WorkerCommand, WorkerReply } from "./worker-messages.ts"
+import type {
+  ConversionPreview,
+  WebConversionRequest,
+  WorkerCommand,
+  WorkerReply,
+} from "./worker-messages.ts"
+
+function queuedReviewFixture(rejectPosting?: (command: WorkerCommand) => boolean) {
+  let listener: ((reply: WorkerReply) => void) | undefined
+  const commands: WorkerCommand[] = []
+  const controller = createConversionController(() => ({
+    postMessage: (command) => {
+      commands.push(command)
+      if (rejectPosting?.(command))
+        throw new DOMException("Could not clone selection", "DataCloneError")
+    },
+    subscribe(callback) {
+      listener = callback
+      return () => {}
+    },
+    async dispose() {},
+  }))
+  controller.initialize()
+  listener?.({ kind: "ready", requestId: 0 })
+  const request: WebConversionRequest = {
+    direction: "osu-to-etterna",
+    source: { kind: "file-list", files: [] },
+    skinName: "Reference",
+    useDoubleResolutionAssets: false,
+  }
+  const preview: ConversionPreview = {
+    artwork: [],
+    diagnostics: [],
+    playfield: {
+      hitPosition: 432,
+      judgementPosition: 244,
+      comboPosition: 209,
+      columnWidth: 68,
+      comboScale: 1,
+      judgementScale: 1,
+    },
+  }
+  return {
+    controller,
+    commands,
+    request,
+    preview,
+    reply: (value: WorkerReply) => listener?.(value),
+  }
+}
+
+for (const completion of ["preview", "failure"] as const)
+  test(`rapid review changes wait for the active ${completion} and publish only the latest selection`, () => {
+    const { controller, commands, request, preview, reply } = queuedReviewFixture()
+    controller.review(request)
+    controller.review({ ...request, skinName: "Intermediate" })
+    const latest = { ...request, skinName: "Latest", useDoubleResolutionAssets: true }
+    controller.review(latest)
+    expect(commands).toHaveLength(1)
+    expect(controller.state.request).toEqual(latest)
+    expect(() => controller.convert()).toThrow("review")
+    reply(
+      completion === "preview"
+        ? { kind: "preview", requestId: 1, preview }
+        : { kind: "failure", requestId: 1, message: "Obsolete selection failed" },
+    )
+    expect(controller.state.phase).toBe("review")
+    expect(controller.state.preview).toBeUndefined()
+    expect(controller.state.message).toBeUndefined()
+    expect(commands).toEqual([
+      { kind: "inspect", requestId: 1, request },
+      { kind: "inspect", requestId: 3, request: latest },
+    ])
+    reply({ kind: "preview", requestId: 3, preview })
+    expect(controller.state.preview).toEqual(preview)
+    controller.convert()
+    expect(commands.at(-1)).toEqual({ kind: "convert", requestId: 4, request: latest })
+  })
+
+test("reset drops queued previews before the active worker settles", async () => {
+  const { controller, commands, request, preview, reply } = queuedReviewFixture()
+  controller.review(request)
+  controller.review({ ...request, useDoubleResolutionAssets: true })
+  await controller.reset()
+  reply({ kind: "preview", requestId: 1, preview })
+  expect(commands).toHaveLength(1)
+  expect(controller.state.phase).toBe("initializing")
+  expect(controller.state.preview).toBeUndefined()
+})
+
+test("a queued transport failure settles Review and permits another selection", () => {
+  const { controller, commands, request, preview, reply } = queuedReviewFixture(
+    (command) =>
+      command.kind === "inspect" &&
+      command.request.direction === "osu-to-etterna" &&
+      command.request.useDoubleResolutionAssets === true,
+  )
+  controller.review(request)
+  controller.review({ ...request, useDoubleResolutionAssets: true })
+  expect(() => reply({ kind: "preview", requestId: 1, preview })).not.toThrow()
+  expect(controller.state.phase).toBe("error")
+  expect(controller.state.message).toContain("Could not clone selection")
+  controller.review(request)
+  expect(commands.at(-1)).toEqual({ kind: "inspect", requestId: 3, request })
+  reply({ kind: "preview", requestId: 3, preview })
+  controller.convert()
+  expect(controller.state.phase).toBe("converting")
+})
+
+test("global worker failure blocks live review until reset and drops pending selections", async () => {
+  const { controller, commands, request, preview, reply } = queuedReviewFixture()
+  controller.review(request)
+  controller.review({ ...request, useDoubleResolutionAssets: true })
+  reply({ kind: "failure", requestId: 0, message: "Image processing worker stopped" })
+  expect(controller.state.phase).toBe("error")
+  expect(() => controller.review(request)).toThrow("ready")
+  reply({ kind: "preview", requestId: 1, preview })
+  expect(controller.state.phase).toBe("error")
+  expect(commands).toHaveLength(1)
+  await controller.reset()
+  reply({ kind: "ready", requestId: 0 })
+  controller.review(request)
+  expect(commands.at(-1)).toEqual({ kind: "inspect", requestId: 4, request })
+  reply({ kind: "preview", requestId: 4, preview })
+  controller.convert()
+  expect(controller.state.phase).toBe("converting")
+})
 
 test("folder discovery stays busy until the worker returns its catalog", async () => {
   let listener: ((reply: WorkerReply) => void) | undefined

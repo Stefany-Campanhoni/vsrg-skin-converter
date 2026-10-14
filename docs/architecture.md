@@ -61,13 +61,22 @@ changes only rerender the page and retain controller/source/result state. Archiv
 creation belongs to controller result delivery, not presentation rerenders. Route changes
 still reset the controller and invalidate the previous source.
 Source, Review and Download replace the card's main content; progress indicators track the
-visible step. Source catalog discovery finishes before the user chooses options and requests
-inspection. Back preserves the source; another inspection replaces the artwork. Thumbnail
+visible step. Source selects the folder and discovers its catalog. Review owns the skin,
+profile and density controls and automatically requests inspection when they change.
+Review stays visible while inspecting; the previous artwork/settings are dimmed and
+conversion remains blocked until the latest selection is validated. One inspection runs
+at a time; repeated changes replace one pending command. An obsolete completion or failure
+only starts the latest pending inspection and cannot publish stale preview state.
+Reset/disposal drops queued commands before releasing the active worker. A failed inspection
+clears stale artwork while keeping the controls available for recovery.
+An unscoped transport/worker failure drops pending commands and requires reset; controls
+cannot queue retries behind work that may never acknowledge completion.
+Back preserves the source and choices; another inspection replaces the artwork. Thumbnail
 URLs survive language/theme rerenders and are revoked on replacement, reset or page exit.
 Artwork represents selected tap notes and normal receptors in an illustrative four-lane
 layout; target geometry and migration policies remain owned by the existing adapters.
-The folder controls are hidden from opening either picker through initialization, discovery,
-inspection and conversion; a local processing panel shows the current stage until completion,
+The folder controls are hidden from opening either picker through initialization, discovery
+and conversion; a local processing panel shows the current stage until completion,
 cancellation or failure. Picker epochs reject selections delivered after reset. The background
 slides its color gradient and motifs linearly with the route. A registered CSS percentage
 interpolates the whole component palette on the same 320 ms timeline, replacing purple with pink

@@ -63,21 +63,23 @@ const playfieldKeys = [
   "isDownscroll",
 ] as const
 function renderState(state: ConversionState) {
+  const inspecting = state.phase === "review" && !state.preview
   const busy =
     statusOverride === "waitingFolder" ||
     statusOverride === "checking" ||
     state.phase === "initializing" ||
     state.phase === "selecting" ||
     state.phase === "converting" ||
-    (state.phase === "review" && !state.preview)
+    inspecting
+  const blocking = busy && !inspecting
   select.disabled = fallback.disabled = !ready || busy
   convert.disabled = state.phase !== "review" || !state.preview
-  convert.hidden = currentStep !== "review" || busy
+  convert.hidden = currentStep !== "review" || blocking
   next.hidden = currentStep !== "source" || busy
   next.disabled = !source || busy || !ready
   back.hidden = currentStep !== "review" || busy
   download.hidden = currentStep !== "download" || !url
-  skin.disabled = profile.disabled = density.disabled = busy
+  skin.disabled = profile.disabled = density.disabled = blocking || state.requiresReset === true
   for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="direction"]'))
     radio.disabled = state.phase === "initializing" || busy
   error.hidden = state.phase !== "error" && !localError
@@ -105,11 +107,13 @@ function renderState(state: ConversionState) {
                   : "failed")
   status.textContent = copy[statusKey]
   element("folder-selection", HTMLElement).hidden = busy
-  element("processing", HTMLElement).hidden = !busy
+  element("processing", HTMLElement).hidden = !blocking
+  element("preview-status", HTMLElement).hidden = !inspecting
+  element("review-stage", HTMLElement).setAttribute("aria-busy", String(inspecting))
   element("processing-stage", HTMLElement).textContent = copy[statusKey]
   element("source-panel", HTMLElement).setAttribute("aria-busy", String(busy))
   element("source-stage", HTMLElement).hidden = busy || currentStep !== "source"
-  element("review-stage", HTMLElement).hidden = busy || currentStep !== "review"
+  element("review-stage", HTMLElement).hidden = blocking || currentStep !== "review"
   element("download-stage", HTMLElement).hidden = busy || currentStep !== "download"
   element("source-title", HTMLElement).textContent =
     direction === "etterna-to-osu" ? copy.sourceEtterna : copy.sourceOsu
@@ -123,11 +127,17 @@ function renderState(state: ConversionState) {
     : ""
   const defaultOption = profile.options[0]
   if (defaultOption?.value === "") defaultOption.textContent = copy.defaultProfile
-  element("review", HTMLElement).hidden = !state.preview
+  if (state.phase === "error") {
+    artwork.clear()
+    values.replaceChildren()
+    diagnostics.replaceChildren()
+  }
+  element("review", HTMLElement).hidden =
+    !state.preview && !element("skin-artwork", HTMLElement).childElementCount
   element("result-filename", HTMLElement).textContent = state.result?.filename ?? ""
-  values.replaceChildren()
-  diagnostics.replaceChildren()
   if (state.preview) {
+    values.replaceChildren()
+    diagnostics.replaceChildren()
     artwork.show(state.preview, copy)
     for (const key of playfieldKeys) {
       const value = state.preview.playfield[key]
@@ -168,6 +178,7 @@ function renderState(state: ConversionState) {
 controller.subscribe((state) => {
   if (state.phase === "idle") ready = true
   if (state.phase === "initializing") ready = false
+  if (state.requiresReset) ready = false
   statusOverride = undefined
   localError = undefined
   if (state.phase === "success") currentStep = "download"
@@ -182,8 +193,6 @@ controller.subscribe((state) => {
     download.download = state.result.filename
     download.hidden = false
     element("download-title", HTMLElement).focus({ preventScroll: true })
-  } else if (state.phase === "review" && state.preview && currentStep === "review") {
-    element("review-title", HTMLElement).focus({ preventScroll: true })
   }
 })
 language.onchange = () => {
@@ -197,7 +206,6 @@ uiTheme.onchange = () => {
 function review() {
   if (!source) return
   currentStep = "review"
-  artwork.clear()
   statusOverride = undefined
   const request: WebConversionRequest =
     direction === "etterna-to-osu"
@@ -275,7 +283,6 @@ async function accept(next: BrowserSource, name: string) {
     localError = cause instanceof Error ? cause.message : copy.folderError
     statusOverride = "validFolder"
     renderState(controller.state)
-    select.disabled = fallback.disabled = false
   }
 }
 function beginFolderSelection() {
@@ -340,7 +347,11 @@ folder.onchange = () => {
     renderState(controller.state)
   }
 }
-next.onclick = review
+next.onclick = () => {
+  review()
+  element("review-title", HTMLElement).focus({ preventScroll: true })
+}
+skin.onchange = profile.onchange = density.onchange = review
 back.onclick = () => {
   currentStep = "source"
   renderState(controller.state)

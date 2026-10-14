@@ -52,7 +52,8 @@ const english = {
   up: "Up",
   right: "Right",
   waitingFolder: "Waiting for the selected folder…",
-  sourceReady: "Choose your source settings, then review the skin.",
+  sourceReady: "Folder ready. Continue to review your skin.",
+  updatingPreview: "Updating preview…",
   downloadSkin: "Download skin ↓",
   reset: "Start over",
   installation:
@@ -144,7 +145,8 @@ const portuguese: PageCopy = {
   up: "Cima",
   right: "Direita",
   waitingFolder: "Aguardando a pasta selecionada…",
-  sourceReady: "Escolha as configurações da origem e confira a skin.",
+  sourceReady: "Pasta pronta. Avance para conferir sua skin.",
+  updatingPreview: "Atualizando a prévia…",
   downloadSkin: "Baixar skin ↓",
   reset: "Recomeçar",
   installation:

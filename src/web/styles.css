@@ -503,6 +503,15 @@ main {
   gap: 32px;
   align-items: start;
 }
+.preview-status {
+  color: var(--accent);
+  padding: 12px 14px;
+  border-left: 2px solid var(--accent);
+  background: var(--inset);
+}
+.review-panel[aria-busy="true"] .review-layout {
+  opacity: 0.45;
+}
 .artwork-card {
   margin: 12px 0 0;
 }
