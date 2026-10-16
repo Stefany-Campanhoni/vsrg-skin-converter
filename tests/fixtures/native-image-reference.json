@@ -1,0 +1,154 @@
+{
+  "versions": {
+    "aom": "3.14.1",
+    "archive": "3.8.7",
+    "cairo": "1.18.4",
+    "cgif": "0.5.3",
+    "exif": "0.6.26",
+    "expat": "2.8.1",
+    "ffi": "3.5.2",
+    "fontconfig": "2.18.1",
+    "freetype": "2.14.3",
+    "fribidi": "1.0.16",
+    "glib": "2.89.0",
+    "harfbuzz": "14.2.1",
+    "heif": "1.23.0",
+    "highway": "1.4.0",
+    "imagequant": "2.4.1",
+    "lcms": "2.19.1",
+    "mozjpeg": "0826579",
+    "pango": "1.57.1",
+    "pixman": "0.46.4",
+    "png": "1.6.58",
+    "proxy-libintl": "0.5",
+    "rsvg": "2.62.3",
+    "tiff": "732665c",
+    "uhdr": "13a058f",
+    "vips": "8.18.3",
+    "webp": "1.6.0",
+    "xml2": "2.15.3",
+    "zlib-ng": "2.3.3",
+    "sharp": "0.35.3"
+  },
+  "sourceSha256": "c076bb31e31a1f7197e43cc6ec7af88a09f70496df7ecb86e80b5ff8ddde712b",
+  "rotate-0": {
+    "width": 24,
+    "height": 18,
+    "pixelSha256": "bcbdcc701399d57c31f73426b4f1dd01ec6e4c385166d1f25983bf7eb943a97a"
+  },
+  "rotate-90": {
+    "width": 18,
+    "height": 24,
+    "pixelSha256": "e8564d14a875bdf8dfd812614f2d0d588b9342019d51d3f18b0b4b7afdc0fd2a"
+  },
+  "rotate-180": {
+    "width": 24,
+    "height": 18,
+    "pixelSha256": "d5cb642ba27dbb2ca04f11d1208cb4848ee70941d735013a8cca85d9bc34df13"
+  },
+  "rotate-270": {
+    "width": 18,
+    "height": 24,
+    "pixelSha256": "685b413c4f53091a14ad1aaaa373c6b444b0c4da344160b4ecfb31323d132166"
+  },
+  "rotate-17": {
+    "width": 28,
+    "height": 24,
+    "pixelSha256": "c9259fe7865ce74013d7fc57b0bc3aa863d27e6542c8e5698d57a8d76c14e626"
+  },
+  "frame": {
+    "width": 12,
+    "height": 6,
+    "pixelSha256": "0c6f0d91fa8d83a0d67b398e4fcc8c98e50b0f84e719cbc81c0fddabcdbecad6"
+  },
+  "scale-0.5": {
+    "width": 12,
+    "height": 9,
+    "pixelSha256": "89b056c50c966348aa00c8683d805d43c577efe8162fe410f82b4a25cc352242"
+  },
+  "scale-1": {
+    "width": 24,
+    "height": 18,
+    "pixelSha256": "bcbdcc701399d57c31f73426b4f1dd01ec6e4c385166d1f25983bf7eb943a97a"
+  },
+  "scale-2": {
+    "width": 48,
+    "height": 36,
+    "pixelSha256": "fe5a82b60fdaa86beb19beba551f63065a2ce99e2b27985a0b270bbee1f33625"
+  },
+  "width-24": {
+    "width": 24,
+    "height": 18,
+    "pixelSha256": "bcbdcc701399d57c31f73426b4f1dd01ec6e4c385166d1f25983bf7eb943a97a"
+  },
+  "width-12": {
+    "width": 12,
+    "height": 9,
+    "pixelSha256": "89b056c50c966348aa00c8683d805d43c577efe8162fe410f82b4a25cc352242"
+  },
+  "width-150": {
+    "width": 150,
+    "height": 113,
+    "pixelSha256": "05478590c85f81887299be9d00daf975179f8e8678f39e3e61a7ddd532ff1484"
+  },
+  "exact": {
+    "width": 146,
+    "height": 117,
+    "pixelSha256": "9547817f00921862d11661ffee897c8c41f9ce0d056ca75588f9e124d36838e3"
+  },
+  "normalize": {
+    "width": 146,
+    "height": 117,
+    "pixelSha256": "24b1983838e5652103b738e42c4cb5493a56d8678ab3d9f484018afbf644f82a"
+  },
+  "sheet": {
+    "width": 28,
+    "height": 144,
+    "pixelSha256": "11d92d26d3a14dbe6f4ea8df42f64b3773f51dfa2115302f25e6274795523549"
+  },
+  "receptor-432-46": {
+    "width": 150,
+    "height": 368,
+    "pixelSha256": "8e62b073bdd68fe693a8de167034fba0f2ef183f560630a967adf5882c5b76f3"
+  },
+  "receptor-432-62": {
+    "width": 150,
+    "height": 368,
+    "pixelSha256": "071a6e1c3305f8141fbd97310493260bbd65923076c01b53015eec59ce56c337"
+  },
+  "receptor-432-70": {
+    "width": 150,
+    "height": 368,
+    "pixelSha256": "faf1dbe060e988a2c1ff3c69d97566fc057a8a159a63568d204f6504a8fb800f"
+  },
+  "receptor-438-46": {
+    "width": 150,
+    "height": 356,
+    "pixelSha256": "7a06e41ef100caae971913dd74dd4ff261f4e5f3c63e1a80db040f1e33765338"
+  },
+  "receptor-438-62": {
+    "width": 150,
+    "height": 356,
+    "pixelSha256": "fa0af590936c956a1e92ece818601f26162fd004d571feba270e03f1c8672526"
+  },
+  "receptor-438-70": {
+    "width": 150,
+    "height": 356,
+    "pixelSha256": "8c78fd7277435805382c2ab02ec4ed9200309cea1c86f5c4fe4051fe31b8ee77"
+  },
+  "receptor-439-46": {
+    "width": 150,
+    "height": 354,
+    "pixelSha256": "d89da15dbca31b69f60ebc7916ade6c49b2f2f1b80d4a148c6d9fc4f4ca85c3b"
+  },
+  "receptor-439-62": {
+    "width": 150,
+    "height": 354,
+    "pixelSha256": "064fbb6bb65141e464d9f513a88b1397e42f4eb4f08a97de2433acfd87afaffe"
+  },
+  "receptor-439-70": {
+    "width": 150,
+    "height": 354,
+    "pixelSha256": "b9a67b6f166e4cc7443944cda23e0fd3a49d66353cf8db6af1e48ce9329a6cf1"
+  }
+}

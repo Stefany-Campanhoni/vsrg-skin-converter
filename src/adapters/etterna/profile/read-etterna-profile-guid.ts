@@ -1,3 +1,7 @@
+import { extractEtternaProfileGuid } from "./extract-etterna-profile-guid.ts"
+
+export { extractEtternaProfileGuid } from "./extract-etterna-profile-guid.ts"
+
 import path from "node:path"
 import { readTextFile } from "../../../infrastructure/filesystem/bun-file.ts"
 import { resolveEtternaProfilePath } from "../settings/etterna-settings-paths.ts"
@@ -11,17 +15,4 @@ export async function readEtternaProfileGuid(gameRoot: string, profileId: string
     throw new Error(`Could not read Etterna profile GUID from ${profilePath}`, { cause })
   }
   return extractEtternaProfileGuid(source, profilePath)
-}
-
-export function extractEtternaProfileGuid(source: string, profilePath: string): string {
-  const matches = [...source.matchAll(/<Guid\b[^>]*>([\s\S]*?)<\/Guid>/gi)]
-  if (matches.length !== 1) {
-    throw new Error(`Expected exactly one <Guid> in ${profilePath}`)
-  }
-
-  const guid = matches[0]?.[1]?.trim()
-  if (!guid) {
-    throw new Error(`Expected a non-empty <Guid> in ${profilePath}`)
-  }
-  return guid
 }

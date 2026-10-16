@@ -1,4 +1,4 @@
-import { gameDefaults } from "../../config/game-defaults.ts"
+import { etternaOsuPlayfieldReference as gameDefaults } from "../etterna-osu-playfield-reference.ts"
 
 const osuHitPositionCalibrationOffset = 1
 

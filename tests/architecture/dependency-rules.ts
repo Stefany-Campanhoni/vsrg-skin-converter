@@ -2,6 +2,7 @@ import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
 
 const allowedDependencies: Readonly<Record<string, ReadonlySet<string>>> = {
+  web: new Set(["web", "adapters", "application", "conversions", "domain", "infrastructure"]),
   root: new Set(["cli"]),
   cli: new Set([
     "adapters",

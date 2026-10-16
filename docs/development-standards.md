@@ -1,5 +1,46 @@
 # Development Standards
 
+Browser changes additionally require `bun run build:web` and `bun run test:browser`. The
+browser build must use only same-origin relative resources and work under a repository
+subpath. Real-browser evidence covers isolation without development headers, both ZIP
+downloads, source privacy, unchanged source bytes, invalid input and decoded image parity.
+Keep synthetic fixtures/reports under ignored `.tmp`; private corpora must not enter commits.
+Run the quality gate before browser tests, then build the deliverable after they finish:
+distribution tests rebuild `build/web`, which the browser test server also reads.
+`bun .ci/web/audit-browser-skins.ts <corpus-root>` prepares local reference evidence for
+applicable Etterna skins; browser tests compare that evidence when present. Report native
+unsupported cases separately from regressions. Native folder-picker dialogs need a manual
+smoke check because browser automation only covers the directory-input/handle contracts.
+Pages actions use full commit pins, PR jobs have read-only permissions, and only the tested
+`main` artifact deploys with Pages/OIDC permissions in the `github-pages` environment.
+
+Browser presentation tests also cover English defaults, Portuguese visible and accessible
+labels, theme/language changes retaining a reviewed source and archive URL, both route
+backgrounds, reduced motion, and a mobile viewport without horizontal overflow.
+They verify continuous linear background movement in both directions, a quick converter
+entrance from the right, identical border geometry/opacity across both palettes, and intermediate
+rendered component/background colors with and without reduced motion. They also verify replacement of
+folder controls with localized processing stages from opening either picker through
+discovery/conversion, plus inline feedback during inspection, including cancellation and late selection after reset.
+Wizard tests verify exclusive Source/Review/Download content, Back retaining source options,
+four decoded note/receptor pairs, thumbnail URL retention during localization and revocation
+on replacement/reset. Integration tests decode the preview PNGs against source fixture pixels
+while retaining archive parity assertions.
+Live review tests verify controls belong to Review, option changes update actual PNG pixels
+and profile values, rapid density changes publish only the latest selection, and invalid
+density recovers without leaving Review. Controller tests cover obsolete completions and
+failures, queued transport failure, and queue invalidation on reset.
+Global worker failures must disable live selectors until processing is reset.
+Worker discovery tests cover cancellation, stale replies and retry after failure. A large
+synthetic installation guards against repeated full-file scans during directory lookups.
+Contrast regressions for small text outside the panel are checked against the rendered
+light-theme backgrounds in both directions, including the decorative patterns and overlay.
+
+Scoped native source access in `src/infrastructure/filesystem/native-source-files.ts`
+and browser build staging in `.ci/web/build-web.ts` (controlled output mkdir/removal only)
+uses `node:fs/promises` for directory metadata, realpath containment, and file-kind checks;
+Bun reads file bytes. Browser sources use read-only directory handles or directory File inputs.
+
 These rules are mandatory for production code, tests, documentation, and agent-authored
 changes.
 

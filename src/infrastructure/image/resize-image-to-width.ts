@@ -1,19 +1,4 @@
-import sharp from "sharp"
-
-export async function resizeImageToWidth(
-  image: Uint8Array,
-  targetWidth: number,
-): Promise<Uint8Array> {
-  if (!Number.isInteger(targetWidth) || targetWidth <= 0) {
-    throw new Error("target width must be a positive integer")
-  }
-
-  try {
-    const metadata = await sharp(image).metadata()
-    if (metadata.width === targetWidth) return image
-
-    return await sharp(image).resize({ width: targetWidth }).png().toBuffer()
-  } catch (cause) {
-    throw new Error(`Could not resize image proportionally to width ${targetWidth}`, { cause })
-  }
+import { nativeImageOperations } from "./native-image-operations.ts"
+export function resizeImageToWidth(image: Uint8Array, width: number): Promise<Uint8Array> {
+  return nativeImageOperations.resizeToWidth(image, width)
 }

@@ -8,7 +8,7 @@ import {
 } from "../../../../infrastructure/lua/ast.ts"
 import type { LuaStringVariables } from "../../../../infrastructure/lua/evaluate-expression.ts"
 import { evaluateLuaString } from "../../../../infrastructure/lua/evaluate-expression.ts"
-import type { ResolvedSkinAsset, SkinFileResolver } from "../resolve-skin-files.ts"
+import type { ResolvedSkinAsset, SkinFileResolver } from "../indexed-skin-file-resolver.ts"
 
 export interface AnalyzeTapNoteOptions {
   source: string

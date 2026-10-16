@@ -1,6 +1,8 @@
-import path from "node:path"
+import { assertSafeEtternaDirectorySegment } from "./etterna-directory-segment.ts"
 
-const windowsReservedDeviceName = /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:\.|$)/i
+export { assertSafeEtternaDirectorySegment } from "./etterna-directory-segment.ts"
+
+import path from "node:path"
 
 export function resolveEtternaNoteSkinPath(gameRoot: string, skinName: string): string {
   assertSafeEtternaDirectorySegment(skinName, "NoteSkin name")
@@ -37,25 +39,4 @@ export function resolveEtternaJudgmentsPath(gameRoot: string): string {
 export function resolveEtternaJudgementPath(gameRoot: string, filename: string): string {
   assertSafeEtternaDirectorySegment(filename, "judgement filename")
   return path.join(resolveEtternaJudgmentsPath(gameRoot), filename)
-}
-
-export function assertSafeEtternaDirectorySegment(value: string, label: string): void {
-  if (
-    value.length === 0 ||
-    value === "." ||
-    value === ".." ||
-    path.isAbsolute(value) ||
-    hasWindowsInvalidCharacter(value) ||
-    /[. ]$/.test(value) ||
-    windowsReservedDeviceName.test(value)
-  ) {
-    throw new Error(`Unsafe Etterna ${label}: ${JSON.stringify(value)}`)
-  }
-}
-
-function hasWindowsInvalidCharacter(value: string): boolean {
-  const invalidCharacters = '<>:"/\\|?*'
-  return [...value].some(
-    (character) => character.charCodeAt(0) < 32 || invalidCharacters.includes(character),
-  )
 }

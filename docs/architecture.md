@@ -17,9 +17,73 @@ OsuSkinReader -> OsuToEtternaConversion -> EtternaSkinInstaller
   -> TransactionalOutputSetPublisher
 ```
 
-The CLI is the composition root. It selects concrete implementations and passes them to the
+The CLI and browser worker are composition roots. They select concrete implementations and pass them to the
 application use case. The application layer coordinates the operation exclusively through
 ports.
+
+The full `SkinModel` and CLI operation retain required scroll speed and transactional native
+publication. `VisualSkinModel` omits speed; `convertVisualSkin` coordinates reader, registered
+route and exporter ports for downloadable files. Pair conversions share one visual mapping;
+the forward browser route invokes the full converter only with a real source CMod.
+
+`SourceFiles` scopes native roots, read-only directory handles or directory Files. Issued
+opaque asset identities belong to exactly one registered store. Shared adapter readers own
+Lua/INI/XML parsing, case/density selection and missing-file decisions; Lua is never executed.
+Native convenience wrappers preserve existing public contracts. Shared target preparation
+owns all image geometry/naming and template rendering; native outputs preserve transactions,
+while browser exporters write a bounded in-memory `GeneratedFiles` set and archive only its
+settled final snapshot. Reverse web output contains NoteSkin, judgement, visual settings and
+installation guide, with no numbered profile, XML identity, CMod or destination CFG.
+
+`ImageOperations` uses shared image policies over `RasterBackend`: Sharp for native I/O and
+local wasm-vips/libvips for browser execution. Decoded pixel parity is a required gate.
+The `web` layer may depend on web/adapters/application/conversions/domain/infrastructure;
+other layers cannot depend on web. Its transitive graph must contain no CLI, Node, Bun,
+Sharp or native wrappers, including type dependencies. Original browser source assets never
+become URLs. Inspection renders bounded PNG thumbnails through the existing frame/rotation
+image operations; their temporary Blob URLs belong to the artwork presentation module.
+
+The worker preinitializes before selection and owns Etterna catalog discovery, source
+indexing, inspection and conversion. Directory File metadata is indexed once per source
+instance into immediate-child listings; lookups do not rescan unrelated installation files.
+File/directory and case ambiguities remain errors when their directory is requested.
+The worker reports tagged catalogs/progress/results, clones four ordered note/receptor
+thumbnail pairs for review, and transfers completed archive bytes. Thumbnail dimensions
+are bounded to 128 pixels per axis and reply validation limits each image to 1 MiB.
+Reset rejects pending discovery and invalidates request IDs immediately, waits for accepted
+work to settle and disposal acknowledgment, releases WASM/cache/source references, then
+terminates and initializes a fresh worker. The controller drops stale replies. The local
+isolation service worker performs at most one initialization reload, before any selection.
+
+Browser copy belongs to `web/page-copy.ts`; it translates presentation text and accessible
+labels without altering adapter diagnostics or migration policies. Language and theme
+changes only rerender the page and retain controller/source/result state. Archive URL
+creation belongs to controller result delivery, not presentation rerenders. Route changes
+still reset the controller and invalidate the previous source.
+Source, Review and Download replace the card's main content; progress indicators track the
+visible step. Source selects the folder and discovers its catalog. Review owns the skin,
+profile and density controls and automatically requests inspection when they change.
+Review stays visible while inspecting; the previous artwork/settings are dimmed and
+conversion remains blocked until the latest selection is validated. One inspection runs
+at a time; repeated changes replace one pending command. An obsolete completion or failure
+only starts the latest pending inspection and cannot publish stale preview state.
+Reset/disposal drops queued commands before releasing the active worker. A failed inspection
+clears stale artwork while keeping the controls available for recovery.
+An unscoped transport/worker failure drops pending commands and requires reset; controls
+cannot queue retries behind work that may never acknowledge completion.
+Back preserves the source and choices; another inspection replaces the artwork. Thumbnail
+URLs survive language/theme rerenders and are revoked on replacement, reset or page exit.
+Artwork represents selected tap notes and normal receptors in an illustrative four-lane
+layout; target geometry and migration policies remain owned by the existing adapters.
+The folder controls are hidden from opening either picker through initialization, discovery
+and conversion; a local processing panel shows the current stage until completion,
+cancellation or failure. Picker epochs reject selections delivered after reset. The background
+slides its color gradient and motifs linearly with the route. A registered CSS percentage
+interpolates the whole component palette on the same 320 ms timeline, replacing purple with pink
+without changing border geometry or opacity. Route changes also animate the converter into place
+from a short offset on the right; any previous entrance is cancelled before starting the next.
+These explicitly requested route transitions stay animated with reduced motion, while processing
+pulses and hover displacement remain disabled for that preference.
 
 ## Layers
 

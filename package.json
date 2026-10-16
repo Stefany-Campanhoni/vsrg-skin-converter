@@ -5,6 +5,9 @@
   "packageManager": "bun@1.4.0",
   "main": "src/cli.ts",
   "scripts": {
+    "build:web": "bun .ci/web/build-web.ts",
+    "dev:web": "bun .ci/web/serve-web.ts --site --pages",
+    "test:browser": "bun .ci/web/capture-image-reference.ts && bun node_modules/@playwright/test/cli.js test -c tests/browser/playwright.config.ts",
     "build": "bun .ci/release/build-application.ts",
     "build:windows": "bun .ci/release/assemble-windows-portable.ts",
     "test:distribution": "bun test tests/distribution --timeout 15000 --max-concurrency 1 && bun .ci/release/create-windows-release.ts",
@@ -52,8 +55,9 @@
     "@changesets/cli": "3.0.1",
     "@commitlint/cli": "21.2.2",
     "@commitlint/config-conventional": "21.2.2",
-    "@types/luaparse": "^0.2.13",
+    "@playwright/test": "1.64.0",
     "@types/bun": "1.4.0",
+    "@types/luaparse": "^0.2.13",
     "@types/semver": "7.8.0",
     "husky": "9.1.7",
     "semver": "7.8.5",
@@ -61,7 +65,10 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
+    "coi-serviceworker": "0.1.7",
+    "fflate": "0.8.3",
     "luaparse": "^0.3.1",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "wasm-vips": "0.0.18"
   }
 }

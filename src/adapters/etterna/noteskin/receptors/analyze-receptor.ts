@@ -1,4 +1,3 @@
-import path from "node:path"
 import luaparse, { type Expression } from "luaparse"
 import type {
   ColumnDirection,
@@ -6,6 +5,7 @@ import type {
   ReceptorState,
   SpriteFrame,
 } from "../../../../domain/image.ts"
+import { sourceBasename } from "../../../../infrastructure/filesystem/source-relative-path.ts"
 import {
   type AstObject,
   asAstObject,
@@ -16,7 +16,7 @@ import {
   evaluateLuaString,
   type LuaStringVariables,
 } from "../../../../infrastructure/lua/evaluate-expression.ts"
-import type { ResolvedSkinAsset, SkinFileResolver } from "../resolve-skin-files.ts"
+import type { ResolvedSkinAsset, SkinFileResolver } from "../indexed-skin-file-resolver.ts"
 import type { ReceptorCandidate } from "./select-receptor-candidate.ts"
 import { selectCandidate } from "./select-receptor-candidate.ts"
 
@@ -261,7 +261,7 @@ function getDeclaredFrame(fields: Map<string, AstObject>): number | undefined {
 }
 
 function inferSemanticState(value: string): ReceptorState | undefined {
-  const name = path.basename(value).toLowerCase()
+  const name = sourceBasename(value).toLowerCase()
   if (/(?:press|pressed|overlay|flash)/i.test(name)) {
     return "pressed"
   }

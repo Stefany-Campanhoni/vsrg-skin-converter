@@ -1,4 +1,4 @@
-import { osuDefaultLocation } from "./osu-installation.ts"
+import { osuDefaultLocation } from "./osu-location-defaults.ts"
 
 export const gameDefaults = {
   etterna: {

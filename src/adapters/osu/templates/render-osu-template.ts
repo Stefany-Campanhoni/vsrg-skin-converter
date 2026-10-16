@@ -1,17 +1,9 @@
 import { readTextFile, writeFileContents } from "../../../infrastructure/filesystem/bun-file.ts"
 
-export type TemplateReplacements = Readonly<Record<string, string | number>>
+import { replaceWildcards, type TemplateReplacements } from "./osu-template-content.ts"
 
-const wildcardPattern = /\$\{([a-zA-Z0-9_]+)\}/g
-
-export function replaceWildcards(content: string, replacements: TemplateReplacements): string {
-  return content.replace(wildcardPattern, (wildcard, key: string) => {
-    const value = replacements[key]
-
-    return value === undefined ? wildcard : String(value)
-  })
-}
-
+export type { TemplateReplacements } from "./osu-template-content.ts"
+export { replaceWildcards } from "./osu-template-content.ts"
 export async function renderTemplateFile(
   filePath: string,
   replacements: TemplateReplacements,

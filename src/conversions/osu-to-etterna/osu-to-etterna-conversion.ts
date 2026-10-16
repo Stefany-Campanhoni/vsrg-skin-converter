@@ -1,10 +1,7 @@
 import type { SkinConversion } from "../../application/conversion/conversion-registry.ts"
 import type { SkinModel } from "../../domain/skin.ts"
-import { getEtternaComboPosition } from "./convert-combo-position.ts"
-import { getEtternaHitPosition } from "./convert-hit-position.ts"
-import { getEtternaJudgementPosition } from "./convert-judgement-position.ts"
-import { getEtternaReceptorSize } from "./convert-receptor-size.ts"
 import { getEtternaCmod } from "./convert-scroll-speed.ts"
+import { convertOsuVisualPlayfield } from "./osu-to-etterna-visual-conversion.ts"
 
 export class OsuToEtternaConversion implements SkinConversion {
   readonly source = "osu"
@@ -17,17 +14,15 @@ export class OsuToEtternaConversion implements SkinConversion {
 
     assertCompletePlayfield(source)
 
-    const receptorSize = getEtternaReceptorSize(source.playfield.columnWidth)
+    const visual = convertOsuVisualPlayfield(source.playfield)
+    const receptorSize = visual.columnWidth
 
     return {
       ...source,
       game: this.target,
       playfield: {
         ...source.playfield,
-        hitPosition: getEtternaHitPosition(source.playfield.hitPosition),
-        judgementPosition: getEtternaJudgementPosition(source.playfield.judgementPosition),
-        comboPosition: getEtternaComboPosition(source.playfield.comboPosition),
-        columnWidth: receptorSize,
+        ...visual,
         scrollSpeed: getEtternaCmod(source.playfield.scrollSpeed, receptorSize),
       },
     }

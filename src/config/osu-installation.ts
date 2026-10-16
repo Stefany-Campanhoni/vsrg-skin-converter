@@ -1,7 +1,8 @@
 import path from "node:path"
 
-export const osuInstallationDirectoryName = "osu!"
-export const osuDefaultLocation = `%LOCALAPPDATA%/${osuInstallationDirectoryName}`
+import { osuInstallationDirectoryName } from "./osu-location-defaults.ts"
+
+export { osuDefaultLocation, osuInstallationDirectoryName } from "./osu-location-defaults.ts"
 
 export function resolveDefaultOsuInstallationDirectory(
   localAppData: string | undefined,

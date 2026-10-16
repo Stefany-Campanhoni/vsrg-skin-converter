@@ -87,6 +87,65 @@ fails, it restores the previous files and removes incomplete output.
 
 ## Run from source
 
+### Browser converter
+
+The static GitHub Pages app converts entirely on your computer, with no upload or backend.
+For Etterna → osu!mania, select the Etterna installation, then a dance NoteSkin and a local
+profile. For osu!mania → Etterna, select only the skin folder and choose SD or HD explicitly.
+Only 4K is supported. The card has three screens: Source, Review and Download. Source selects
+only the folder. Review contains the Etterna NoteSkin/profile or osu! density selectors;
+changing an option automatically updates the artwork and converted settings. Back returns
+to the folder screen while retaining those choices. Review shows four tap notes and normal
+receptors from the selected skin, alongside the target visual settings. The artwork layout
+is illustrative, not a game simulation.
+Convert, download the ZIP, and follow its
+`INSTALLATION.md` before applying anything to a game installation.
+
+The interface starts in English with a dark theme. Use the top controls for Portuguese or
+the light theme; these changes retain the selected source and completed ZIP. Switching
+conversion routes slides the purple arrow and pink triangle backgrounds linearly and clears
+the source for the new game. The interface enters from the right with a short 320 ms transition;
+its palette exchanges purple for pink, retaining the same border shapes and opacity. From opening
+the folder picker through discovery and conversion, the card is replaced by a
+processing panel showing the current stage. Inspection keeps Review and its selectors visible;
+an inline update message dims the previous preview and blocks conversion until the latest
+selection is validated. Rapid changes replace the pending selection while the worker finishes
+its active inspection. Invalid selections clear the old artwork and can be corrected in Review.
+Route transitions stay animated with reduced motion;
+that preference disables processing pulses and hover displacement. Technical
+converter diagnostics retain their original English messages in the conversion notes.
+
+Absent Etterna profile settings use browser defaults with warnings. Present invalid files
+remain errors. A valid source CMod produces a manual ManiaSpeed instruction. The reverse
+browser route never reads an osu! CFG or produces CMod/profile XML; configure speed with
+[CMod Calculator](https://cmodcalc.com/). The CLI retains its full speed/profile migration.
+
+Use a modern browser over HTTPS (or localhost). The app enables isolation through a local
+service worker and may reload once **before** enabling folder selection. Directory handles
+are read-only; a directory file input is available as a fallback. Prefer the native folder
+picker for large installations: the file-list picker may take time to enumerate the entire
+folder before handing files to the app; the waiting panel covers this interval without
+claiming enumeration progress. Cancelling restores the Source screen. Discovery and file-list indexing then run in the
+worker, with indexed directory lookups avoiding repeated scans of unrelated Songs.
+Selection and diagnostics
+are never persisted. Limits: 32 MiB per source/image, 16 megapixels per decoded image, and
+256 MiB generated files. Installation is manual and the ZIP includes backup instructions.
+
+```powershell
+bun ci
+bun run dev:web
+# Open http://localhost:4173/vsrg-skin-converter/
+bun run build:web
+$env:PLAYWRIGHT_CHANNEL = "msedge"
+bun run test:browser
+```
+
+The build emits `build/web`. The Browser Pages workflow verifies PRs and deploys only `main`
+to the `github-pages` environment. Enable **Settings → Pages → Source → GitHub Actions**
+before the first deployment. No deployment URL is claimed until that workflow succeeds.
+
+### Native CLI
+
 Requirements:
 
 - Windows 10 or newer
@@ -114,6 +173,11 @@ requirements.
 
 VSRG Skin Converter is licensed under the [GNU General Public License v3.0](LICENSE)
 (`GPL-3.0-only`). Bundled templates are distributed with permission.
+
+The browser's decorative arrow and triangle patterns are original SVG drawings authored
+for this project and distributed under its GPL-3.0-only license. The arrow direction was
+inspired by a user-provided Etterna reference; that raster image and its wordmark are not
+included in the browser distribution.
 
 The project banner was created for VSRG Skin Converter by
 [@akaneyt](https://www.youtube.com/@akaneyt) and is redistributed with the artist's permission.

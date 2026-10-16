@@ -1,0 +1,68 @@
+import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
+import {
+  sourceBasename,
+  sourceJoin,
+} from "../../../infrastructure/filesystem/source-relative-path.ts"
+
+type ComboImageReader = (filePath: string) => Promise<Uint8Array>
+type ComboImageResizer = (image: Uint8Array, scale: number) => Promise<Uint8Array>
+type ComboImageWriter = (filePath: string, image: Uint8Array) => Promise<void>
+
+const osuComboImageCharacters = [
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "comma",
+  "dot",
+] as const
+const osuComboDensitySuffixes = ["", "@2x"] as const
+const osuComboImageFilenames = osuComboImageCharacters.flatMap((character) =>
+  osuComboDensitySuffixes.map((suffix) => `combo-${character}${suffix}.png`),
+)
+
+export interface WriteOsuComboImagesOptions {
+  outputDirectory: string
+  scale: number
+  read: ComboImageReader
+  resize: ComboImageResizer
+  write: ComboImageWriter
+}
+
+export async function writeOsuComboImagesUsing(options: WriteOsuComboImagesOptions): Promise<void> {
+  const read = options.read
+  const resize = options.resize
+  const write = options.write
+
+  const prepared = await settleAll(
+    osuComboImageFilenames.map((filename) =>
+      invokeAsPromise(async () => {
+        const filePath = sourceJoin(options.outputDirectory, filename)
+        try {
+          const image = await read(filePath)
+          return { filePath, image: await resize(image, options.scale) }
+        } catch (cause) {
+          throw new Error(`Could not prepare osu combo image ${filename}`, { cause })
+        }
+      }),
+    ),
+  )
+
+  await settleAll(
+    prepared.map(({ filePath, image }) =>
+      invokeAsPromise(async () => {
+        try {
+          await write(filePath, image)
+        } catch (cause) {
+          throw new Error(`Could not write osu combo image ${sourceBasename(filePath)}`, { cause })
+        }
+      }),
+    ),
+  )
+}

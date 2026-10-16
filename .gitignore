@@ -8,4 +8,6 @@ tmp/
 .DS_Store
 /.cache/release/
 /build/
+/test-results/
+/playwright-report/
 /release/
