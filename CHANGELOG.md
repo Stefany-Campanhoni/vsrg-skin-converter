@@ -1,5 +1,40 @@
 # vsrg-skin-converter
 
+## 1.2.0
+
+### Minor Changes
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Add a GitHub Pages browser converter with directory inputs and downloadable
+  Etterna/osu!mania skins, reusing existing migration rules. The web reverse route
+  exports visual settings and links to CMod Calculator for manual speed setup.
+
+### Patch Changes
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Keep the same component borders in both browser routes and smoothly exchange purple and
+  pink across the interface. Preserve a gentle background and palette transition when reduced
+  motion is enabled, while disabling animated displacement and processing pulses.
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Move Etterna skin/profile and osu! density choices into Review and update the local preview
+  automatically. Keep controls responsive, coalesce rapid changes into the latest selection,
+  and block conversion until that selection is validated without changing migration policies.
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Redesign the browser converter as a game-style workbench with animated Etterna/osu!
+  backgrounds, English and Portuguese interfaces, and dark/light themes. Language and theme
+  changes preserve the selected source and completed download without changing migration rules.
+
+- [#77](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/77) [`bb528c3`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/bb528c3fb8514ea312026eeaeac28e3917076aa2) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Fix Etterna-to-osu! receptor PNG placement drifting upward at smaller column sizes by calculating transparent footer padding from the fixed HD vertical density instead of column width.
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Make browser route changes faster, animate background motifs without abrupt swaps, and enter the converter from the right.
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Show folder-selection feedback immediately and guide browser conversions through separate
+  Source, Review and Download screens, with four notes and receptors from the selected skin
+  in a local illustrative preview. Preserve the shared migration rules and generated outputs.
+
+- [#79](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/pull/79) [`3b9731a`](https://github.com/Stefany-Campanhoni/vsrg-skin-converter/commit/3b9731abbc575d3d69bf74e451f2bfc70333f969) Thanks [@Stefany-Campanhoni](https://github.com/Stefany-Campanhoni)! - Move Etterna folder discovery and indexing into the browser worker and accelerate directory
+  lookups in large installations. Show processing stages in place of folder controls, slide
+  the route background linearly, and apply osu! pink outlines with emoji preference selectors
+  and a compact 4K label. Migration rules and output formats remain unchanged.
+
 ## 1.1.0
 
 ### Minor Changes
