@@ -19,9 +19,13 @@ labels, theme/language changes retaining a reviewed source and archive URL, both
 backgrounds, reduced motion, and a mobile viewport without horizontal overflow.
 They verify continuous linear background movement in both directions, a quick converter
 entrance from the right, identical border geometry/opacity across both palettes, and intermediate
-rendered component/background colors with and without reduced motion. They also verify replacement of
-folder controls with localized processing stages from opening either picker through
-discovery/conversion, plus inline feedback during inspection, including cancellation and late selection after reset.
+rendered component/background colors with and without reduced motion.
+Route animation tests pause real timelines synchronously during direction changes, before
+the automation command returns, so frame sampling remains independent of runner speed.
+Keep the delayed-command regression alongside duration, movement and pixel assertions.
+They also verify replacement of folder controls with localized processing stages from
+opening either picker through discovery/conversion, plus inline feedback during inspection,
+including cancellation and late selection after reset.
 Wizard tests verify exclusive Source/Review/Download content, Back retaining source options,
 four decoded note/receptor pairs, thumbnail URL retention during localization and revocation
 on replacement/reset. Integration tests decode the preview PNGs against source fixture pixels

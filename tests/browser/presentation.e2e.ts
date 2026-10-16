@@ -1,5 +1,5 @@
 import path from "node:path"
-import { expect, test } from "@playwright/test"
+import { expect, type Page, test } from "@playwright/test"
 import { decodeReference } from "../support/image-reference.ts"
 import {
   createEtternaSourceFixture,
@@ -9,6 +9,42 @@ import {
 const fixtureRoot = path.resolve(".tmp/presentation-fixture/Osu")
 const etternaRoot = path.resolve(".tmp/presentation-fixture/Etterna")
 const address = "http://127.0.0.1:4173/vsrg-skin-converter/"
+
+async function pauseRouteAnimationsOnChange(page: Page) {
+  await page.evaluate(() => {
+    document.addEventListener("change", (event) => {
+      if (!(event.target instanceof HTMLInputElement) || event.target.name !== "direction") return
+      // Capture in the same event task; the real animations may finish before check() returns.
+      for (const selector of ["html", "#background-track", ".converter"])
+        for (const animation of document.querySelector(selector)?.getAnimations() ?? []) {
+          if (animation.effect?.getTiming().iterations === Infinity) continue
+          animation.pause()
+          animation.currentTime = 0
+        }
+    })
+  })
+}
+
+test("route animation sampling survives a delayed browser command", async ({ page }) => {
+  await page.goto(address)
+  await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+  await pauseRouteAnimationsOnChange(page)
+  await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
+  // Deliberately exceed the 320 ms animation to reproduce a slow CI command round trip.
+  await page.waitForTimeout(450)
+  for (const selector of ["html", "#background-track", ".converter"]) {
+    const animations = await page.locator(selector).evaluate((node) =>
+      node.getAnimations().map((animation) => ({
+        state: animation.playState,
+        duration: Number(animation.effect?.getTiming().duration),
+      })),
+    )
+    expect(animations, selector).toHaveLength(1)
+    expect(animations[0]?.state, selector).toBe("paused")
+    expect(animations[0]?.duration ?? 0, selector).toBeGreaterThanOrEqual(200)
+    expect(animations[0]?.duration ?? 0, selector).toBeLessThanOrEqual(400)
+  }
+})
 
 function luminance(red: number, green: number, blue: number) {
   const linear = (byte: number) => {
@@ -173,6 +209,7 @@ test("starts in English and exchanges the game background with the route", async
   const track = page.locator("#background-track")
   await expect(track).toHaveCSS("transition-timing-function", "linear")
   const width = await page.evaluate(() => window.innerWidth)
+  await pauseRouteAnimationsOnChange(page)
   await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
   const samples = await track.evaluate(async (node) => {
     const animation = node.getAnimations()[0]
@@ -276,6 +313,7 @@ test("interface and background colors swap gradually even with reduced motion", 
     await page.emulateMedia({ reducedMotion: motion })
     await page.goto(address)
     await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+    await pauseRouteAnimationsOnChange(page)
     await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
     const duration = await page.evaluate(() => {
       const transition = document.documentElement
@@ -338,6 +376,7 @@ test("background motifs slide continuously in both directions instead of jumping
     await page.goto(address)
     await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
     const track = page.locator("#background-track")
+    await pauseRouteAnimationsOnChange(page)
     for (const route of ["osu!mania → Etterna", "Etterna → osu!mania"]) {
       const start = await track.evaluate((node) => node.getBoundingClientRect().x)
       await page.getByRole("radio", { name: route }).check()
@@ -371,6 +410,7 @@ test("route changes enter the converter from the right and settle quickly", asyn
     await page.emulateMedia({ reducedMotion: motion })
     await page.goto(address)
     await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+    await pauseRouteAnimationsOnChange(page)
     for (const route of ["osu!mania → Etterna", "Etterna → osu!mania"]) {
       await page.getByRole("radio", { name: route }).check()
       const entrance = await page.locator(".converter").evaluate((node) => {
