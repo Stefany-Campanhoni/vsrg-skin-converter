@@ -65,7 +65,7 @@ test("installation reader imports Etterna configuration through the unchanged pa
     comboPosition: -20,
     columnWidth: 108,
     comboScale: 0.6,
-    judgementScale: 0.675,
+    judgementScale: 0.7725,
   })
   expect(result.scrollSpeed).toBe(888)
   expect(result.skin.assets.judgements?.images.great?.frame).toEqual({
