@@ -147,7 +147,8 @@ preserves that format-neutral set. Generic Sharp infrastructure extracts and sca
 while the osu! writer publishes the named SD and HD judgement files.
 
 The source adapter maps `ComboZoom` directly to `comboScale` and maps `JudgmentZoom` to
-`judgementScale` with `1 + (zoom - 1) * 0.5`. Generic image infrastructure proportionally
+`judgementScale` with `1 + (zoom - 1) * 0.35`, softening the profile's size reduction while
+preserving its zoom dependence. Generic image infrastructure proportionally
 resizes rounded, minimum-one-pixel dimensions. After template copying, the osu! adapter
 overwrites the `combo` digit, comma, and dot sprites and their `@2x` variants at
 `comboScale`. The separate `score` and `scoreentry` sprites remain fixed template assets.
@@ -266,7 +267,7 @@ ReceptorSize = round(arithmeticMean(ColumnWidth) + 38)
 ```
 
 Etterna `ComboZoom` is preserved as the neutral combo scale. `JudgmentZoom` becomes
-`1 + (JudgmentZoom - 1) * 0.5`; output dimensions are rounded and clamped to at least one
+`1 + (JudgmentZoom - 1) * 0.35`; output dimensions are rounded and clamped to at least one
 pixel. The osu! receptor canvas changes by two pixels for each hit-position point relative
 to `438`. Receptor vertical scaling maps column width `46` to `1` and width `62` to
 `196 / 146` and uses a logical playfield height of `480`. Receptor key images are stretched

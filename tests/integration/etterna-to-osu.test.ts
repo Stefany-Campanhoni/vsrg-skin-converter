@@ -299,7 +299,7 @@ describe("Etterna-to-osu production installation", () => {
     for (const [grade, color] of Object.entries(expectedLeftColors)) {
       for (const [suffix, expectedDimensions] of [
         [".png", { width: 3, height: 2 }],
-        ["@2x.png", { width: 5, height: 4 }],
+        ["@2x.png", { width: 6, height: 5 }],
       ] as const) {
         const { data, info } = await sharp(path.join(judgementOutputDirectory, `${grade}${suffix}`))
           .raw()
