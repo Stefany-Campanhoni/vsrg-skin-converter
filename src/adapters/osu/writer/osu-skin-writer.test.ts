@@ -63,8 +63,8 @@ test("writes a complete osu skin workspace", async () => {
       path.join(workspace, "mania", "judgements", "marvelous.png"),
     ).metadata()
     expect({ width: judgement.width, height: judgement.height }).toStrictEqual({
-      width: 16,
-      height: 11,
+      width: 24,
+      height: 16,
     })
     const combo = await sharp(path.join(workspace, "combo-0.png")).metadata()
     expect({ width: combo.width, height: combo.height }).toStrictEqual({ width: 6, height: 4 })
