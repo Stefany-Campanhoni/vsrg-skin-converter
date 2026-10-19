@@ -50,13 +50,13 @@
     "bun": "1.4.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.10",
-    "@changesets/changelog-github": "1.0.0",
-    "@changesets/cli": "3.0.1",
-    "@commitlint/cli": "21.2.2",
-    "@commitlint/config-conventional": "21.2.2",
-    "@playwright/test": "1.64.0",
-    "@types/bun": "1.4.0",
+    "@biomejs/biome": "^2.5.15",
+    "@changesets/changelog-github": "1.0.1",
+    "@changesets/cli": "3.0.3",
+    "@commitlint/cli": "21.2.3",
+    "@commitlint/config-conventional": "21.2.3",
+    "@playwright/test": "1.64.1",
+    "@types/bun": "1.4.3",
     "@types/luaparse": "^0.2.13",
     "@types/semver": "7.8.0",
     "husky": "9.1.7",
@@ -64,11 +64,11 @@
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@clack/prompts": "^1.7.0",
+    "@clack/prompts": "^1.8.1",
     "coi-serviceworker": "0.1.7",
     "fflate": "0.8.3",
     "luaparse": "^0.3.1",
-    "sharp": "^0.35.3",
-    "wasm-vips": "0.0.18"
+    "sharp": "^0.35.5",
+    "wasm-vips": "0.0.19"
   }
 }
