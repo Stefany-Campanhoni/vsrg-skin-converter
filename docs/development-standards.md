@@ -26,8 +26,9 @@ Keep the delayed-command regression alongside duration, movement and pixel asser
 They also verify replacement of folder controls with localized processing stages from
 opening either picker through discovery/conversion, plus inline feedback during inspection,
 including cancellation and late selection after reset.
-Wizard tests verify exclusive Source/Review/Download content, Back retaining source options,
-four decoded note/receptor pairs, thumbnail URL retention during localization and revocation
+Wizard tests verify automatic Review entry and heading focus after file-list or handle selection
+in both routes, failed discovery staying on Source, exclusive Source/Review/Download content,
+Back retaining source options, four decoded note/receptor pairs, thumbnail URL retention during localization and revocation
 on replacement/reset. Integration tests decode the preview PNGs against source fixture pixels
 while retaining archive parity assertions.
 Live review tests verify controls belong to Review, option changes update actual PNG pixels

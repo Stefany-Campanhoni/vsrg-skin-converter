@@ -61,8 +61,11 @@ changes only rerender the page and retain controller/source/result state. Archiv
 creation belongs to controller result delivery, not presentation rerenders. Route changes
 still reset the controller and invalidate the previous source.
 Source, Review and Download replace the card's main content; progress indicators track the
-visible step. Source selects the folder and discovers its catalog. Review owns the skin,
-profile and density controls and automatically requests inspection when they change.
+visible step. Source selects the folder and discovers its catalog, then automatically opens
+Review and focuses its heading. Back retains the source and choices; continuing from Source
+opens Review again without selecting another folder. Failed discovery and cancelled or stale
+picker results never advance the wizard. Review owns the skin, profile and density controls
+and automatically requests inspection when they change.
 Review stays visible while inspecting; the previous artwork/settings are dimmed and
 conversion remains blocked until the latest selection is validated. One inspection runs
 at a time; repeated changes replace one pending command. An obsolete completion or failure

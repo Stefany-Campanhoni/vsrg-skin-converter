@@ -93,8 +93,9 @@ The static GitHub Pages app converts entirely on your computer, with no upload o
 For Etterna → osu!mania, select the Etterna installation, then a dance NoteSkin and a local
 profile. For osu!mania → Etterna, select only the skin folder and choose SD or HD explicitly.
 Only 4K is supported. The card has three screens: Source, Review and Download. Source selects
-only the folder. Review contains the Etterna NoteSkin/profile or osu! density selectors;
-changing an option automatically updates the artwork and converted settings. Back returns
+only the folder and automatically opens Review after folder discovery succeeds. Review contains
+the Etterna NoteSkin/profile or osu! density selectors; changing an option automatically
+updates the artwork and converted settings. Back returns
 to the folder screen while retaining those choices. Review shows four tap notes and normal
 receptors from the selected skin, alongside the target visual settings. The artwork layout
 is illustrative, not a game simulation.
