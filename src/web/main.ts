@@ -225,6 +225,10 @@ function review() {
         }
   controller.review(request)
 }
+function openReview() {
+  review()
+  element("review-title", HTMLElement).focus({ preventScroll: true })
+}
 function option(value: string, label: string) {
   const item = document.createElement("option")
   item.value = value
@@ -277,7 +281,7 @@ async function accept(next: BrowserSource, name: string) {
     if (found?.profileIds[0]) profile.value = found.profileIds[0]
     element("options", HTMLElement).hidden = false
     statusOverride = undefined
-    renderState(controller.state)
+    openReview()
   } catch (cause) {
     if (ticket !== epoch) return
     localError = cause instanceof Error ? cause.message : copy.folderError
@@ -347,10 +351,7 @@ folder.onchange = () => {
     renderState(controller.state)
   }
 }
-next.onclick = () => {
-  review()
-  element("review-title", HTMLElement).focus({ preventScroll: true })
-}
+next.onclick = openReview
 skin.onchange = profile.onchange = density.onchange = review
 back.onclick = () => {
   currentStep = "source"

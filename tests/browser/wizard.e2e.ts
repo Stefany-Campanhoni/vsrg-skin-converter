@@ -35,7 +35,7 @@ test("file-list selection shows feedback before files arrive and restores the ca
   await expect(page.locator("#select")).toBeEnabled()
 })
 
-test("each wizard step replaces the main card and review displays four notes and receptors", async ({
+test("folder selection automatically opens Review with four notes and receptors in both routes", async ({
   page,
 }) => {
   for (const [route, game] of [
@@ -50,14 +50,13 @@ test("each wizard step replaces the main card and review displays four notes and
     await expect(page.locator("#review-stage")).toBeHidden()
     await expect(page.locator("#download-stage")).toBeHidden()
     await page.locator("#folder").setInputFiles(path.join(sourceRoot, game))
-    await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+    await expect(page.locator("#review-stage")).toBeVisible({ timeout: 30000 })
+    await expect(page.locator("#review-title")).toBeFocused()
     const optionValues = await page
       .locator("#options select")
       .evaluateAll((nodes) =>
         nodes.map((node) => (node instanceof HTMLSelectElement ? node.value : "")),
       )
-    await expect(page.locator("[data-step=source]")).toHaveAttribute("aria-current", "step")
-    await page.locator("#next").click()
     await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
     await expect(page.locator("#source-stage")).toBeHidden()
     await expect(page.locator("#review-stage")).toBeVisible()
@@ -158,8 +157,6 @@ test("failed conversion restores Source instead of showing a ready download", as
   await page.getByRole("radio", { name: "osu!mania → Etterna" }).check()
   await expect(page.locator("#select")).toBeEnabled({ timeout: 30000 })
   await page.locator("#folder").setInputFiles(invalidRoot)
-  await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
-  await page.locator("#next").click()
   await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
   await Bun.write(path.join(invalidRoot, "skin.ini"), "[Mania]\nKeys=7\n")
   await page.locator("#convert").click()
@@ -220,6 +217,20 @@ test("reset ignores files delivered by a previously opened picker", async ({ pag
   await expect(page.locator("#next")).toBeDisabled()
   await page.locator("#fallback").click()
   await page.locator("#folder").setInputFiles(path.join(sourceRoot, "Etterna"))
-  await expect(page.locator("#next")).toBeEnabled({ timeout: 30000 })
+  await expect(page.locator("#review-stage")).toBeVisible({ timeout: 30000 })
+  await expect(page.locator("#convert")).toBeEnabled({ timeout: 30000 })
   await expect(page.locator("#selection")).toContainText("Etterna")
+})
+
+test("failed Etterna discovery keeps Source visible without opening Review", async ({ page }) => {
+  const invalidRoot = path.join(sourceRoot, "Invalid-Etterna")
+  await Bun.write(path.join(invalidRoot, "unrelated.txt"), "Not an Etterna installation")
+  await page.goto(address)
+  await expect(page.locator("#select")).toBeEnabled({ timeout: 45000 })
+  await page.locator("#folder").setInputFiles(invalidRoot)
+  await expect(page.locator("#error")).toBeVisible({ timeout: 30000 })
+  await expect(page.locator("#source-stage")).toBeVisible()
+  await expect(page.locator("#review-stage")).toBeHidden()
+  await expect(page.locator("#next")).toBeDisabled()
+  await expect(page.locator("#select")).toBeEnabled()
 })
