@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from "bun:test"
 import { mkdtemp, readdir, rm } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
+import sharp from "sharp"
 import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import {
   type JudgementGrade,
@@ -17,6 +18,57 @@ const judgements: JudgementSet = {
     judgementGrades.map((grade) => [grade, { filePath: grade, rotation: 0 }]),
   ) as JudgementSet["images"],
 }
+
+test("enlarges profile-scaled double-density judgements at osu output", async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-size-"))
+  onTestFinished(() => rm(directory, { recursive: true, force: true }))
+  const source = path.join(directory, "sheet.png")
+  await Bun.write(
+    source,
+    await sharp({
+      create: {
+        width: 512,
+        height: 408,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer(),
+  )
+  await writeOsuJudgements({
+    judgements: {
+      sourceDensity: 2,
+      images: Object.fromEntries(
+        judgementGrades.map((grade, index) => [
+          grade,
+          {
+            filePath: source,
+            rotation: 0,
+            frame: { index, columns: 1, rows: 6 },
+          },
+        ]),
+      ),
+    },
+    outputDirectory: directory,
+    scale: 0.9125,
+  })
+
+  for (const grade of judgementGrades) {
+    for (const [suffix, width, height] of [
+      [".png", 350, 47],
+      ["@2x.png", 701, 93],
+    ] as const) {
+      const dimensions = await sharp(
+        path.join(directory, "mania", "judgements", `${grade}${suffix}`),
+      ).metadata()
+      expect({ width: dimensions.width, height: dimensions.height }).toStrictEqual({
+        width,
+        height,
+      })
+    }
+  }
+})
 
 test("writes exact osu judgement filenames", async () => {
   const outputDirectory = await mkdtemp(path.join(os.tmpdir(), "vsrg-judgement-writer-"))
@@ -51,7 +103,8 @@ test("writes exact osu judgement filenames", async () => {
     "perfect.png",
     "perfect@2x.png",
   ])
-  expect(observedScales).toStrictEqual([0.675, 0.675, 0.675, 0.675, 0.675, 0.675])
+  expect(observedScales).toHaveLength(6)
+  for (const scale of observedScales) expect(scale).toBeCloseTo(1.0125)
 })
 
 test("rejects an incomplete judgement set before rendering output", async () => {

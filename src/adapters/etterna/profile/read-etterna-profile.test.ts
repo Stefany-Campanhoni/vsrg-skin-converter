@@ -6,6 +6,22 @@ import luaparse from "luaparse"
 import { expectRejectionSatisfies } from "../../../../tests/support/expectations.ts"
 import { extractEtternaPlayfieldConfiguration, readEtternaProfile } from "./read-etterna-profile.ts"
 
+test.each([
+  [0.35, 0.7725],
+  [0.5, 0.825],
+  [1, 1],
+])("softens judgement scaling while preserving profile zoom %s", (zoom, scale) => {
+  const ast = luaparse.parse(`
+    return {
+      GameplayXYCoordinates = { ["4K"] = { NoteFieldY = -6, JudgmentY = 4, ComboY = -20 } },
+      GameplaySizes = { ["4K"] = { JudgmentZoom = ${zoom}, ComboZoom = 0.6 } },
+      ReceptorSize = 106
+    }
+  `)
+
+  expect(extractEtternaPlayfieldConfiguration(ast).judgementScale).toBe(scale)
+})
+
 test("extracts the real 4K coordinates from a profile with multiple key modes", () => {
   const ast = luaparse.parse(`
     return {
@@ -59,7 +75,7 @@ test("extracts the real 4K coordinates from a profile with multiple key modes", 
     judgementPosition: 4.199984,
     comboPosition: -20.800002,
     columnWidth: 106,
-    judgementScale: 0.675,
+    judgementScale: 0.7725,
     comboScale: 0.6,
   })
 })
@@ -95,7 +111,7 @@ test("uses the last repeated Lua fields when extracting the playfield configurat
     judgementPosition: 4,
     comboPosition: -20,
     columnWidth: 106,
-    judgementScale: 0.675,
+    judgementScale: 0.7725,
     comboScale: 0.6,
   })
 })

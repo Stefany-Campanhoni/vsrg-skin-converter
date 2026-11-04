@@ -7,7 +7,7 @@ import {
   getTableFieldCaseInsensitive,
 } from "../../../infrastructure/lua/ast.ts"
 
-const etternaJudgementZoomInfluence = 0.5
+const etternaJudgementZoomInfluence = 0.35
 export function extractEtternaPlayfieldConfiguration(
   ast: Chunk,
 ): Omit<PlayfieldConfiguration, "scrollSpeed" | "isDownscroll"> {

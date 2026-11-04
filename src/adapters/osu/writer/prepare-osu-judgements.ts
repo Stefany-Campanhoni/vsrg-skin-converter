@@ -3,6 +3,8 @@ import type { ImageAsset } from "../../../domain/image.ts"
 import { type JudgementSet, judgementGrades } from "../../../domain/judgement.ts"
 import { invokeAsPromise, settleAll } from "../../../infrastructure/async/settle-all.ts"
 
+const osuJudgementSizeMultiplier = 1.5
+
 export type JudgementRenderer = (
   definition: ImageAsset,
   sourceDensity: 1 | 2,
@@ -33,7 +35,11 @@ export async function prepareOsuJudgements(
     completeJudgements.map(({ grade, image }) =>
       invokeAsPromise(async () => ({
         grade,
-        variants: await render(image, options.judgements.sourceDensity, options.scale),
+        variants: await render(
+          image,
+          options.judgements.sourceDensity,
+          options.scale * osuJudgementSizeMultiplier,
+        ),
       })),
     ),
   )
